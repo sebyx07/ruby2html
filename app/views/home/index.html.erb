@@ -1,0 +1,36 @@
+<h1>Home</h1>
+
+<%= render FirstComponent.new %>
+<%= render SecondComponent.new %>
+
+<%=
+  html(self) do
+    h1(id: 4) { plain "ok" }
+    h1 "ok"
+    h1 "ok"
+    h1 "ok"
+    h1 "ok"
+    h1 "ok"
+    div do
+      link_to 'home', root_path
+    end
+    link_to 'home', root_path
+    link_to 'home', root_path
+
+    render partial: 'shared/navbar'
+
+    @items.each do |item|
+      h1 item[:title]
+    end
+  end
+%>
+
+<%= render partial: 'shared/navbar' %>
+
+<%=
+  html(self) do
+    @items.each do |item|
+      h1 item[:title]
+    end
+  end
+%>
