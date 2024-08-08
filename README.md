@@ -1,6 +1,6 @@
 # Ruby2html 🔮✨
 
-Transform your Ruby code into beautiful, structured HTML with ease! 🚀
+Transform your view logic into elegant, semantic HTML with the power of pure Ruby! 🚀✨
 
 ## 🌟 What is Ruby2html?
 
@@ -187,13 +187,18 @@ end
 
 ## Without Rails
 ```ruby
-html = Ruby2html::Render.new(nil) do # nil is the context, you can use self or any other object
+renderer = Ruby2html::Render.new(nil) do # nil is the context, you can use self or any other object
   html do
-    h1 'Hello, World!'
+    head do
+      title 'Ruby2html Example'
+    end
+    body do
+      h1 'Hello, World!'
+    end
   end
 end
 
-puts html.render
+puts renderer.render # => "<html><head><title>Ruby2html Example</title></head><body><h1>Hello, World!</h1></body></html>"
 ```
 
 ## 🐢 Gradual Adoption
