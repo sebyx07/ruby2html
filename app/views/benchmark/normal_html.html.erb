@@ -1,0 +1,31 @@
+<h1>Benchmark: Normal HTML (ERB)</h1>
+
+<h2>User Statistics</h2>
+<ul>
+  <li>Total Users: <%= @complex_data[:stats][:total_users] %></li>
+  <li>Average Orders per User: <%= @complex_data[:stats][:average_orders_per_user] %></li>
+  <li>Most Expensive Item: <%= @complex_data[:stats][:most_expensive_item] %></li>
+  <li>Most Popular Country: <%= @complex_data[:stats][:most_popular_country] %></li>
+</ul>
+
+<h2>User List</h2>
+<% @complex_data[:users].each do |user| %>
+  <div class="user-card">
+    <h3><%= user[:name] %></h3>
+    <p>Email: <%= user[:email] %></p>
+    <p>Address: <%= "#{user[:address][:street]}, #{user[:address][:city]}, #{user[:address][:country]}" %></p>
+
+    <h4>Orders</h4>
+    <% user[:orders].each do |order| %>
+      <div class="order">
+        <p>Order ID: <%= order[:id] %></p>
+        <p>Total: $<%= order[:total] %></p>
+        <ul>
+          <% order[:items].each do |item| %>
+            <li><%= item[:name] %> - $<%= item[:price] %> (Quantity: <%= item[:quantity] %>)</li>
+          <% end %>
+        </ul>
+      </div>
+    <% end %>
+  </div>
+<% end %>

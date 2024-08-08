@@ -31,3 +31,9 @@ gem 'rspec-rails', '~> 6.1', '>= 6.1.3'
 gem 'capybara', '~> 3.40'
 
 gem 'lefthook', '~> 1.7', '>= 1.7.4'
+
+gem 'faker'
+
+group :test do
+  gem 'benchmark-ips'
+end

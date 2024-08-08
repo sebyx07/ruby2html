@@ -69,6 +69,26 @@ Replace your ERB with beautiful Ruby code:
 %>
 ```
 
+### Benchmark
+
+```bash
+ruby 3.3.3 (2024-06-12 revision f1c7b6f435) +YJIT [x86_64-linux]
+Warming up --------------------------------------
+GET /benchmark/html (ERB)
+                         1.000 i/100ms
+GET /benchmark/ruby (Ruby2html)
+                         1.000 i/100ms
+Calculating -------------------------------------
+GET /benchmark/html (ERB)
+                         20.163 (±19.8%) i/s -     95.000 in   5.062853s
+GET /benchmark/ruby (Ruby2html)
+                         19.362 (±15.5%) i/s -     92.000 in   5.006433s
+
+Comparison:
+GET /benchmark/html (ERB):       20.2 i/s
+GET /benchmark/ruby (Ruby2html):       19.4 i/s - same-ish: difference falls within error
+```
+
 ### With ViewComponents
 
 Ruby2html seamlessly integrates with ViewComponents, offering flexibility in how you define your component's HTML structure. You can use the `call` method with Ruby2html syntax, or stick with traditional `.erb` template files.
