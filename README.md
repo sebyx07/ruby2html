@@ -97,18 +97,18 @@ Replace your ERB with beautiful Ruby code:
 ruby 3.3.3 (2024-06-12 revision f1c7b6f435) +YJIT [x86_64-linux]
 Warming up --------------------------------------
 GET /benchmark/html (ERB)
-                         1.000 i/100ms
+                         2.000 i/100ms
 GET /benchmark/ruby (Ruby2html)
                          1.000 i/100ms
 Calculating -------------------------------------
 GET /benchmark/html (ERB)
-                         20.163 (±19.8%) i/s -     95.000 in   5.062853s
+                         20.989 (±19.1%) i/s -    102.000 in   5.077353s
 GET /benchmark/ruby (Ruby2html)
-                         19.362 (±15.5%) i/s -     92.000 in   5.006433s
+                         20.438 (±19.6%) i/s -     97.000 in   5.010249s
 
 Comparison:
-GET /benchmark/html (ERB):       20.2 i/s
-GET /benchmark/ruby (Ruby2html):       19.4 i/s - same-ish: difference falls within error
+GET /benchmark/html (ERB):       21.0 i/s
+GET /benchmark/ruby (Ruby2html):       20.4 i/s - same-ish: difference falls within error
 ```
 
 ### With ViewComponents
