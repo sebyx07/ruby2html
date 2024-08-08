@@ -47,7 +47,7 @@ Replace your ERB with beautiful Ruby code:
 <%=
   html(self) do
     h1 class: 'main-title', 'data-controller': 'welcome' do
-      "Welcome to Ruby2html! 🎉"
+      plain "Welcome to Ruby2html! 🎉"
     end
     div id: 'content', class: 'container' do
       link_to 'Home Sweet Home 🏠', root_path, class: 'btn btn-primary', 'data-turbo': false
