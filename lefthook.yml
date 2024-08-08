@@ -1,0 +1,8 @@
+pre-commit:
+  commands:
+    rubocop:
+      run: bundle exec rubocop -A
+      skip:
+        - merge
+        - rebase
+      stage_fixed: true

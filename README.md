@@ -124,6 +124,12 @@ File: `app/components/farewell_component.html.erb`
 <div class="farewell">
   <h2>Goodbye, <%= @name %>! 👋</h2>
   <p>We hope you enjoyed using Ruby2html!</p>
+
+  <%=
+    html do
+      link_to 'Home', root_path, class: 'btn btn-primary', data: { turbo: false }
+    end
+  %>
 </div>
 ```
 
