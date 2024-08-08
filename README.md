@@ -62,7 +62,7 @@ Replace your ERB with beautiful Ruby code:
       end
     end
 
-    plain "<div>Insile html</div>".html_safe
+    plain "<div>Inline html</div>".html_safe
 
     render partial: 'shared/navbar'
   end
