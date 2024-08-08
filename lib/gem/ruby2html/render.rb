@@ -39,14 +39,15 @@ module Ruby2html
     end
 
     HTML5_TAGS.each do |tag|
-      define_method(tag) do |*args, &block|
-        html!(tag, *args, &block)
+      define_method(tag) do |*args, **options, &block|
+        html!(tag, *args, **options, &block)
       end
     end
 
-    def html!(name, *args, &block)
-      attributes = args.first.is_a?(Hash) ? args.shift : {}
-      content = args.first.to_s
+    def html!(name, *args, **options, &block)
+      content = args.first.is_a?(String) ? args.shift : nil
+      attributes = options
+
       tag_content = StringIO.new
       tag_content << '<'
       tag_content << name
@@ -61,10 +62,10 @@ module Ruby2html
           prev_output = @current_output
           nested_content = StringIO.new
           @current_output = nested_content
-          instance_exec(&block)
+          block_result = yield
           @current_output = prev_output
-          tag_content << nested_content.string
-        else
+          tag_content << (block_result.is_a?(String) ? escape_html(block_result) : nested_content.string)
+        elsif content
           tag_content << escape_html(content)
         end
 
@@ -105,7 +106,7 @@ module Ruby2html
         define_method(method) do |*args, &block|
           plain @context.send(method, *args, &block)
         end
-      end
+      end if defined?(ActionView)
 
       def attributes_to_s(attributes)
         return '' if attributes.empty?

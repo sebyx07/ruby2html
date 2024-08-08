@@ -25,6 +25,32 @@ Or install it yourself as:
 
 ## 🎨 Usage
 
+### In your views
+
+File: `app/views/your_view.html.rb`
+
+```ruby
+div class: 'container' do
+  h1 'Welcome to Ruby2html! 🎉', class: 'main-title', 'data-controller': 'welcome'
+  link_to 'Home Sweet Home 🏠', root_path, class: 'btn btn-primary', 'data-turbo': false
+
+  @items.each do |item|
+    h2 class: 'item-title', id: "item-#{item[:id]}" do
+      item[:title]
+    end
+    p class: 'item-description' do
+      item[:description]
+    end
+  end
+end
+
+plain '<div>Inline html</div>'.html_safe
+
+render partial: 'shared/navbar'
+```
+
+#### Or use your current .erb views
+
 ### In your ApplicationController
 
 File: `app/controllers/application_controller.rb`
@@ -37,8 +63,6 @@ class ApplicationController < ActionController::Base
 end
 ```
 
-### In your views
-
 File: `app/views/your_view.html.erb`
 
 Replace your ERB with beautiful Ruby code:
@@ -46,19 +70,17 @@ Replace your ERB with beautiful Ruby code:
 ```erb
 <%=
   html(self) do
-    h1 class: 'main-title', 'data-controller': 'welcome' do
-      plain "Welcome to Ruby2html! 🎉"
-    end
+    h1 "Welcome to Ruby2html! 🎉", class: 'main-title', 'data-controller': 'welcome'
     div id: 'content', class: 'container' do
       link_to 'Home Sweet Home 🏠', root_path, class: 'btn btn-primary', 'data-turbo': false
     end
 
     @items.each do |item|
       h2 class: 'item-title', id: "item-#{item[:id]}" do
-        plain item[:title]
+        item[:title]
       end
       p class: 'item-description' do
-        plain item[:description]
+        item[:description]
       end
     end
 
@@ -118,10 +140,10 @@ class GreetingComponent < ApplicationComponent
   def call
     html(self) do
       h1 class: 'greeting', 'data-user': @name do
-        plain "Hello, #{@name}! 👋"
+        "Hello, #{@name}! 👋"
       end
       p class: 'welcome-message' do
-        plain 'Welcome to the wonderful world of Ruby2html!'
+        'Welcome to the wonderful world of Ruby2html!'
       end
     end
   end
@@ -177,13 +199,13 @@ class FirstComponent < ApplicationComponent
   def call
     html(self) do
       h1 id: 'first-component-title' do
-        plain 'first component'
+        'first component'
       end
       div class: 'content-wrapper' do
         h2 'A subheading'
       end
       p class: 'greeting-text', 'data-testid': 'greeting' do
-        plain @item
+        @item
       end
     end
   end
@@ -199,7 +221,7 @@ class SecondComponent < ApplicationComponent
   def call
     html(self) do
       h1 class: 'my-class', id: 'second-component-title', 'data-controller': 'second' do
-        plain 'second component'
+        'second component'
       end
       link_to 'Home', root_path, class: 'nav-link', 'data-turbo-frame': false
     end

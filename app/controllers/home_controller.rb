@@ -9,4 +9,8 @@ class HomeController < ApplicationController
       }
     ]
   end
+
+  def rb_files
+    @value = 'value'
+  end
 end
