@@ -46,9 +46,11 @@ Replace your ERB with beautiful Ruby code:
 ```erb
 <%=
   html(self) do
-    h1 "Welcome to Ruby2html! 🎉", class: 'main-title', data: { controller: 'welcome' }
+    h1 class: 'main-title', 'data-controller': 'welcome' do
+      "Welcome to Ruby2html! 🎉"
+    end
     div id: 'content', class: 'container' do
-      link_to 'Home Sweet Home 🏠', root_path, class: 'btn btn-primary', data: { turbo: false }
+      link_to 'Home Sweet Home 🏠', root_path, class: 'btn btn-primary', 'data-turbo': false
     end
 
     @items.each do |item|
@@ -93,7 +95,7 @@ class GreetingComponent < ApplicationComponent
 
   def call
     html(self) do
-      h1 class: 'greeting', data: { user: @name } do
+      h1 class: 'greeting', 'data-user': @name do
         plain "Hello, #{@name}! 👋"
       end
       p class: 'welcome-message' do
@@ -127,7 +129,7 @@ File: `app/components/farewell_component.html.erb`
 
   <%=
     html do
-      link_to 'Home', root_path, class: 'btn btn-primary', data: { turbo: false }
+      link_to 'Home', root_path, class: 'btn btn-primary', 'data-turbo': false
     end
   %>
 </div>
@@ -158,7 +160,7 @@ class FirstComponent < ApplicationComponent
       div class: 'content-wrapper' do
         h2 'A subheading'
       end
-      p class: 'greeting-text', data: { testid: 'greeting' } do
+      p class: 'greeting-text', 'data-testid': 'greeting' do
         plain @item
       end
     end
@@ -174,10 +176,10 @@ File: `app/components/second_component.rb`
 class SecondComponent < ApplicationComponent
   def call
     html(self) do
-      h1 class: 'my-class', id: 'second-component-title', data: { controller: 'highlight' } do
-        plain 'Second Component'
+      h1 class: 'my-class', id: 'second-component-title', 'data-controller': 'second' do
+        plain 'second component'
       end
-      link_to 'Home', root_path, class: 'nav-link', data: { turbo_frame: '_top' }
+      link_to 'Home', root_path, class: 'nav-link', 'data-turbo-frame': false
     end
   end
 end
