@@ -99,9 +99,9 @@ module Ruby2html
     end
 
     private
-      def method_missing(method_name, *args, &block)
+      def method_missing(method_name, *args, **options, &block)
         if @context.respond_to?(method_name)
-          @context.send(method_name, *args, &block)
+          @context.send(method_name, *args, **options, &block)
         else
           super
         end
