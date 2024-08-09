@@ -138,7 +138,7 @@ class GreetingComponent < ApplicationComponent
   end
 
   def call
-    html(self) do
+    html do
       h1 class: 'greeting', 'data-user': @name do
         "Hello, #{@name}! 👋"
       end
@@ -164,19 +164,17 @@ class FarewellComponent < ApplicationComponent
 end
 ```
 
-File: `app/components/farewell_component.html.erb`
+File: `app/components/farewell_component.html.rb`
 
-```erb
-<div class="farewell">
-  <h2>Goodbye, <%= @name %>! 👋</h2>
-  <p>We hope you enjoyed using Ruby2html!</p>
-
-  <%=
-    html do
-      link_to 'Home', root_path, class: 'btn btn-primary', 'data-turbo': false
-    end
-  %>
-</div>
+```rb
+div class: 'farewell' do
+  h1 class: 'farewell-message' do
+    "Goodbye, #{@name}! 👋"
+  end
+  p class: 'farewell-text' do
+    'We hope to see you again soon!'
+  end
+end
 ```
 
 This flexibility allows you to:
@@ -197,7 +195,7 @@ class FirstComponent < ApplicationComponent
   end
 
   def call
-    html(self) do
+    html do
       h1 id: 'first-component-title' do
         'first component'
       end
@@ -219,7 +217,7 @@ File: `app/components/second_component.rb`
 
 class SecondComponent < ApplicationComponent
   def call
-    html(self) do
+    html do
       h1 class: 'my-class', id: 'second-component-title', 'data-controller': 'second' do
         'second component'
       end
