@@ -2,7 +2,7 @@
 
 class SecondComponent < ApplicationComponent
   def call
-    html(self) do
+    html do
       h1 class: 'my-class' do
         plain 'Second Component'
       end

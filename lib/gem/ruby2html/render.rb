@@ -35,7 +35,12 @@ module Ruby2html
         return plain @context.render(*args, **options, &block)
       end
       instance_exec(&@root)
-      @output.string
+      result = @output.string
+      if defined?(ActiveSupport)
+        result = ActiveSupport::SafeBuffer.new(result)
+      end
+
+      result
     end
 
     HTML5_TAGS.each do |tag|

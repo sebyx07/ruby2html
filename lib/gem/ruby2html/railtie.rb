@@ -17,6 +17,15 @@ module Ruby2html
       RUBY
     end
   end
+
+  class Railtie < Rails::Railtie
+    initializer 'ruby2html.initializer' do
+      Rails.autoloaders.main.ignore(
+        Rails.root.join('app/views/**/*.html.rb'),
+        Rails.root.join('app/components/**/*.html.rb')
+      )
+    end
+  end
 end
 
 ActionView::Template.register_template_handler :rb, Ruby2html::TemplateHandler if defined? ActionView::Template
