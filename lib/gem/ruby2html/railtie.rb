@@ -11,9 +11,16 @@ module Ruby2html
 
     def call(_template, source)
       <<-RUBY
-        Ruby2html::Render.new(self) do
+      begin
+        previous_renderer = Thread.current[:__ruby2html_renderer__]
+        renderer = Ruby2html::Render.new(self) do
           #{source}
-        end.render
+        end
+        Thread.current[:__ruby2html_renderer__] = renderer
+        renderer.render
+      ensure
+        Thread.current[:__ruby2html_renderer__] = previous_renderer
+      end
       RUBY
     end
   end

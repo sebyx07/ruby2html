@@ -6,4 +6,6 @@ div do
   h2 'A subheading'
 end
 
+another_div
+
 p @item
