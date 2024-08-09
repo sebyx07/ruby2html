@@ -6,7 +6,7 @@ class FirstComponent < ApplicationComponent
   end
 
   def another_div
-    div do
+    div class: 'another' do
       h2 'Another subheading from component'
     end
 

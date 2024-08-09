@@ -12,9 +12,9 @@ module Ruby2html
       Thread.current[:__ruby2html_renderer__] = previous_renderer
     end
 
-    def method_missing(method, *args, &block)
+    def method_missing(method, *args, **options, &block)
       if __ruby2html_renderer__.respond_to?(method)
-        __ruby2html_renderer__.send(method, *args, &block)
+        __ruby2html_renderer__.send(method, *args, **options, &block)
       else
         super
       end
