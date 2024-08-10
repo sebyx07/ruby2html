@@ -32,4 +32,6 @@ Gem::Specification.new do |spec|
     end
   end
   spec.require_paths = ['lib/gem']
+
+  spec.add_dependency 'htmlbeautifier', '>= 1.4'
 end

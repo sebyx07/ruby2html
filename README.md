@@ -49,6 +49,13 @@ plain '<div>Inline html</div>'.html_safe
 render partial: 'shared/navbar'
 ```
 
+### (Optional) Nicely Format the HTML for source inspection
+
+File: `config/environments/development.rb` or `config/environments/test.rb`
+```ruby
+config.middleware.use Ruby2html::HtmlBeautifierMiddleware
+```
+
 #### Or use your current .erb views
 
 ### In your ApplicationController
