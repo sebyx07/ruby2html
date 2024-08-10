@@ -34,12 +34,12 @@ div class: 'container' do
   h1 'Welcome to Ruby2html! 🎉', class: 'main-title', 'data-controller': 'welcome'
   link_to 'Home Sweet Home 🏠', root_path, class: 'btn btn-primary', 'data-turbo': false
 
-  @items.each do |item|
-    h2 class: 'item-title', id: "item-#{item[:id]}" do
-      item[:title]
+  @products.each do |product|
+    h2 class: 'item-title', id: "product-#{product[:id]}" do
+      product.title
     end
     p class: 'item-description' do
-      item[:description]
+      product.description
     end
   end
 end
@@ -84,10 +84,10 @@ Replace your ERB with beautiful Ruby code:
 
     @items.each do |item|
       h2 class: 'item-title', id: "item-#{item[:id]}" do
-        item[:title]
+        item.title
       end
       p class: 'item-description' do
-        item[:description]
+        item.description
       end
     end
 

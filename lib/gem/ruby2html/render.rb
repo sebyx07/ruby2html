@@ -35,7 +35,7 @@ module Ruby2html
       template_path = template_path.sub("#{Rails.root}/", '')
 
       "<!-- BEGIN #{template_path} -->#{result}<!-- END #{template_path} -->".html_safe
-    end
+    end if defined?(ActionView)
 
     def render(*args, **options, &block)
       set_instance_variables
