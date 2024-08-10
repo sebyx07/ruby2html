@@ -8,3 +8,6 @@ div @value
 
 link_to 'Home', root_url
 render partial: 'shared/navbar'
+render partial: 'shared/footer'
+
+div @value

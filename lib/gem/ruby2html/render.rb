@@ -28,6 +28,15 @@ module Ruby2html
       @current_output = @output
     end
 
+    def render_from_rails(template_path)
+      result = render
+      return result unless annotate_rendered_view_with_filenames?
+
+      template_path = template_path.sub("#{Rails.root}/", '')
+
+      "<!-- BEGIN #{template_path} -->#{result}<!-- END #{template_path} -->".html_safe
+    end
+
     def render(*args, **options, &block)
       set_instance_variables
 
@@ -133,6 +142,11 @@ module Ruby2html
 
       def escape_html(text)
         CGI.escapeHTML(text.to_s)
+      end
+
+      def annotate_rendered_view_with_filenames?
+        return @annotate_rendered_view_with_filenames if defined?(@annotate_rendered_view_with_filenames)
+        @annotate_rendered_view_with_filenames = Rails.application.config.action_view.annotate_rendered_view_with_filenames
       end
 
       def set_instance_variables

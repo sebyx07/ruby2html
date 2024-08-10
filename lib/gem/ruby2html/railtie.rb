@@ -9,7 +9,7 @@ module Ruby2html
       new.call(template, source)
     end
 
-    def call(_template, source)
+    def call(template, source)
       <<-RUBY
       begin
         previous_renderer = Thread.current[:__ruby2html_renderer__]
@@ -17,7 +17,7 @@ module Ruby2html
           #{source}
         end
         Thread.current[:__ruby2html_renderer__] = renderer
-        renderer.render
+        renderer.render_from_rails(#{template.identifier.inspect})
       ensure
         Thread.current[:__ruby2html_renderer__] = previous_renderer
       end
