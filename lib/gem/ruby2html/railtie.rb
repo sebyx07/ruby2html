@@ -17,7 +17,7 @@ module Ruby2html
           #{source}
         end
         Thread.current[:__ruby2html_renderer__] = renderer
-        renderer.render_from_rails(#{template.identifier.inspect})
+        renderer.__render_from_rails(#{template.identifier.inspect})
       ensure
         Thread.current[:__ruby2html_renderer__] = previous_renderer
       end

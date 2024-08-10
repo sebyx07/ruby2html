@@ -28,7 +28,7 @@ module Ruby2html
       @current_output = @output
     end
 
-    def render_from_rails(template_path)
+    def __render_from_rails(template_path)
       result = render
       return result unless annotate_rendered_view_with_filenames?
 
@@ -45,9 +45,8 @@ module Ruby2html
       end
       instance_exec(&@root)
       result = @output.string
-      if defined?(ActiveSupport)
-        result = ActiveSupport::SafeBuffer.new(result)
-      end
+
+      result = ActiveSupport::SafeBuffer.new(result) if defined?(ActiveSupport)
 
       result
     end
