@@ -6,6 +6,7 @@ Rails.application.routes.draw do
   get '/benchmark/ruby', to: 'benchmark#ruby_2html'
 
   get '/rb_files', to: 'home#rb_files'
+  get 'form', to: 'home#form'
 
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 

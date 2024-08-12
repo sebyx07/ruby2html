@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'spec_helper'
+require 'rails_helper'
 require 'active_support/core_ext/string/output_safety'
 
 RSpec.describe Ruby2html::Render do
@@ -60,17 +60,6 @@ RSpec.describe Ruby2html::Render do
       component_output = '<custom-component>Content</custom-component>'
       render = described_class.new(context) { component component_output }
       expect(render.render).to eq(component_output)
-    end
-  end
-
-  describe 'Rails helpers' do
-    Ruby2html::Render::COMMON_RAILS_METHOD_HELPERS.each do |helper|
-      it "delegates #{helper} to context" do
-        helper_output = '<helper-output />'.html_safe
-        expect(context).to receive(helper).and_return(helper_output)
-        render = described_class.new(context) { send(helper) }
-        expect(render.render).to eq(helper_output)
-      end
     end
   end
 

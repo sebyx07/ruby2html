@@ -17,9 +17,10 @@ module Ruby2html
 
     VOID_ELEMENTS = %w[area base br col embed hr img input link meta param source track wbr].freeze
 
-    COMMON_RAILS_METHOD_HELPERS = %w[content_tag link_to image_tag form_tag form_for form_with form_with_model button_to].freeze
+    COMMON_RAILS_METHOD_HELPERS = %w[link_to image_tag form_with button_to].freeze
 
     attr_reader :output
+    attr_accessor :current_output
 
     def initialize(context, &root)
       @context = context
@@ -61,7 +62,7 @@ module Ruby2html
       HTML5_TAGS.include?(method_name) || super
     end
 
-    def html!(name, *args, **options, &block)
+    def html!(name, *args, **options)
       content = args.first.is_a?(String) ? args.shift : nil
       attributes = options
 
@@ -120,8 +121,9 @@ module Ruby2html
       end
 
       COMMON_RAILS_METHOD_HELPERS.each do |method|
-        define_method(method) do |*args, &block|
-          plain @context.send(method, *args, &block)
+        define_method(method) do |*args, **options, &block|
+          constant = "Ruby2html::RailsComponents::#{method.to_s.camelize}".constantize
+          constant.new(self, @context, method, *args, **options).render(&block)
         end
       end if defined?(ActionView)
 
@@ -129,7 +131,7 @@ module Ruby2html
         return '' if attributes.empty?
 
         result = StringIO.new
-        attributes.each do |k, v|
+        attributes.compact.each do |k, v|
           result << ' '
           result << k.to_s
           result << '="'

@@ -2,6 +2,9 @@ inherit_gem:
   rubocop-rails_config:
     - config/rails.yml
 
+AllCops:
+  TargetRubyVersion: 3.0
+
 Style/ClassAndModuleChildren:
   EnforcedStyle: nested
 
