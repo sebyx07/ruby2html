@@ -9,6 +9,6 @@ div do
     f.submit 'submit'
   end
 
-  link_to 'home', '/'
-  button_to 'home', '/'
+  link_to 'Home', root_path
+  # button_to 'home', '/'
 end
