@@ -11,16 +11,16 @@ module Ruby2html
 
     def call(template, source)
       <<-RUBY
-      begin
-        previous_renderer = Thread.current[:__ruby2html_renderer__]
-        renderer = Ruby2html::Render.new(self) do
-          #{source}
-        end
-        Thread.current[:__ruby2html_renderer__] = renderer
-        renderer.__render_from_rails(#{template.identifier.inspect})
-      ensure
-        Thread.current[:__ruby2html_renderer__] = previous_renderer
-      end
+begin
+previous_renderer = Thread.current[:__ruby2html_renderer__]
+renderer = Ruby2html::Render.new(self) do
+#{source}
+end
+Thread.current[:__ruby2html_renderer__] = renderer
+renderer.__render_from_rails(#{template.identifier.inspect})
+ensure
+Thread.current[:__ruby2html_renderer__] = previous_renderer
+end
       RUBY
     end
   end

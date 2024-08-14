@@ -70,7 +70,7 @@ module Ruby2html
         end
 
         def authenticity_token_tag
-          @render.input(type: 'hidden', name: 'authenticity_token', value: @context.session[:_csrf_token])
+          @render.input(type: 'hidden', name: 'authenticity_token', value: @context.form_authenticity_token)
         end
 
         def utf8_enforcer_tag

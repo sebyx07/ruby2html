@@ -41,9 +41,8 @@ module Ruby2html
     def render(*args, **options, &block)
       set_instance_variables
 
-      if !args.empty? || !options.empty? || block_given?
-        return plain @context.render(*args, **options, &block)
-      end
+      return plain @context.render(*args, **options, &block)  if !args.empty? || !options.empty? || block_given?
+
       instance_exec(&@root)
       result = @output.string
 
@@ -67,8 +66,7 @@ module Ruby2html
       attributes = options
 
       tag_content = StringIO.new
-      tag_content << '<'
-      tag_content << name
+      tag_content << "<#{name}"
       tag_content << attributes_to_s(attributes)
 
       if VOID_ELEMENTS.include?(name)
@@ -87,9 +85,7 @@ module Ruby2html
           tag_content << escape_html(content)
         end
 
-        tag_content << '</'
-        tag_content << name
-        tag_content << '>'
+        tag_content << "</#{name}>"
       end
 
       @current_output << tag_content.string
@@ -132,11 +128,7 @@ module Ruby2html
 
         result = StringIO.new
         attributes.compact.each do |k, v|
-          result << ' '
-          result << k.to_s
-          result << '="'
-          result << escape_html(v)
-          result << '"'
+          result << " #{k}=\"#{escape_html(v)}\""
         end
         result.string
       end
