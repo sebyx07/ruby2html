@@ -23,6 +23,10 @@ Thread.current[:__ruby2html_renderer__] = previous_renderer
 end
       RUBY
     end
+
+    def self.handles_encoding?
+      true
+    end
   end
 
   class Railtie < Rails::Railtie
