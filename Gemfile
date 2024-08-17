@@ -32,7 +32,9 @@ gem 'capybara', '~> 3.40'
 
 gem 'lefthook', '~> 1.7'
 
-gem 'faker'
+gem 'faker', '~> 3.4', '>= 3.4.2'
+
+gem 'slim-rails', '~> 3.6', '>= 3.6.3'
 
 group :test do
   gem 'benchmark-ips'

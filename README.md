@@ -101,21 +101,26 @@ Replace your ERB with beautiful Ruby code:
 ### Benchmark
 
 ```bash
-ruby 3.3.3 (2024-06-12 revision f1c7b6f435) +YJIT [x86_64-linux]
+ruby 3.3.4 (2024-07-09 revision be1089c8ec) +YJIT [x86_64-linux]
 Warming up --------------------------------------
 GET /benchmark/html (ERB)
-                         2.000 i/100ms
+                         1.000 i/100ms
 GET /benchmark/ruby (Ruby2html)
+                         1.000 i/100ms
+GET /benchmark/slim (Slim)
                          1.000 i/100ms
 Calculating -------------------------------------
 GET /benchmark/html (ERB)
-                         20.989 (±19.1%) i/s -    102.000 in   5.077353s
+                         20.226 (±19.8%) i/s -      1.147k in  60.029983s
 GET /benchmark/ruby (Ruby2html)
-                         20.438 (±19.6%) i/s -     97.000 in   5.010249s
+                         18.628 (±16.1%) i/s -      1.065k in  60.036596s
+GET /benchmark/slim (Slim)
+                         20.237 (±19.8%) i/s -      1.149k in  60.024886s
 
 Comparison:
-GET /benchmark/html (ERB):       21.0 i/s
-GET /benchmark/ruby (Ruby2html):       20.4 i/s - same-ish: difference falls within error
+GET /benchmark/slim (Slim):       20.2 i/s
+GET /benchmark/html (ERB):       20.2 i/s - same-ish: difference falls within error
+GET /benchmark/ruby (Ruby2html):       18.6 i/s - same-ish: difference falls within error
 ```
 
 ### With ViewComponents

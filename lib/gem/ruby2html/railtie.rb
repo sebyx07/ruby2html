@@ -6,10 +6,6 @@ module Ruby2html
     self.default_format = :html
 
     def self.call(template, source)
-      new.call(template, source)
-    end
-
-    def call(template, source)
       <<-RUBY
 begin
 previous_renderer = Thread.current[:__ruby2html_renderer__]

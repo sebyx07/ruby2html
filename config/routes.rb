@@ -3,6 +3,7 @@
 Rails.application.routes.draw do
   root to: 'home#index'
   get '/benchmark/html', to: 'benchmark#normal_html'
+  get '/benchmark/slim', to: 'benchmark#slim_html'
   get '/benchmark/ruby', to: 'benchmark#ruby_2html'
 
   get '/rb_files', to: 'home#rb_files'

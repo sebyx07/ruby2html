@@ -9,6 +9,10 @@ class BenchmarkController < ApplicationController
     @complex_data = generate_complex_data
   end
 
+  def slim_html
+    @complex_data = generate_complex_data
+  end
+
   private
     def generate_complex_data
       {
