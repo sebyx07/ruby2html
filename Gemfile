@@ -36,6 +36,8 @@ gem 'faker', '~> 3.4', '>= 3.4.2'
 
 gem 'slim-rails', '~> 3.6', '>= 3.6.3'
 
+gem 'phlex-rails', '~> 1.2', '>= 1.2.1'
+
 group :test do
   gem 'benchmark-ips'
 end

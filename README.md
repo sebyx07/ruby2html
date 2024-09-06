@@ -66,7 +66,7 @@ File: `app/controllers/application_controller.rb`
 # frozen_string_literal: true
 
 class ApplicationController < ActionController::Base
-  include Ruby2html::RailsHelper
+  include Ruby2html::RailsHelper # to access the <%= html %> helper
 end
 ```
 
@@ -104,23 +104,33 @@ Replace your ERB with beautiful Ruby code:
 ruby 3.3.4 (2024-07-09 revision be1089c8ec) +YJIT [x86_64-linux]
 Warming up --------------------------------------
 GET /benchmark/html (ERB)
-                         1.000 i/100ms
-GET /benchmark/ruby (Ruby2html)
-                         1.000 i/100ms
+                        40.000 i/100ms
+GET /benchmark/ruby (Ruby2html templates .html.rb)
+                        12.000 i/100ms
+GET /benchmark/ruby (Ruby2html + view components)
+                        12.000 i/100ms
 GET /benchmark/slim (Slim)
-                         1.000 i/100ms
+                        46.000 i/100ms
+GET /benchmark/phlex (Phlex)
+                        34.000 i/100ms
 Calculating -------------------------------------
 GET /benchmark/html (ERB)
-                         20.226 (±19.8%) i/s -      1.147k in  60.029983s
-GET /benchmark/ruby (Ruby2html)
-                         18.628 (±16.1%) i/s -      1.065k in  60.036596s
+                        414.030 (± 2.4%) i/s -     24.840k in  60.032818s
+GET /benchmark/ruby (Ruby2html templates .html.rb)
+                        124.973 (± 3.2%) i/s -      7.500k in  60.071485s
+GET /benchmark/ruby (Ruby2html + view components)
+                        123.211 (± 4.1%) i/s -      7.380k in  60.000731s
 GET /benchmark/slim (Slim)
-                         20.237 (±19.8%) i/s -      1.149k in  60.024886s
+                        431.525 (± 9.0%) i/s -     25.668k in  60.103492s
+GET /benchmark/phlex (Phlex)
+                        328.925 (± 7.0%) i/s -     19.618k in  60.019961s
 
 Comparison:
-GET /benchmark/slim (Slim):       20.2 i/s
-GET /benchmark/html (ERB):       20.2 i/s - same-ish: difference falls within error
-GET /benchmark/ruby (Ruby2html):       18.6 i/s - same-ish: difference falls within error
+GET /benchmark/slim (Slim):      431.5 i/s
+GET /benchmark/html (ERB):      414.0 i/s - same-ish: difference falls within error
+GET /benchmark/phlex (Phlex):      328.9 i/s - 1.31x  slower
+GET /benchmark/ruby (Ruby2html templates .html.rb):      125.0 i/s - 3.45x  slower
+GET /benchmark/ruby (Ruby2html + view components):      123.2 i/s - 3.50x  slower
 ```
 
 ### With ViewComponents

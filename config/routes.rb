@@ -5,6 +5,8 @@ Rails.application.routes.draw do
   get '/benchmark/html', to: 'benchmark#normal_html'
   get '/benchmark/slim', to: 'benchmark#slim_html'
   get '/benchmark/ruby', to: 'benchmark#ruby_2html'
+  get '/benchmark/compruby', to: 'benchmark#compruby'
+  get '/benchmark/phlex', to: 'benchmark#phlex'
 
   get '/rb_files', to: 'home#rb_files'
   get 'form', to: 'home#form'

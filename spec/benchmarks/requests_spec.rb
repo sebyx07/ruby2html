@@ -13,13 +13,23 @@ RSpec.describe 'HTML vs Ruby2html Benchmark', type: :request do
         expect(response).to have_http_status(:success)
       end
 
-      x.report('GET /benchmark/ruby (Ruby2html)') do
+      x.report('GET /benchmark/ruby (Ruby2html templates .html.rb)') do
         get '/benchmark/ruby'
+        expect(response).to have_http_status(:success)
+      end
+
+      x.report('GET /benchmark/ruby (Ruby2html + view components)') do
+        get '/benchmark/compruby'
         expect(response).to have_http_status(:success)
       end
 
       x.report('GET /benchmark/slim (Slim)') do
         get '/benchmark/slim'
+        expect(response).to have_http_status(:success)
+      end
+
+      x.report('GET /benchmark/phlex (Phlex)') do
+        get '/benchmark/phlex'
         expect(response).to have_http_status(:success)
       end
 
