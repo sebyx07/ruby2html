@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require 'htmlbeautifier'
-
 module Ruby2html
   class HtmlBeautifierMiddleware
     def initialize(app)

@@ -251,7 +251,7 @@ end
 
 ## Without Rails
 ```ruby
-renderer = Ruby2html::Render.new(nil) do # nil is the context, you can use self or any other object
+renderer = Ruby2html::Render.new(nil) do # context by default is nil, you can use self or any other object
   html do
     head do
       title 'Ruby2html Example'

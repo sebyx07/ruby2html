@@ -1,8 +1,5 @@
 # frozen_string_literal: true
 
-require 'cgi'
-require 'stringio'
-
 module Ruby2html
   class Render
     HTML5_TAGS = %w[
@@ -22,7 +19,7 @@ module Ruby2html
     attr_reader :output
     attr_accessor :current_output
 
-    def initialize(context, &root)
+    def initialize(context = nil, &root)
       @context = context
       @root = root
       @output = StringIO.new
