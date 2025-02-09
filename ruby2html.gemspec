@@ -27,7 +27,7 @@ Gem::Specification.new do |spec|
 
   # Include both lib and ext directories
   spec.files = Dir.glob('{lib,ext}/{**/*,*}') +
-    ['README.md', 'LICENSE.txt', File.basename(__FILE__)]
+    ['README.md', File.basename(__FILE__)]
 
   # Set require paths for both the gem and extension
   spec.require_paths = %w[lib/gem lib]

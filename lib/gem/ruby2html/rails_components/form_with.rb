@@ -90,4 +90,4 @@ module Ruby2html
         end
     end
   end
-end
+end if defined?(ActionView::Helpers::FormHelper)

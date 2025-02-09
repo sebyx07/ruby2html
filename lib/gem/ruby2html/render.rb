@@ -3,7 +3,7 @@
 begin
   require 'ruby2html/ruby2html'
 rescue LoadError
-  puts 'ruby2html not installed'
+  return puts 'ruby2html not installed'
 end
 
 module Ruby2html
