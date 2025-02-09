@@ -38,6 +38,8 @@ gem 'slim-rails', '~> 3.6', '>= 3.6.3'
 
 gem 'phlex-rails', '~> 1.2', '>= 1.2.1'
 
+gem 'rake-compiler', '~> 1.2', require: false
+
 group :test do
   gem 'benchmark-ips'
 end

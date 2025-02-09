@@ -1,5 +1,11 @@
 # frozen_string_literal: true
 
+begin
+  require 'ruby2html/ruby2html'
+rescue LoadError
+  puts 'ruby2html not installed'
+end
+
 module Ruby2html
   class Render
     HTML5_TAGS = %w[
@@ -13,8 +19,50 @@ module Ruby2html
     ].freeze
 
     VOID_ELEMENTS = %w[area base br col embed hr img input link meta param source track wbr].freeze
-
     COMMON_RAILS_METHOD_HELPERS = %w[link_to image_tag form_with button_to].freeze
+
+    # Pre-generate all HTML tag methods as a single string
+    METHOD_DEFINITIONS = HTML5_TAGS.map do |tag|
+      method_name = tag.tr('-', '_')
+      is_void = VOID_ELEMENTS.include?(tag)
+      <<-RUBY
+        def #{method_name}(*args, **options, &block)
+          content = args.first.is_a?(String) ? args.shift : nil
+          estimated_size = #{tag.length * 2 + 5}
+          estimated_size += 32 if options.any?
+          estimated_size += content.length if content
+          tag_content = String.new(capacity: estimated_size)
+          tag_content << '<#{tag}'
+          fast_buffer_append(tag_content, fast_attributes_to_s(options))
+          #{if is_void
+              'tag_content << \' />\''
+            else
+              <<-TAG_LOGIC
+                tag_content << '>'
+                if block
+                  prev_output = @current_output
+                  nested_content = String.new(capacity: 1024)
+                  @current_output = nested_content
+                  block_result = block.call
+                  @current_output = prev_output
+                  if block_result.is_a?(String)
+                    fast_buffer_append(tag_content, fast_escape_html(block_result))
+                  else
+                    fast_buffer_append(tag_content, nested_content)
+                  end
+                elsif content
+                  fast_buffer_append(tag_content, fast_escape_html(content))
+                end
+                tag_content << '</#{tag}>'
+              TAG_LOGIC
+            end}
+          fast_buffer_append(@current_output, tag_content)
+        end
+      RUBY
+    end.join("\n")
+
+    # Evaluate all method definitions at once
+    class_eval(METHOD_DEFINITIONS, __FILE__, __LINE__ + 1)
 
     attr_reader :output
     attr_accessor :current_output
@@ -22,7 +70,7 @@ module Ruby2html
     def initialize(context = nil, &root)
       @context = context
       @root = root
-      @output = StringIO.new
+      @output = String.new(capacity: 4096)
       @current_output = @output
     end
 
@@ -31,73 +79,41 @@ module Ruby2html
       return result unless annotate_rendered_view_with_filenames?
 
       template_path = template_path.sub("#{Rails.root}/", '')
+      comment_start = "<!-- BEGIN #{template_path} -->"
+      comment_end = "<!-- END #{template_path} -->"
 
-      "<!-- BEGIN #{template_path} -->#{result}<!-- END #{template_path} -->".html_safe
+      final_result = String.new(capacity: result.length + comment_start.length + comment_end.length)
+      final_result << comment_start
+      final_result << result
+      final_result << comment_end
+      final_result.html_safe
     end if defined?(ActionView)
 
     def render(*args, **options, &block)
       set_instance_variables
 
-      return plain @context.render(*args, **options, &block)  if !args.empty? || !options.empty? || block_given?
+      return plain @context.render(*args, **options, &block) if !args.empty? || !options.empty? || block_given?
 
       instance_exec(&@root)
-      result = @output.string
-
+      result = @output
       result = ActiveSupport::SafeBuffer.new(result) if defined?(ActiveSupport)
-
       result
     end
 
-    HTML5_TAGS.each do |tag|
-      define_method(tag.tr('-', '_')) do |*args, **options, &block|
-        html!(tag, *args, **options, &block)
-      end
-    end
-
     def respond_to?(method_name, include_private = false)
-      HTML5_TAGS.include?(method_name) || super
-    end
-
-    def html!(name, *args, **options)
-      content = args.first.is_a?(String) ? args.shift : nil
-      attributes = options
-
-      tag_content = StringIO.new
-      tag_content << "<#{name}"
-      tag_content << attributes_to_s(attributes)
-
-      if VOID_ELEMENTS.include?(name)
-        tag_content << ' />'
-      else
-        tag_content << '>'
-
-        if block_given?
-          prev_output = @current_output
-          nested_content = StringIO.new
-          @current_output = nested_content
-          block_result = yield
-          @current_output = prev_output
-          tag_content << (block_result.is_a?(String) ? escape_html(block_result) : nested_content.string)
-        elsif content
-          tag_content << escape_html(content)
-        end
-
-        tag_content << "</#{name}>"
-      end
-
-      @current_output << tag_content.string
+      HTML5_TAGS.include?(method_name.to_s.tr('_', '-')) || super
     end
 
     def plain(text)
       if defined?(ActiveSupport) && (text.is_a?(ActiveSupport::SafeBuffer) || text.html_safe?)
-        @current_output << text
+        fast_buffer_append(@current_output, text)
       else
-        @current_output << escape_html(text.to_s)
+        fast_buffer_append(@current_output, fast_escape_html(text.to_s))
       end
     end
 
     def component(component_output)
-      @current_output << component_output
+      fast_buffer_append(@current_output, component_output)
     end
 
     private
@@ -120,18 +136,8 @@ module Ruby2html
         end
       end if defined?(ActionView)
 
-      def attributes_to_s(attributes)
-        return '' if attributes.empty?
-
-        result = StringIO.new
-        attributes.compact.each do |k, v|
-          result << " #{k}=\"#{escape_html(v)}\""
-        end
-        result.string
-      end
-
       def escape_html(text)
-        CGI.escapeHTML(text.to_s)
+        fast_escape_html(text.to_s)
       end
 
       def annotate_rendered_view_with_filenames?
