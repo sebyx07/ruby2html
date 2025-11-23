@@ -28,7 +28,7 @@ VALUE fast_attributes_to_s(VALUE self, VALUE hash) {
     if (NIL_P(hash) || RHASH_EMPTY_P(hash)) return rb_str_new2("");
 
     // Estimate size based on hash size
-    long hash_size = RHASH_SIZE(hash);
+    size_t hash_size = (size_t)RHASH_SIZE(hash);
     VALUE result = rb_str_buf_new(hash_size * 32); // ~32 bytes per attribute average
 
     // Set up context for callback

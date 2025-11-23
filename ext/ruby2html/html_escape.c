@@ -41,12 +41,12 @@ static void init_escape_tables(void) {
 
 // SIMD-accelerated scan for HTML special characters
 #if HAS_SSE42
-static inline long simd_find_special_char(const char *str, long len) {
+static inline long simd_find_special_char(const char *str, size_t len) {
     // Characters to search for: & < > " '
     const char special_chars[16] = {'&', '<', '>', '"', '\'', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     __m128i special = _mm_loadu_si128((__m128i*)special_chars);
 
-    long pos = 0;
+    size_t pos = 0;
 
     // Process 16 bytes at a time
     while (pos + 16 <= len) {
@@ -58,16 +58,16 @@ static inline long simd_find_special_char(const char *str, long len) {
                                 _SIDD_UBYTE_OPS | _SIDD_CMP_EQUAL_ANY | _SIDD_LEAST_SIGNIFICANT);
 
         if (idx < 16) {
-            return pos + idx;
+            return (long)(pos + idx);
         }
         pos += 16;
     }
 
     // Handle remaining bytes with scalar code
     for (; pos < len; pos++) {
-        char c = str[pos];
-        if (c == '&' || c == '<' || c == '>' || c == '"' || c == '\'') {
-            return pos;
+        unsigned char c = (unsigned char)str[pos];
+        if (escape_table[c]) {
+            return (long)pos;
         }
     }
 
@@ -76,10 +76,10 @@ static inline long simd_find_special_char(const char *str, long len) {
 #endif
 
 // Scalar version for systems without SSE4.2 - uses lookup table
-static inline long scalar_find_special_char(const char *str, long len) {
-    for (long i = 0; i < len; i++) {
+static inline long scalar_find_special_char(const char *str, size_t len) {
+    for (size_t i = 0; i < len; i++) {
         if (escape_table[(unsigned char)str[i]]) {
-            return i;
+            return (long)i;
         }
     }
     return -1;
@@ -93,7 +93,7 @@ VALUE fast_escape_html(VALUE self, VALUE str) {
     init_escape_tables();
 
     str = rb_String(str);
-    long len = RSTRING_LEN(str);
+    size_t len = (size_t)RSTRING_LEN(str);
     const char *ptr = RSTRING_PTR(str);
 
 #if HAS_SSE42
@@ -109,17 +109,17 @@ VALUE fast_escape_html(VALUE self, VALUE str) {
     }
 
     // First pass: calculate required buffer size using lookup table
-    long new_len = len;
-    for (long i = 0; i < len; i++) {
+    size_t new_len = len;
+    for (size_t i = 0; i < len; i++) {
         new_len += escape_length[(unsigned char)ptr[i]];
     }
 
     VALUE result = rb_str_new(NULL, new_len);
     char *out = RSTRING_PTR(result);
-    long pos = 0;
+    size_t pos = 0;
 
     // Second pass: actual escaping using lookup table
-    for (long i = 0; i < len; i++) {
+    for (size_t i = 0; i < len; i++) {
         unsigned char c = (unsigned char)ptr[i];
         const char *escaped = escape_table[c];
 

@@ -14,28 +14,28 @@ VALUE fast_buffer_append(VALUE self, VALUE buffer, VALUE str) {
 // Fast complete tag rendering
 VALUE fast_render_tag(VALUE self, VALUE tag_name, VALUE attrs, VALUE content, VALUE is_void, VALUE escape_content) {
     const char *tag = StringValueCStr(tag_name);
-    long tag_len = strlen(tag);
+    size_t tag_len = strlen(tag);
     int void_element = RTEST(is_void);
     int should_escape = RTEST(escape_content);
 
     // Estimate buffer size
-    long estimated_size = tag_len * 2 + 5; // <tag></tag>
+    size_t estimated_size = tag_len * 2 + 5; // <tag></tag>
 
     // Get attributes string
     VALUE attrs_str = fast_attributes_to_s(self, attrs);
-    long attrs_len = RSTRING_LEN(attrs_str);
+    size_t attrs_len = (size_t)RSTRING_LEN(attrs_str);
     estimated_size += attrs_len;
 
     // Handle content
     VALUE content_str = Qnil;
-    long content_len = 0;
+    size_t content_len = 0;
     if (!NIL_P(content)) {
         if (should_escape) {
             content_str = fast_escape_html(self, rb_String(content));
         } else {
             content_str = rb_String(content);
         }
-        content_len = RSTRING_LEN(content_str);
+        content_len = (size_t)RSTRING_LEN(content_str);
         estimated_size += content_len;
     }
 
