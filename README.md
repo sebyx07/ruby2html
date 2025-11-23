@@ -309,29 +309,44 @@ Ruby2html features extensive C extension optimizations for high-performance HTML
 
 ### Benchmark Results (50 users × 1-5 orders × 1-10 items)
 
-#### Ruby 3.4.7 +YJIT (Latest)
+#### Ruby 3.4.7 +YJIT (Latest - All Optimizations)
 
 ```
-Slim:                387.9 i/s - fastest
-ERB:                 339.2 i/s - 1.14x slower
-Phlex:               288.9 i/s - 1.34x slower
-Ruby2html templates: 205.2 i/s - 1.89x slower  ← 78% faster after optimizations!
-Ruby2html components:122.7 i/s - 3.16x slower
+Slim:                375.4 i/s - fastest
+ERB:                 346.6 i/s - same-ish
+Phlex:               237.3 i/s - 1.58x slower
+Ruby2html templates: 196.4 i/s - 1.91x slower  ← Only 1.21x slower than Phlex!
+Ruby2html components:122.8 i/s - 3.06x slower
 ```
 
-**Note**: Ruby2html templates were initially 3.21x slower than Phlex (115 i/s). After optimizations, they're now only **1.41x slower** (205 i/s) - a **78% improvement**!
+**Gap to Phlex: 237.3 vs 196.4 = only 1.21x slower!**
 
-#### Ruby 3.3.4 +YJIT
+**Amazing progress**: Ruby2html templates were initially 3.21x slower than Phlex (115 i/s). After all optimizations, they're now only **1.21x slower** (196 i/s) - nearly **equal performance**!
+
+#### Ruby 3.3.4 +YJIT (Before Optimizations)
 
 ```
 Slim:                431.5 i/s - fastest
 ERB:                 414.0 i/s - same-ish
 Phlex:               328.9 i/s - 1.31x slower
-Ruby2html templates: 125.0 i/s - 3.45x slower
+Ruby2html templates: 125.0 i/s - 3.45x slower  ← baseline
 Ruby2html components:123.2 i/s - 3.50x slower
 ```
 
-**Performance varies by Ruby version.** Ruby 3.4.7 shows significantly better results due to improved YJIT optimizations.
+#### Ruby 3.3.4 +YJIT (After All Optimizations)
+
+```
+Slim:                386.5 i/s - fastest
+ERB:                 359.6 i/s - same-ish
+Phlex:               226.6 i/s - 1.71x slower
+Ruby2html templates: 197.5 i/s - 1.96x slower  ← 58% improvement!
+Ruby2html components:116.7 i/s - 3.31x slower
+```
+
+**Improvement on Ruby 3.3.4**: 125.0 → 197.5 i/s = **58% faster!**
+**Gap to Phlex narrowed**: From 3.45x slower to only **1.15x slower** (197.5 vs 226.6 i/s)
+
+**Performance varies by Ruby version.** Ruby 3.4.7 shows even better results due to improved YJIT optimizations.
 
 ### C Extension + Phlex-Inspired Optimizations
 
