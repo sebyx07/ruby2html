@@ -2,26 +2,43 @@
 #include "attributes.h"
 #include "html_escape.h"
 
-// Fast attribute string builder
+// Context struct for rb_hash_foreach callback
+typedef struct {
+    VALUE result;
+    VALUE self;
+} attr_context_t;
+
+// Callback for rb_hash_foreach - builds attribute string
+static int build_attribute(VALUE key, VALUE value, VALUE arg) {
+    if (NIL_P(value)) return ST_CONTINUE;
+
+    attr_context_t *ctx = (attr_context_t *)arg;
+
+    rb_str_cat2(ctx->result, " ");
+    rb_str_append(ctx->result, rb_String(key));
+    rb_str_cat2(ctx->result, "=\"");
+    rb_str_append(ctx->result, fast_escape_html(ctx->self, rb_String(value)));
+    rb_str_cat2(ctx->result, "\"");
+
+    return ST_CONTINUE;
+}
+
+// Fast attribute string builder using direct hash iteration
 VALUE fast_attributes_to_s(VALUE self, VALUE hash) {
     if (NIL_P(hash) || RHASH_EMPTY_P(hash)) return rb_str_new2("");
 
-    VALUE result = rb_str_buf_new(64); // Pre-allocate with reasonable size
-    VALUE keys = rb_funcall(hash, rb_intern("keys"), 0);
-    long len = RARRAY_LEN(keys);
+    // Estimate size based on hash size
+    long hash_size = RHASH_SIZE(hash);
+    VALUE result = rb_str_buf_new(hash_size * 32); // ~32 bytes per attribute average
 
-    for (long i = 0; i < len; i++) {
-        VALUE key = rb_ary_entry(keys, i);
-        VALUE value = rb_hash_aref(hash, key);
+    // Set up context for callback
+    attr_context_t ctx = {
+        .result = result,
+        .self = self
+    };
 
-        if (!NIL_P(value)) {
-            rb_str_cat2(result, " ");
-            rb_str_append(result, rb_String(key));
-            rb_str_cat2(result, "=\"");
-            rb_str_append(result, fast_escape_html(self, rb_String(value)));
-            rb_str_cat2(result, "\"");
-        }
-    }
+    // Direct hash iteration - no array allocation needed
+    rb_hash_foreach(hash, build_attribute, (VALUE)&ctx);
 
     return result;
 }
