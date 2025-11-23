@@ -7,6 +7,9 @@ rescue LoadError
 end
 
 module Ruby2html
+  # Global cache for attribute strings (similar to Phlex::ATTRIBUTE_CACHE)
+  ATTRIBUTE_CACHE = {}
+
   class Render
     HTML5_TAGS = %w[
       a abbr address area article aside audio b base bdi bdo blockquote body br button canvas caption
@@ -21,40 +24,97 @@ module Ruby2html
     VOID_ELEMENTS = %w[area base br col embed hr img input link meta param source track wbr].freeze
     COMMON_RAILS_METHOD_HELPERS = %w[link_to image_tag form_with button_to].freeze
 
-    # Pre-generate all HTML tag methods as a single string
+    # Pre-generate all HTML tag methods with Phlex-inspired optimizations
     METHOD_DEFINITIONS = HTML5_TAGS.map do |tag|
       method_name = tag.tr('-', '_')
       is_void = VOID_ELEMENTS.include?(tag)
-      <<-RUBY
-        def #{method_name}(*args, **options, &block)
-          content = args.first.is_a?(String) ? args.shift : nil
-          escape_content = !content.nil?
 
-          # Handle block execution to get nested content
-          #{unless is_void
-              <<-BLOCK_LOGIC
-                if block
-                  prev_output = @current_output
-                  nested_content = String.new(capacity: 1024)
-                  @current_output = nested_content
-                  block_result = block.call
-                  @current_output = prev_output
-                  if block_result.is_a?(String)
-                    content = block_result
-                    escape_content = true
-                  else
-                    content = nested_content
-                    escape_content = false
-                  end
-                end
-              BLOCK_LOGIC
-            end}
+      if is_void
+        # Void elements: optimized with attribute caching
+        <<-RUBY
+          def #{method_name}(*args, **options)
+            buffer = @current_output
 
-          # Use fast C function to render complete tag
-          tag_html = fast_render_tag('#{tag}', options, content, #{is_void}, escape_content)
-          fast_buffer_append(@current_output, tag_html)
-        end
-      RUBY
+            if options.empty?
+              buffer << '<#{tag} />'
+            else
+              # Check attribute cache first
+              cached = Ruby2html::ATTRIBUTE_CACHE[options.hash]
+              if cached
+                buffer << '<#{tag}' << cached << ' />'
+              else
+                attrs = fast_attributes_to_s(options)
+                Ruby2html::ATTRIBUTE_CACHE[options.hash] = attrs.freeze
+                buffer << '<#{tag}' << attrs << ' />'
+              end
+            end
+          end
+        RUBY
+      else
+        # Regular elements: optimized paths for ±attrs, ±block, ±content
+        <<-RUBY
+          def #{method_name}(*args, **options, &block)
+            buffer = @current_output
+            content = args.first.is_a?(String) ? args.shift : nil
+
+            # Specialized path 1: no attributes, no block, with string content
+            if options.empty? && !block && content
+              buffer << '<#{tag}>'
+              buffer << fast_escape_html(content)
+              buffer << '</#{tag}>'
+              return
+            end
+
+            # Specialized path 2: no attributes, no content, with block
+            if options.empty? && block && !content
+              buffer << '<#{tag}>'
+              prev_output = @current_output
+              nested_content = String.new(capacity: 1024)
+              @current_output = nested_content
+              block_result = block.call
+              @current_output = prev_output
+              if block_result.is_a?(String)
+                buffer << fast_escape_html(block_result)
+              else
+                buffer << nested_content
+              end
+              buffer << '</#{tag}>'
+              return
+            end
+
+            # General path: with attributes (uses cache)
+            if options.any?
+              cached = Ruby2html::ATTRIBUTE_CACHE[options.hash]
+              attrs = cached || begin
+                result = fast_attributes_to_s(options)
+                Ruby2html::ATTRIBUTE_CACHE[options.hash] = result.freeze
+                result
+              end
+              buffer << '<#{tag}' << attrs << '>'
+            else
+              buffer << '<#{tag}>'
+            end
+
+            # Content handling
+            if block
+              prev_output = @current_output
+              nested_content = String.new(capacity: 1024)
+              @current_output = nested_content
+              block_result = block.call
+              @current_output = prev_output
+              if block_result.is_a?(String)
+                buffer << fast_escape_html(block_result)
+              else
+                buffer << nested_content
+              end
+            elsif content
+              buffer << fast_escape_html(content)
+            end
+
+            buffer << '</#{tag}>'
+          end
+        RUBY
+      end
     end.join("\n")
 
     # Evaluate all method definitions at once
