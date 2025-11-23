@@ -28,17 +28,11 @@ module Ruby2html
       <<-RUBY
         def #{method_name}(*args, **options, &block)
           content = args.first.is_a?(String) ? args.shift : nil
-          estimated_size = #{tag.length * 2 + 5}
-          estimated_size += 32 if options.any?
-          estimated_size += content.length if content
-          tag_content = String.new(capacity: estimated_size)
-          tag_content << '<#{tag}'
-          fast_buffer_append(tag_content, fast_attributes_to_s(options))
-          #{if is_void
-              'tag_content << \' />\''
-            else
-              <<-TAG_LOGIC
-                tag_content << '>'
+          escape_content = !content.nil?
+
+          # Handle block execution to get nested content
+          #{unless is_void
+              <<-BLOCK_LOGIC
                 if block
                   prev_output = @current_output
                   nested_content = String.new(capacity: 1024)
@@ -46,17 +40,19 @@ module Ruby2html
                   block_result = block.call
                   @current_output = prev_output
                   if block_result.is_a?(String)
-                    fast_buffer_append(tag_content, fast_escape_html(block_result))
+                    content = block_result
+                    escape_content = true
                   else
-                    fast_buffer_append(tag_content, nested_content)
+                    content = nested_content
+                    escape_content = false
                   end
-                elsif content
-                  fast_buffer_append(tag_content, fast_escape_html(content))
                 end
-                tag_content << '</#{tag}>'
-              TAG_LOGIC
+              BLOCK_LOGIC
             end}
-          fast_buffer_append(@current_output, tag_content)
+
+          # Use fast C function to render complete tag
+          tag_html = fast_render_tag('#{tag}', options, content, #{is_void}, escape_content)
+          fast_buffer_append(@current_output, tag_html)
         end
       RUBY
     end.join("\n")
