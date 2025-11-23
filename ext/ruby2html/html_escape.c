@@ -10,6 +10,35 @@
 #define HAS_SSE42 0
 #endif
 
+// Lookup table for escape sequence strings (initialized at module load)
+// NULL means no escaping needed, otherwise points to escape sequence
+static const char* escape_table[256] = {0};
+
+// Lookup table for additional bytes needed when escaping (initialized at module load)
+// 0 means no escaping needed
+static unsigned char escape_length[256] = {0};
+
+// Initialize lookup tables (called once at module initialization)
+static void init_escape_tables(void) {
+    static int initialized = 0;
+    if (initialized) return;
+    initialized = 1;
+
+    // Initialize escape sequences
+    escape_table['&'] = "&amp;";
+    escape_table['<'] = "&lt;";
+    escape_table['>'] = "&gt;";
+    escape_table['"'] = "&quot;";
+    escape_table['\''] = "&#39;";
+
+    // Initialize escape lengths (additional bytes needed)
+    escape_length['&'] = 4;  // &amp; adds 4 bytes (5 total - 1 original)
+    escape_length['<'] = 3;  // &lt; adds 3 bytes
+    escape_length['>'] = 3;  // &gt; adds 3 bytes
+    escape_length['"'] = 5;  // &quot; adds 5 bytes
+    escape_length['\''] = 4; // &#39; adds 4 bytes
+}
+
 // SIMD-accelerated scan for HTML special characters
 #if HAS_SSE42
 static inline long simd_find_special_char(const char *str, long len) {
@@ -46,11 +75,10 @@ static inline long simd_find_special_char(const char *str, long len) {
 }
 #endif
 
-// Scalar version for systems without SSE4.2
+// Scalar version for systems without SSE4.2 - uses lookup table
 static inline long scalar_find_special_char(const char *str, long len) {
     for (long i = 0; i < len; i++) {
-        char c = str[i];
-        if (c == '&' || c == '<' || c == '>' || c == '"' || c == '\'') {
+        if (escape_table[(unsigned char)str[i]]) {
             return i;
         }
     }
@@ -60,6 +88,9 @@ static inline long scalar_find_special_char(const char *str, long len) {
 // Fast HTML escaping with SIMD optimization
 VALUE fast_escape_html(VALUE self, VALUE str) {
     if (NIL_P(str)) return Qnil;
+
+    // Initialize lookup tables on first use
+    init_escape_tables();
 
     str = rb_String(str);
     long len = RSTRING_LEN(str);
@@ -77,47 +108,29 @@ VALUE fast_escape_html(VALUE self, VALUE str) {
         return str;
     }
 
-    // First pass: calculate required buffer size
+    // First pass: calculate required buffer size using lookup table
     long new_len = len;
     for (long i = 0; i < len; i++) {
-        switch (ptr[i]) {
-            case '&': new_len += 4; break; // &amp;
-            case '<': new_len += 3; break; // &lt;
-            case '>': new_len += 3; break; // &gt;
-            case '"': new_len += 5; break; // &quot;
-            case '\'': new_len += 5; break; // &#39;
-        }
+        new_len += escape_length[(unsigned char)ptr[i]];
     }
 
     VALUE result = rb_str_new(NULL, new_len);
     char *out = RSTRING_PTR(result);
     long pos = 0;
 
-    // Second pass: actual escaping
+    // Second pass: actual escaping using lookup table
     for (long i = 0; i < len; i++) {
-        switch (ptr[i]) {
-            case '&':
-                memcpy(out + pos, "&amp;", 5);
-                pos += 5;
-                break;
-            case '<':
-                memcpy(out + pos, "&lt;", 4);
-                pos += 4;
-                break;
-            case '>':
-                memcpy(out + pos, "&gt;", 4);
-                pos += 4;
-                break;
-            case '"':
-                memcpy(out + pos, "&quot;", 6);
-                pos += 6;
-                break;
-            case '\'':
-                memcpy(out + pos, "&#39;", 5);
-                pos += 5;
-                break;
-            default:
-                out[pos++] = ptr[i];
+        unsigned char c = (unsigned char)ptr[i];
+        const char *escaped = escape_table[c];
+
+        if (escaped) {
+            // Character needs escaping - copy escape sequence
+            size_t escape_len = escape_length[c] + 1; // +1 for the original char's replacement
+            memcpy(out + pos, escaped, escape_len);
+            pos += escape_len;
+        } else {
+            // Character doesn't need escaping - copy as-is
+            out[pos++] = c;
         }
     }
 
