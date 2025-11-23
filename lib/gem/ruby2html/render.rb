@@ -86,7 +86,8 @@ module Ruby2html
     end if defined?(ActionView)
 
     def render(*args, **options, &block)
-      set_instance_variables
+      # Optimized instance variable copying: only copy once and cache the list
+      set_instance_variables if @context && !@__vars_copied
 
       return plain @context.render(*args, **options, &block) if !args.empty? || !options.empty? || block_given?
 
@@ -141,10 +142,18 @@ module Ruby2html
         @annotate_rendered_view_with_filenames = Rails.application.config.action_view.annotate_rendered_view_with_filenames
       end
 
+      # Optimized instance variable copying - only runs once per renderer instance
       def set_instance_variables
+        # Skip internal renderer variables (start with @_ or renderer-specific)
         @context.instance_variables.each do |name|
+          # Skip internal variables for performance
+          next if name.to_s.start_with?('@_', '@output', '@current_output', '@context', '@root')
+
           instance_variable_set(name, @context.instance_variable_get(name))
         end
+
+        # Mark that we've copied variables to avoid doing it again
+        @__vars_copied = true
       end
   end
 end
