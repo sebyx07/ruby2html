@@ -51,67 +51,37 @@ module Ruby2html
           end
         RUBY
       else
-        # Regular elements: optimized paths for ±attrs, ±block, ±content
+        # Regular elements: C tag generation
         <<-RUBY
           def #{method_name}(*args, **options, &block)
-            buffer = @current_output
             content = args.first.is_a?(String) ? args.shift : nil
 
-            # Specialized path 1: no attributes, no block, with string content
-            if options.empty? && !block && content
-              buffer << '<#{tag}>'
-              buffer << fast_escape_html(content)
-              buffer << '</#{tag}>'
-              return
-            end
-
-            # Specialized path 2: no attributes, no content, with block
-            if options.empty? && block && !content
-              buffer << '<#{tag}>'
-              prev_output = @current_output
-              nested_content = String.new(capacity: 1024)
-              @current_output = nested_content
-              block_result = block.call
-              @current_output = prev_output
-              if block_result.is_a?(String)
-                buffer << fast_escape_html(block_result)
-              else
-                buffer << nested_content
-              end
-              buffer << '</#{tag}>'
-              return
-            end
-
-            # General path: with attributes (uses cache)
-            if options.any?
-              cached = Ruby2html::ATTRIBUTE_CACHE[options.hash]
-              attrs = cached || begin
-                result = fast_attributes_to_s(options)
-                Ruby2html::ATTRIBUTE_CACHE[options.hash] = result.freeze
-                result
-              end
-              buffer << '<#{tag}' << attrs << '>'
-            else
-              buffer << '<#{tag}>'
-            end
-
-            # Content handling
+            # Handle block execution to get nested content
             if block
               prev_output = @current_output
               nested_content = String.new(capacity: 1024)
               @current_output = nested_content
               block_result = block.call
               @current_output = prev_output
+              # Block returns string -> escape it, else use buffer without escaping
               if block_result.is_a?(String)
-                buffer << fast_escape_html(block_result)
+                content = block_result
+                escape_content = true
               else
-                buffer << nested_content
+                content = nested_content
+                escape_content = false
               end
             elsif content
-              buffer << fast_escape_html(content)
+              # Direct string content -> escape it
+              escape_content = true
+            else
+              # No content at all
+              escape_content = false
             end
 
-            buffer << '</#{tag}>'
+            # Use fast C function to render complete tag
+            tag_html = fast_render_tag('#{tag}', options, content, false, escape_content)
+            @current_output << tag_html; nil
           end
         RUBY
       end

@@ -69,5 +69,8 @@ VALUE fast_render_tag(VALUE self, VALUE tag_name, VALUE attrs, VALUE content, VA
         rb_str_cat2(result, ">");
     }
 
+    // Ensure UTF-8 encoding
+    rb_enc_associate(result, rb_utf8_encoding());
+
     return result;
 }

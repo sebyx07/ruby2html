@@ -23,22 +23,34 @@ static int build_attribute(VALUE key, VALUE value, VALUE arg) {
     return ST_CONTINUE;
 }
 
-// Fast attribute string builder using direct hash iteration
+// Fast attribute string builder with caching
 VALUE fast_attributes_to_s(VALUE self, VALUE hash) {
     if (NIL_P(hash) || RHASH_EMPTY_P(hash)) return rb_str_new2("");
 
-    // Estimate size based on hash size
-    size_t hash_size = (size_t)RHASH_SIZE(hash);
-    VALUE result = rb_str_buf_new(hash_size * 32); // ~32 bytes per attribute average
+    // Check Ruby-level cache (Ruby2html::ATTRIBUTE_CACHE)
+    VALUE cache_class = rb_const_get(rb_const_get(rb_cObject, rb_intern("Ruby2html")), rb_intern("ATTRIBUTE_CACHE"));
+    VALUE hash_key = rb_funcall(hash, rb_intern("hash"), 0);
+    VALUE cached = rb_hash_aref(cache_class, hash_key);
 
-    // Set up context for callback
+    if (!NIL_P(cached)) {
+        return cached; // Return frozen cached string
+    }
+
+    // Not in cache - generate attributes
+    size_t hash_size = (size_t)RHASH_SIZE(hash);
+    VALUE result = rb_str_buf_new(hash_size * 32);
+
     attr_context_t ctx = {
         .result = result,
         .self = self
     };
 
-    // Direct hash iteration - no array allocation needed
     rb_hash_foreach(hash, build_attribute, (VALUE)&ctx);
 
-    return result;
+    // Cache the result (frozen) - ensure UTF-8 encoding
+    rb_enc_associate(result, rb_utf8_encoding());
+    VALUE frozen_result = rb_str_freeze(result);
+    rb_hash_aset(cache_class, hash_key, frozen_result);
+
+    return frozen_result;
 }
