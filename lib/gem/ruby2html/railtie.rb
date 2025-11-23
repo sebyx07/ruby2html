@@ -7,17 +7,16 @@ if defined?(Rails)
       self.default_format = :html
 
       def self.call(template, source)
+        # Optimized template handler - minimal overhead
         <<-RUBY
-begin
 previous_renderer = Thread.current[:__ruby2html_renderer__]
 renderer = Ruby2html::Render.new(self) do
 #{source}
 end
 Thread.current[:__ruby2html_renderer__] = renderer
-renderer.__render_from_rails(#{template.identifier.inspect})
-ensure
+result = renderer.render
 Thread.current[:__ruby2html_renderer__] = previous_renderer
-end
+result
         RUBY
       end
 
