@@ -101,36 +101,36 @@ Replace your ERB with beautiful Ruby code:
 ### Benchmark
 
 ```bash
-ruby 3.3.4 (2024-07-09 revision be1089c8ec) +YJIT [x86_64-linux]
+ruby 3.4.7 (2025-10-08 revision 7a5688e2a2) +YJIT +PRISM [x86_64-linux]
 Warming up --------------------------------------
 GET /benchmark/html (ERB)
-                        40.000 i/100ms
+                        32.000 i/100ms
 GET /benchmark/ruby (Ruby2html templates .html.rb)
-                        12.000 i/100ms
+                        17.000 i/100ms
 GET /benchmark/ruby (Ruby2html + view components)
                         12.000 i/100ms
 GET /benchmark/slim (Slim)
-                        46.000 i/100ms
+                        36.000 i/100ms
 GET /benchmark/phlex (Phlex)
-                        34.000 i/100ms
+                        28.000 i/100ms
 Calculating -------------------------------------
 GET /benchmark/html (ERB)
-                        414.030 (± 2.4%) i/s -     24.840k in  60.032818s
+                        330.530 (± 2.4%) i/s -     19.840k in  60.061301s
 GET /benchmark/ruby (Ruby2html templates .html.rb)
-                        124.973 (± 3.2%) i/s -      7.500k in  60.071485s
+                        180.060 (± 1.7%) i/s -     10.812k in  60.068993s
 GET /benchmark/ruby (Ruby2html + view components)
-                        123.211 (± 4.1%) i/s -      7.380k in  60.000731s
+                        121.379 (± 2.5%) i/s -      7.284k in  60.055909s
 GET /benchmark/slim (Slim)
-                        431.525 (± 9.0%) i/s -     25.668k in  60.103492s
+                        367.488 (± 2.2%) i/s -     22.068k in  60.078459s
 GET /benchmark/phlex (Phlex)
-                        328.925 (± 7.0%) i/s -     19.618k in  60.019961s
+                        284.998 (± 1.8%) i/s -     17.108k in  60.047103s
 
 Comparison:
-GET /benchmark/slim (Slim):      431.5 i/s
-GET /benchmark/html (ERB):      414.0 i/s - same-ish: difference falls within error
-GET /benchmark/phlex (Phlex):      328.9 i/s - 1.31x  slower
-GET /benchmark/ruby (Ruby2html templates .html.rb):      125.0 i/s - 3.45x  slower
-GET /benchmark/ruby (Ruby2html + view components):      123.2 i/s - 3.50x  slower
+GET /benchmark/slim (Slim):      367.5 i/s
+GET /benchmark/html (ERB):      330.5 i/s - 1.11x  slower
+GET /benchmark/phlex (Phlex):      285.0 i/s - 1.29x  slower
+GET /benchmark/ruby (Ruby2html templates .html.rb):      180.1 i/s - 2.04x  slower
+GET /benchmark/ruby (Ruby2html + view components):      121.4 i/s - 3.03x  slower
 ```
 
 ### With ViewComponents
@@ -309,44 +309,20 @@ Ruby2html features extensive C extension optimizations for high-performance HTML
 
 ### Benchmark Results (50 users × 1-5 orders × 1-10 items)
 
-#### Ruby 3.4.7 +YJIT (Latest - All Optimizations)
+#### Ruby 3.4.7 +YJIT (After Optimizations)
 
 ```
-Slim:                375.4 i/s - fastest
-ERB:                 346.6 i/s - same-ish
-Phlex:               237.3 i/s - 1.58x slower
-Ruby2html templates: 196.4 i/s - 1.91x slower  ← Only 1.21x slower than Phlex!
-Ruby2html components:122.8 i/s - 3.06x slower
+Slim:                367.5 i/s - fastest
+ERB:                 330.5 i/s - 1.11x slower
+Phlex:               285.0 i/s - 1.29x slower
+Ruby2html templates: 180.1 i/s - 2.04x slower
+Ruby2html components:121.4 i/s - 3.03x slower
 ```
 
-**Gap to Phlex: 237.3 vs 196.4 = only 1.21x slower!**
+**Improvement on Ruby 3.3.4 baseline**: 125.0 → 180.1 i/s = **44% faster!**
+**Gap to Phlex narrowed**: From 2.63x slower to only **1.58x slower** (180.1 vs 285.0 i/s)
 
-**Amazing progress**: Ruby2html templates were initially 3.21x slower than Phlex (115 i/s). After all optimizations, they're now only **1.21x slower** (196 i/s) - nearly **equal performance**!
-
-#### Ruby 3.3.4 +YJIT (Before Optimizations)
-
-```
-Slim:                431.5 i/s - fastest
-ERB:                 414.0 i/s - same-ish
-Phlex:               328.9 i/s - 1.31x slower
-Ruby2html templates: 125.0 i/s - 3.45x slower  ← baseline
-Ruby2html components:123.2 i/s - 3.50x slower
-```
-
-#### Ruby 3.3.4 +YJIT (After All Optimizations)
-
-```
-Slim:                386.5 i/s - fastest
-ERB:                 359.6 i/s - same-ish
-Phlex:               226.6 i/s - 1.71x slower
-Ruby2html templates: 197.5 i/s - 1.96x slower  ← 58% improvement!
-Ruby2html components:116.7 i/s - 3.31x slower
-```
-
-**Improvement on Ruby 3.3.4**: 125.0 → 197.5 i/s = **58% faster!**
-**Gap to Phlex narrowed**: From 3.45x slower to only **1.15x slower** (197.5 vs 226.6 i/s)
-
-**Performance varies by Ruby version.** Ruby 3.4.7 shows even better results due to improved YJIT optimizations.
+**Performance varies by Ruby version.** The results above are on Ruby 3.4.7.
 
 ### C Extension + Phlex-Inspired Optimizations
 
