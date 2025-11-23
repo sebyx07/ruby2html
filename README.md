@@ -307,7 +307,9 @@ Remember, there's no rush! You can keep your `.erb` files and Ruby2html code sid
 
 Ruby2html features extensive C extension optimizations for high-performance HTML generation:
 
-### Benchmark Results (Ruby 3.4.7 +YJIT, 50 users × 1-5 orders × 1-10 items)
+### Benchmark Results (50 users × 1-5 orders × 1-10 items)
+
+#### Ruby 3.4.7 +YJIT (Latest)
 
 ```
 Slim:                387.9 i/s - fastest
@@ -318,6 +320,18 @@ Ruby2html components:122.7 i/s - 3.16x slower
 ```
 
 **Note**: Ruby2html templates were initially 3.21x slower than Phlex (115 i/s). After optimizations, they're now only **1.41x slower** (205 i/s) - a **78% improvement**!
+
+#### Ruby 3.3.4 +YJIT
+
+```
+Slim:                431.5 i/s - fastest
+ERB:                 414.0 i/s - same-ish
+Phlex:               328.9 i/s - 1.31x slower
+Ruby2html templates: 125.0 i/s - 3.45x slower
+Ruby2html components:123.2 i/s - 3.50x slower
+```
+
+**Performance varies by Ruby version.** Ruby 3.4.7 shows significantly better results due to improved YJIT optimizations.
 
 ### C Extension + Phlex-Inspired Optimizations
 
