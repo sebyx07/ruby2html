@@ -41,10 +41,13 @@ static void init_escape_tables(void) {
 
 // SIMD-accelerated scan for HTML special characters
 #if HAS_SSE42
-static inline long simd_find_special_char(const char *str, size_t len) {
+static inline long simd_find_special_char(const char * restrict str, const size_t len)
+    __attribute__((always_inline));
+
+static inline long simd_find_special_char(const char * restrict str, const size_t len) {
     // Characters to search for: & < > " '
-    const char special_chars[16] = {'&', '<', '>', '"', '\'', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-    __m128i special = _mm_loadu_si128((__m128i*)special_chars);
+    static const char special_chars[16] = {'&', '<', '>', '"', '\'', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    const __m128i special = _mm_loadu_si128((const __m128i*)special_chars);
 
     size_t pos = 0;
 
@@ -76,7 +79,10 @@ static inline long simd_find_special_char(const char *str, size_t len) {
 #endif
 
 // Scalar version for systems without SSE4.2 - uses lookup table
-static inline long scalar_find_special_char(const char *str, size_t len) {
+static inline long scalar_find_special_char(const char * restrict str, const size_t len)
+    __attribute__((always_inline));
+
+static inline long scalar_find_special_char(const char * restrict str, const size_t len) {
     for (size_t i = 0; i < len; i++) {
         if (escape_table[(unsigned char)str[i]]) {
             return (long)i;
@@ -115,21 +121,39 @@ VALUE fast_escape_html(VALUE self, VALUE str) {
     }
 
     VALUE result = rb_str_new(NULL, new_len);
-    char *out = RSTRING_PTR(result);
+    char * restrict out = RSTRING_PTR(result);
     size_t pos = 0;
 
     // Second pass: actual escaping using lookup table
-    for (size_t i = 0; i < len; i++) {
-        unsigned char c = (unsigned char)ptr[i];
-        const char *escaped = escape_table[c];
+    // Loop unrolled by 4 for better performance
+    const size_t len_unrolled = len - (len % 4);
+
+    for (size_t i = 0; i < len_unrolled; i += 4) {
+        // Process 4 characters at once
+        for (size_t j = 0; j < 4; j++) {
+            const unsigned char c = (unsigned char)ptr[i + j];
+            const char * const escaped = escape_table[c];
+
+            if (escaped) {
+                const size_t escape_len = escape_length[c] + 1;
+                memcpy(out + pos, escaped, escape_len);
+                pos += escape_len;
+            } else {
+                out[pos++] = c;
+            }
+        }
+    }
+
+    // Handle remaining characters
+    for (size_t i = len_unrolled; i < len; i++) {
+        const unsigned char c = (unsigned char)ptr[i];
+        const char * const escaped = escape_table[c];
 
         if (escaped) {
-            // Character needs escaping - copy escape sequence
-            size_t escape_len = escape_length[c] + 1; // +1 for the original char's replacement
+            const size_t escape_len = escape_length[c] + 1;
             memcpy(out + pos, escaped, escape_len);
             pos += escape_len;
         } else {
-            // Character doesn't need escaping - copy as-is
             out[pos++] = c;
         }
     }
