@@ -43,14 +43,21 @@ Dir.mktmpdir('ruby2html-smoke') do |tmp|
   %w[lib/gem/ruby2html.rb lib/gem/ruby2html/render.rb ext/ruby2html/extconf.rb README.md LICENSE CHANGELOG.md].each do |f|
     abort "Gem is missing #{f}" unless files.include?(f)
   end
+  # The -java platform gem must ship the prebuilt Java escaper jar; a jar-less
+  # -java gem would silently drop to the slower regex escaper. Compile first.
+  if Gem::Package.new(gem_path).spec.platform.to_s == 'java'
+    jar = 'lib/gem/ruby2html/ruby2html_jruby.jar'
+    abort "The -java gem is missing #{jar}: run `rake compile` on JRuby before building" unless files.include?(jar)
+  end
   puts "== File list OK (#{files.size} files)"
 
   gem_home = File.join(tmp, 'gems')
   run!(clean_env, Gem.ruby, '-S', 'gem', 'install', '--no-document', '--install-dir', gem_home, gem_path, chdir: tmp)
   puts '== Installed into temporary GEM_HOME'
 
-  # Renders with the C extension (except on JRuby) and with the pure-Ruby
-  # implementation (RUBY2HTML_DISABLE_EXT=1); both must produce the same HTML.
+  # Renders with the C extension (CRuby only -- JRuby uses the Java escaper over
+  # pure Ruby, TruffleRuby pure Ruby) and with the pure-Ruby implementation
+  # (RUBY2HTML_DISABLE_EXT=1); both must produce the same HTML.
   script = <<~'RUBY'
     require 'ruby2html'
     expect_native = ENV['EXPECT_NATIVE'] == '1'
@@ -71,7 +78,7 @@ Dir.mktmpdir('ruby2html-smoke') do |tmp|
     puts "native=#{native} #{$LOADED_FEATURES.grep(/ruby2html\.(so|bundle|dll)\z/).first}"
   RUBY
   env = clean_env.merge('GEM_HOME' => gem_home, 'GEM_PATH' => gem_home)
-  native_env = env.merge('RUBY2HTML_DISABLE_EXT' => nil, 'EXPECT_NATIVE' => RUBY_ENGINE == 'jruby' ? '0' : '1')
+  native_env = env.merge('RUBY2HTML_DISABLE_EXT' => nil, 'EXPECT_NATIVE' => RUBY_ENGINE == 'ruby' ? '1' : '0')
   pure_env = env.merge('RUBY2HTML_DISABLE_EXT' => '1', 'EXPECT_NATIVE' => '0')
   native_out = run!(native_env, RbConfig.ruby, '-e', script, chdir: tmp)
   pure_out = run!(pure_env, RbConfig.ruby, '-e', script, chdir: tmp)

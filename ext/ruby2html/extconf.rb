@@ -12,6 +12,10 @@ end
 
 skip_native_extension('RUBY2HTML_DISABLE_EXT=1') if ENV['RUBY2HTML_DISABLE_EXT'] == '1'
 skip_native_extension('JRuby does not load C extensions') if RUBY_ENGINE == 'jruby'
+# TruffleRuby runs C extensions through Sulong (an LLVM interpreter) but gives
+# pure Ruby the full Graal JIT, which here renders ~28x faster than the
+# extension. Building it would only slow TruffleRuby down, so don't.
+skip_native_extension('TruffleRuby is faster on the pure-Ruby renderer') if RUBY_ENGINE == 'truffleruby'
 
 require 'mkmf'
 

@@ -194,10 +194,14 @@ jobs:
         with:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
+      # spec:standalone compiles first: on JRuby that builds the Java escaper
+      # jar (ext/java), on TruffleRuby extconf.rb no-ops (pure Ruby is faster).
       - name: RSpec (spec/gem without Rails)
         run: bundle exec rake spec:standalone
+      # On JRuby this builds and renders from the -java gem (jar inside); on
+      # TruffleRuby the pure-Ruby gem.
       - name: Packaged gem installs and renders
-        run: ruby bin/gem-smoke
+        run: bundle exec ruby bin/gem-smoke
 
   rails-versions:
     name: Matrix / Rails versions

@@ -9,6 +9,10 @@ module Ruby2html
   # into lib/ruby2html.
   def self.load_native_extension
     return false if ENV['RUBY2HTML_DISABLE_EXT'] == '1'
+    # JRuby has no C extension (it uses a Java escaper over the pure-Ruby twin,
+    # see load_java_escaper). TruffleRuby *can* load it via Sulong, but renders
+    # ~28x slower that way than on pure Ruby under the Graal JIT, so never do.
+    return false if RUBY_ENGINE == 'jruby' || RUBY_ENGINE == 'truffleruby'
 
     begin
       require 'ruby2html/ruby2html'
@@ -17,9 +21,9 @@ module Ruby2html
     end
     defined?(Native) ? true : false
   rescue LoadError => e
-    # Expected on JRuby/TruffleRuby. On CRuby it means a broken or missing build: say so instead of
+    # On CRuby a missing extension means a broken build: say so instead of
     # silently rendering about 3x slower.
-    warn "ruby2html: C extension not loaded (#{e.message}); using the pure-Ruby renderer" if RUBY_ENGINE == 'ruby'
+    warn "ruby2html: C extension not loaded (#{e.message}); using the pure-Ruby renderer"
     false
   end
   private_class_method :load_native_extension

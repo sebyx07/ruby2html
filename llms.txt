@@ -1,8 +1,8 @@
 # ruby2html
 
-> Ruby gem that renders HTML from a pure-Ruby block DSL (`div class: 'card' do h2 @title end`). Tag methods are C (with an output-identical pure-Ruby fallback used on JRuby or when the extension can't load). Works standalone, as Rails `.html.rb` templates, inside ERB, in ViewComponent, and as lightweight `Ruby2html::Component` classes. Text and attribute values are escaped by default. No runtime dependencies. Performance at 2.0.0: page rendering 1.35x faster than Erubi and 2.4–16x faster than Phlex 2, with fewer allocations than either; `require` costs about 0.4 MB (README "Performance").
+> Ruby gem that renders HTML from a pure-Ruby block DSL (`div class: 'card' do h2 @title end`). Tag methods are C (with an output-identical pure-Ruby fallback used on JRuby and TruffleRuby or when the extension can't load; JRuby adds a Java escaper for the hot path). Works standalone, as Rails `.html.rb` templates, inside ERB, in ViewComponent, and as lightweight `Ruby2html::Component` classes. Text and attribute values are escaped by default. No runtime dependencies. Performance at 2.0.0: page rendering 1.35x faster than Erubi and 2.4–16x faster than Phlex 2, with fewer allocations than either; `require` costs about 0.4 MB (README "Performance").
 
-Install: `gem 'ruby2html'`. CRuby >= 3.1 (builds a C extension), JRuby/TruffleRuby (pure Ruby fallback), Rails 7.2+ (optional). MIT. Source: https://github.com/sebyx07/ruby2html. Upgrading from 1.x: CHANGELOG "Upgrading to 2.0". Maintained by developerz.ai (AI maintainer agent: triage, review, merges, releases).
+Install: `gem 'ruby2html'`. CRuby >= 3.1 (builds a C extension), JRuby (pure Ruby + a prebuilt Java escaper, shipped as the `-java` platform gem), TruffleRuby (pure Ruby, faster than the C extension there), Rails 7.2+ (optional). MIT. Source: https://github.com/sebyx07/ruby2html. Upgrading from 1.x: CHANGELOG "Upgrading to 2.0". Maintained by developerz.ai (AI maintainer agent: triage, review, merges, releases).
 
 ## DSL rules
 

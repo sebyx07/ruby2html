@@ -30,8 +30,29 @@ end
 # to that path in a checkout); an installed gem gets it in lib/gem/ruby2html/.
 # Strict/clang/sanitizer variants: bin/build-ext --help
 if RUBY_ENGINE == 'jruby'
-  desc 'No-op on JRuby (the pure-Ruby implementation is used)'
-  task(:compile) { puts 'JRuby: skipping the C extension, using the pure-Ruby implementation' }
+  # JRuby can't load the C extension, but it builds a tiny Java one: the HTML
+  # escaper (ext/java), the renderer's hot path. Everything else stays pure
+  # Ruby. Output: lib/gem/ruby2html/ruby2html_jruby.jar (on the require path in
+  # a checkout and in the -java gem). render.rb requires 'ruby2html/ruby2html_jruby'.
+  begin
+    require 'rake/javaextensiontask'
+    Rake::JavaExtensionTask.new('ruby2html_jruby') do |ext|
+      ext.lib_dir = 'lib/gem/ruby2html'
+      ext.ext_dir = 'ext/java'
+      ext.tmp_dir = 'tmp/ext'
+      ext.source_version = '8'
+      ext.target_version = '8'
+    end
+  rescue LoadError
+    desc 'Compile the Java extension (requires rake-compiler)'
+    task(:compile) { abort 'rake-compiler is not installed: bundle install' }
+  end
+elsif RUBY_ENGINE == 'truffleruby'
+  # TruffleRuby runs the C extension through Sulong but is ~28x faster on pure
+  # Ruby under Graal, so extconf.rb skips the build there. rake-compiler's
+  # ExtensionTask would still expect a .so and fail, so don't define it.
+  desc 'No-op on TruffleRuby (the pure-Ruby implementation is faster than the C extension)'
+  task(:compile) { puts 'TruffleRuby: skipping the C extension, using the pure-Ruby implementation' }
 else
   begin
     require 'rake/extensiontask'
