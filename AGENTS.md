@@ -121,7 +121,7 @@ Keep it that way: don't hardcode version lists or benchmark numbers in docs; poi
 
 - Project skills (`.claude/skills/`): `release` (bump → changelog → verify → `release: X.Y.Z` PR; merging publishes; manual-only), `benchmark` (before/after), `add-html-tag`, `review` (checklist for `ext/` and renderer diffs), `debug-render` (C vs Ruby output diffs, sanitizer builds), `upgrade-deps`.
 - Subagents (`.claude/agents/`, read-only tools): `perf-reviewer`, `xss-auditor`. Use them for an independent pass on hot-path or escaping changes.
-- `.claude/settings.json`: allowlists specs, `rake compile/spec/bench/build/smoke`, rubocop, brakeman, bench scripts and read-only git/gh; `git commit`, `git push`, `git tag`, `rake release`, `gem push/yank`, `gh release` always ask. A PostToolUse hook (`.claude/hooks/post-edit-reminder.sh`, non-blocking) reminds to recompile after `ext/` edits and to keep Native/PureRuby parity after renderer edits.
+- `.claude/settings.json`: allowlists the whole routine workflow (specs, `rake`, rubocop, brakeman, bench scripts, `bin/*`, git add/commit/push/branch, `gh pr|issue|api|run|workflow`), so agents work without prompts. Denied outright (never needed: merging a version bump publishes): `git tag`, force pushes, `rake release`, `gem push/yank`, `gh release`, reading `.env*`/`config/master.key`. A PostToolUse hook (`.claude/hooks/post-edit-reminder.sh`, non-blocking) reminds to recompile after `ext/` edits and to keep Native/PureRuby parity after renderer edits.
 
 ## Definition of done
 
