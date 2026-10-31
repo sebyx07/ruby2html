@@ -1,0 +1,29 @@
+{
+  "name": "ruby2html",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  "remoteUser": "vscode",
+  "containerEnv": {
+    "BUNDLE_PATH": "/home/vscode/.bundle"
+  },
+  "mounts": [
+    "source=ruby2html-bundle,target=/home/vscode/.bundle,type=volume"
+  ],
+  "postCreateCommand": "sudo chown vscode /home/vscode/.bundle && bin/setup",
+  "forwardPorts": [3000],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "shopify.ruby-lsp",
+        "ms-vscode.cpptools",
+        "rubocop.vscode-rubocop",
+        "github.vscode-github-actions"
+      ]
+    }
+  }
+}

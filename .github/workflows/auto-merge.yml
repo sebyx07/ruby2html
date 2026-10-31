@@ -1,0 +1,42 @@
+name: Dependabot auto-merge
+
+# Patch and minor Dependabot updates are queued for auto-merge (squash); GitHub
+# merges them once the required checks pass. Major updates are left for review.
+#
+# One-time repository setup:
+#   * Settings -> General -> "Allow auto-merge" enabled.
+#   * Branch protection (or a ruleset) on main requiring the "CI OK" check
+#     (job id ci-ok in ci.yml). Without a required check, --auto merges at once.
+#   * Optional *Dependabot* secret AUTOMERGE_TOKEN (fine-grained PAT or GitHub App token with
+#     contents + pull-requests write). Merges done with the default GITHUB_TOKEN
+#     do not trigger `push` workflows on main (CI, benchmark baseline); a PAT does.
+on: pull_request
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    name: Auto-merge / Dependabot patch + minor
+    if: github.event.pull_request.user.login == 'dependabot[bot]' && github.repository == 'sebyx07/ruby2html'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - id: meta
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Enable auto-merge
+        if: steps.meta.outputs.update-type == 'version-update:semver-patch' || steps.meta.outputs.update-type == 'version-update:semver-minor'
+        env:
+          GH_TOKEN: ${{ secrets.AUTOMERGE_TOKEN || secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: gh pr merge --auto --squash "$PR_URL"
+
+      - name: Major update needs review
+        if: steps.meta.outputs.update-type == 'version-update:semver-major'
+        env:
+          DEPS: ${{ steps.meta.outputs.dependency-names }}
+        run: echo "::notice::Major update ($DEPS) - left for manual review"

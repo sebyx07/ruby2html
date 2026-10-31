@@ -1,0 +1,201 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Runs the benchmarks and turns them into JSON + Markdown (used by CI's
+# benchmark workflow, handy locally too). The bench scripts are not modified:
+# a preloaded hook records every Benchmark.ips report (i/s, stddev) and
+# measures allocations per call of each reported block afterwards.
+#
+#   bin/bench-report run [OUT.json]                 # bench/*.rb (C ext + pure Ruby) + Rails comparison
+#   bin/bench-report run OUT.json --skip-rails      # bench/*.rb only
+#   bin/bench-report markdown OUT.json [BASE.json]  # Markdown tables, optional delta vs BASE
+#
+# BENCH_TIME (seconds per ips run, default 1) controls the duration.
+
+require 'json'
+require 'open3'
+require 'rbconfig'
+require 'time'
+require 'tmpdir'
+
+ROOT = File.expand_path('..', __dir__)
+
+HOOK = <<~'RUBY'
+  # Preloaded into each benchmark process (ruby -r).
+  require 'json'
+  require 'benchmark/ips'
+
+  module R2HBenchHook
+    RESULTS = []
+    BLOCKS = {}
+
+    # Blocks taking |times| run their own loop; give them a single iteration.
+    def self.allocations(blk, n = 50)
+      call = blk.arity == 1 ? -> { blk.call(1) } : blk
+      call.call
+      GC.start
+      GC.disable
+      before = GC.stat(:total_allocated_objects)
+      n.times { call.call }
+      (GC.stat(:total_allocated_objects) - before) / n.to_f
+    rescue StandardError
+      nil
+    ensure
+      GC.enable
+    end
+
+    def self.peak_rss_kb
+      File.read('/proc/self/status')[/^VmHWM:\s+(\d+)/, 1]&.to_i
+    rescue StandardError
+      nil
+    end
+
+    module JobHook
+      def item(label = '', str = nil, &blk)
+        BLOCKS[label.to_s] = blk if blk
+        super
+      end
+      alias_method :report, :item
+    end
+
+    module IPSHook
+      def ips(*args, **kwargs, &block)
+        report = super
+        group = ENV.fetch('R2H_BENCH_GROUP', 'bench')
+        report.entries.each do |e|
+          blk = BLOCKS[e.label.to_s]
+          RESULTS << { 'group' => group, 'label' => e.label.to_s, 'ips' => e.ips.to_f,
+                       'ips_sd' => e.ips_sd.to_f, 'allocations' => blk && R2HBenchHook.allocations(blk) }
+        end
+        report
+      end
+    end
+  end
+
+  Benchmark::IPS::Job.prepend(R2HBenchHook::JobHook)
+  Benchmark.singleton_class.prepend(R2HBenchHook::IPSHook)
+
+  at_exit do
+    path = ENV['R2H_BENCH_JSON']
+    if path
+      native = defined?(Ruby2html.native?) ? Ruby2html.native? : nil
+      File.write(path, JSON.pretty_generate('native' => native, 'peak_rss_kb' => R2HBenchHook.peak_rss_kb,
+                                            'results' => R2HBenchHook::RESULTS))
+    end
+  end
+RUBY
+
+RAILS_BENCH = <<~'RUBY'
+  # Rails comparison: one ips report per /benchmark/* route.
+  ENV['RAILS_ENV'] ||= 'test'
+  require File.expand_path('config/environment', Dir.pwd)
+  require 'benchmark/ips'
+
+  session = ActionDispatch::Integration::Session.new(Rails.application)
+  routes = {
+    'ERB' => '/benchmark/html',
+    'Slim' => '/benchmark/slim',
+    'Phlex' => '/benchmark/phlex',
+    'ruby2html .html.rb templates' => '/benchmark/ruby',
+    'ViewComponent + ruby2html' => '/benchmark/compruby',
+    'Ruby2html::Component' => '/benchmark/native'
+  }
+  routes.each_value do |path|
+    status = session.get(path)
+    abort "GET #{path} returned #{status}" unless status == 200
+  end
+  Benchmark.ips do |x|
+    x.config(time: Float(ENV.fetch('BENCH_TIME', 1)), warmup: 0.5)
+    routes.each { |name, path| x.report(name) { session.get(path) } }
+    x.compare!
+  end
+RUBY
+
+def run_bench(script_args, group:, env: {})
+  Dir.mktmpdir('r2h-bench') do |dir|
+    hook = File.join(dir, 'hook.rb')
+    json = File.join(dir, 'out.json')
+    File.write(hook, HOOK)
+    full_env = { 'R2H_BENCH_JSON' => json, 'R2H_BENCH_GROUP' => group, 'BENCH_TIME' => ENV.fetch('BENCH_TIME', '1') }.merge(env)
+    # Production Rails runs with YJIT; benchmark with it whenever this Ruby has it.
+    yjit = defined?(RubyVM::YJIT) && ENV['BENCH_NO_YJIT'] != '1' ? ['--yjit'] : []
+    cmd = [RbConfig.ruby, *yjit, '-I', File.join(ROOT, 'lib/gem'), '-r', hook, *script_args]
+    $stderr.puts "== #{group}"
+    out, status = Open3.capture2e(full_env, *cmd, chdir: ROOT)
+    $stderr.puts out
+    abort "Benchmark #{group} crashed (exit #{status.exitstatus})" unless status.success?
+    data = JSON.parse(File.read(json))
+    data['results'].each { |r| r.merge!('native' => data['native'], 'peak_rss_kb' => data['peak_rss_kb']) }
+  end
+end
+
+def run_all(out_path, skip_rails:)
+  results = []
+  Dir[File.join(ROOT, 'bench/*.rb')].sort.each do |script|
+    name = File.basename(script, '.rb')
+    results.concat(run_bench([script], group: "#{name} (C ext)", env: { 'RUBY2HTML_DISABLE_EXT' => nil })) unless RUBY_ENGINE == 'jruby'
+    results.concat(run_bench([script], group: "#{name} (pure Ruby)", env: { 'RUBY2HTML_DISABLE_EXT' => '1' }))
+  end
+  unless skip_rails
+    Dir.mktmpdir('r2h-rails-bench') do |dir|
+      script = File.join(dir, 'rails_bench.rb')
+      File.write(script, RAILS_BENCH)
+      results.concat(run_bench([script], group: 'Rails request (C ext)', env: { 'CI' => '1' }))
+    end
+  end
+  report = {
+    'meta' => {
+      'ruby' => RUBY_DESCRIPTION, 'arch' => RbConfig::CONFIG['host_cpu'], 'os' => RbConfig::CONFIG['host_os'],
+      'sha' => ENV['GITHUB_SHA'] || `git -C #{ROOT} rev-parse HEAD 2>/dev/null`.strip,
+      'time' => Time.now.utc.iso8601, 'bench_time' => Float(ENV.fetch('BENCH_TIME', 1))
+    },
+    'results' => results
+  }
+  File.write(out_path, JSON.pretty_generate(report))
+  $stderr.puts "== Wrote #{results.size} results to #{out_path}"
+end
+
+def fmt_num(value)
+  return '-' unless value
+
+  value >= 100 ? value.round.to_s.reverse.scan(/\d{1,3}/).join(',').reverse : format('%.2f', value)
+end
+
+def markdown(path, base_path = nil)
+  report = JSON.parse(File.read(path))
+  base = base_path && File.file?(base_path) ? JSON.parse(File.read(base_path)) : nil
+  base_ips = (base ? base['results'] : []).to_h { |r| [[r['group'], r['label']], r['ips']] }
+  meta = report['meta']
+  lines = ["### Benchmarks: #{meta['arch']} (#{meta['os']})", '',
+           "`#{meta['ruby']}` · commit `#{meta['sha'].to_s[0, 10]}` · #{meta['bench_time']}s per report"]
+  lines << (base ? "Δ is against main `#{base.dig('meta', 'sha').to_s[0, 10]}` (same runner type; expect a few % noise)." : 'No main baseline available, so no Δ column.')
+  report['results'].group_by { |r| r['group'] }.each do |group, rows|
+    fastest = rows.map { |r| r['ips'] }.max
+    rss = rows.first['peak_rss_kb']
+    lines += ['', "#### #{group}#{rss ? " · peak RSS #{(rss / 1024.0).round} MB" : ''}", '']
+    header = '| Benchmark | i/s | ms / call | allocs / call | vs fastest |'
+    sep = '|---|--:|--:|--:|--:|'
+    if base
+      header += ' Δ vs main |'
+      sep += '--:|'
+    end
+    lines << header << sep
+    rows.sort_by { |r| -r['ips'] }.each do |r|
+      ratio = r['ips'] == fastest ? 'fastest' : format('%.2fx slower', fastest / r['ips'])
+      row = "| #{r['label']} | #{fmt_num(r['ips'])} ± #{format('%.1f', 100.0 * r['ips_sd'] / r['ips'])}% | " \
+            "#{format('%.4f', 1000.0 / r['ips'])} | #{fmt_num(r['allocations'])} | #{ratio} |"
+      if base
+        old = base_ips[[group, r['label']]]
+        row += old ? " #{format('%+.1f%%', 100.0 * (r['ips'] - old) / old)} |" : ' new |'
+      end
+      lines << row
+    end
+  end
+  puts lines.join("\n")
+end
+
+case ARGV.shift
+when 'run' then run_all(ARGV.find { |a| !a.start_with?('--') } || 'bench-results.json', skip_rails: ARGV.include?('--skip-rails'))
+when 'markdown' then markdown(ARGV.fetch(0), ARGV[1])
+else abort "usage: #{$PROGRAM_NAME} run [OUT.json] [--skip-rails] | markdown OUT.json [BASE.json]"
+end

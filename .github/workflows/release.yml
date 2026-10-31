@@ -1,0 +1,104 @@
+name: Release
+
+# Pushing a tag like v1.6.7 builds, tests and publishes the gem.
+# One-time setup on rubygems.org (Trusted Publishing, no API key secret):
+#   gem "ruby2html" -> Trusted publishers -> GitHub Actions
+#   repository: sebyx07/ruby2html, workflow: release.yml, environment: release
+on:
+  push:
+    tags: ['v*']
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Verify ${{ github.ref_name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: .ruby-version
+          bundler-cache: true
+
+      - name: Tag matches Ruby2html::VERSION
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version=$(ruby -e 'require "./lib/gem/ruby2html/version"; print Ruby2html::VERSION')
+          if [ "$TAG" != "v$version" ]; then
+            echo "::error::Tag $TAG does not match Ruby2html::VERSION ($version)"
+            exit 1
+          fi
+
+      - name: Compile C extension
+        run: bundle exec rake compile
+
+      - name: RSpec
+        run: bundle exec rspec
+
+      - name: RuboCop
+        run: bin/rubocop --parallel
+
+      - name: Build gem + standalone install smoke test
+        run: bundle exec rake smoke
+
+  jruby:
+    name: Verify install on JRuby
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: jruby
+          bundler: none
+      # Builds the gem with JRuby, installs it (extconf.rb must not fail there)
+      # and renders with the pure-Ruby implementation.
+      - name: Build + install + render
+        run: ruby bin/gem-smoke
+
+  release:
+    name: Publish to RubyGems + GitHub release
+    needs: [test, jruby]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: release
+    permissions:
+      contents: write # create the GitHub release
+      id-token: write # RubyGems trusted publishing (OIDC)
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: .ruby-version
+          bundler-cache: true
+
+      # Runs `bundle exec rake release`: builds pkg/ruby2html-<version>.gem and
+      # pushes it (the tag already exists, so nothing is tagged or pushed to git).
+      # The Rakefile does not boot Rails for this task.
+      - name: Publish to RubyGems
+        uses: rubygems/release-gem@v1
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if bin/changelog-notes "$TAG" > release-notes.md; then
+            notes=(--notes-file release-notes.md)
+          else
+            echo "::warning::No CHANGELOG.md section for $TAG; using generated notes"
+            notes=(--generate-notes)
+          fi
+          gh release create "$TAG" pkg/*.gem --title "$TAG" --verify-tag "${notes[@]}"

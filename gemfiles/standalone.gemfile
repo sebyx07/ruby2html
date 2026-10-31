@@ -1,0 +1,16 @@
+# frozen_string_literal: true
+
+# The gem without the Rails demo app: no Rails, no sqlite3 or other native gems,
+# so it resolves on CRuby, JRuby and TruffleRuby alike.
+#
+#   BUNDLE_GEMFILE=gemfiles/standalone.gemfile bundle install
+#   BUNDLE_GEMFILE=gemfiles/standalone.gemfile bundle exec rake spec:standalone
+source 'https://rubygems.org'
+
+gem 'rake', '>= 13.0'
+gem 'rake-compiler', '~> 1.2', require: false
+gem 'rspec', '~> 3.13'
+# For ActiveSupport::SafeBuffer / #html_safe in the render specs (pure Ruby).
+gem 'activesupport', '>= 7.1'
+gem 'htmlbeautifier', '>= 1.4'
+gem 'benchmark-ips', '~> 2.10'

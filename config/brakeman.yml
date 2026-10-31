@@ -1,0 +1,8 @@
+---
+# Brakeman audits the Rails demo app. The gem's own code (lib/gem: tag methods
+# generated with module_eval from the constant HTML5_TAGS list) and the
+# standalone benchmarks are not app code and are reviewed separately
+# (see AGENTS.md: xss-auditor, spec/gem escaping specs).
+:skip_files:
+  - lib/gem/
+  - bench/

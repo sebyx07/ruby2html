@@ -1,0 +1,9 @@
+{
+  "recommendations": [
+    "shopify.ruby-lsp",
+    "ms-vscode.cpptools",
+    "rubocop.vscode-rubocop",
+    "github.vscode-github-actions",
+    "ms-vscode-remote.remote-containers"
+  ]
+}

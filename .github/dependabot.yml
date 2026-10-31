@@ -1,0 +1,45 @@
+version: 2
+# Weekly, grouped updates. Patch/minor PRs are auto-merged once "CI OK" passes
+# (.github/workflows/auto-merge.yml); majors wait for review.
+#
+# gemfiles/ needs no entry: the matrix gemfiles have no lockfiles and use
+# ~> MAJOR.MINOR.0 / >= constraints, so every CI run resolves the newest
+# compatible gems, and CI derives the Ruby and Rails matrices dynamically.
+updates:
+  - package-ecosystem: bundler
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    groups:
+      rails:
+        patterns: ['rails', 'action*', 'active*', 'railties', 'view_component', 'phlex*', 'slim*', 'rspec*']
+      dev-tools:
+        patterns: ['rubocop*', 'brakeman', 'lefthook', 'rake*', 'benchmark-ips', 'capybara', 'faker', 'pry*']
+      other:
+        patterns: ['*']
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      github-actions:
+        patterns: ['*']
+
+  - package-ecosystem: devcontainers
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      devcontainers:
+        patterns: ['*']
+
+  - package-ecosystem: docker
+    directory: /.devcontainer
+    schedule:
+      interval: weekly
+      day: monday

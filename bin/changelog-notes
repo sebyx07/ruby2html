@@ -1,0 +1,31 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Prints the CHANGELOG.md section for a version (Keep a Changelog headings:
+# "## [1.2.3] - 2025-01-01"). Exits 1 when the section is missing or empty.
+#
+#   bin/changelog-notes 1.6.7
+#   bin/changelog-notes v1.6.7 > notes.md
+#   bin/changelog-notes Unreleased   # exit 1 = nothing unreleased
+
+version = ARGV.fetch(0) { abort 'usage: bin/changelog-notes VERSION' }.delete_prefix('v')
+path = File.expand_path('../CHANGELOG.md', __dir__)
+abort "#{path} not found" unless File.file?(path)
+
+section = nil
+File.foreach(path) do |line|
+  if line.start_with?('## ')
+    break if section
+
+    section = +'' if line.match?(/\A##\s+\[?v?#{Regexp.escape(version)}\]?(\s|\z)/)
+  elsif section
+    section << line
+  end
+end
+
+notes = section.to_s
+             .gsub(/<!--.*?-->/m, '')                 # HTML comments
+             .gsub(/^\[[^\]]+\]:\s+\S+\s*$/, '') # link reference definitions
+             .strip
+abort "No CHANGELOG.md entry for #{version}" if notes.empty?
+puts notes

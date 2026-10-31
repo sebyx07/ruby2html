@@ -1,0 +1,22 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# IRB with ruby2html loaded from this checkout and no Rails.
+# Uses the compiled C extension if present (bin/setup or `rake compile`);
+# RUBY2HTML_DISABLE_EXT=1 bin/console for the pure-Ruby implementation.
+#
+#   >> html { div(class: 'card') { h1 'Hi'; plain 'x < y' } }
+
+$LOAD_PATH.unshift(File.expand_path('../lib/gem', __dir__))
+require 'ruby2html'
+require 'irb'
+
+# Renders a block and returns the HTML string.
+def html(&block)
+  Ruby2html::Render.new(&block).render
+end
+
+impl = Ruby2html.respond_to?(:native?) && Ruby2html.native? ? 'C extension' : 'pure Ruby'
+puts "ruby2html #{Ruby2html::VERSION} (#{impl}) on #{RUBY_DESCRIPTION}"
+puts "Try: html { div(class: 'card') { h1 'Hi'; plain 'x < y' } }"
+IRB.start(__FILE__)

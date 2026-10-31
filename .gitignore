@@ -33,6 +33,74 @@
 
 # Ignore master key for decrypting credentials and more.
 /config/master.key
-.idea/
 *.gem
 *.so
+# Gem packaging (rake build / rake build:checksum) and release workflow output
+/pkg/
+/checksums/
+/release-notes.md
+
+# C extension build artifacts (rake compile builds in tmp/, extconf in-place builds)
+*.o
+*.bundle
+*.dll
+/ext/ruby2html/Makefile
+/ext/ruby2html/mkmf.log
+/ext/ruby2html/extconf.h
+*.dSYM/
+compile_commands.json
+.cache/clangd/
+
+# Editors / IDEs
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.code-workspace
+.fleet/
+.zed/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
+\#*\#
+.#*
+
+# OS cruft
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Ruby tooling
+/coverage/
+/.yardoc/
+/doc/
+/vendor/bundle/
+.byebug_history
+.pry_history
+.irb_history
+.rspec_status
+/spec/examples.txt
+.ruby-lsp/
+.solargraph.yml
+
+# Profiling / benchmark output
+*.prof
+*.dump
+/bench/results/
+/profile/
+stackprof-*
+perf.data*
+*.heapsnapshot
+
+# AI agent local state (shared config in .claude/ IS committed)
+.claude/settings.local.json
+.claude/worktrees/
+CLAUDE.local.md
+.aider*
+.cursor/
+.windsurf/
+.codex/
+
+# Matrix gemfiles resolve fresh on every CI run; their lockfiles are not committed.
+/gemfiles/*.lock

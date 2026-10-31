@@ -17,27 +17,34 @@ Gem::Specification.new do |spec|
     'automatic HTML beautification, and C-optimized rendering performance.'
   spec.homepage = 'https://github.com/sebyx07/ruby2html'
   spec.license = 'MIT'
-  spec.required_ruby_version = '>= 3.0.0'
+  spec.required_ruby_version = '>= 3.1.0'
 
   spec.metadata['homepage_uri'] = spec.homepage
   spec.metadata['source_code_uri'] = spec.homepage
+  spec.metadata['changelog_uri'] = "#{spec.homepage}/blob/main/CHANGELOG.md"
+  spec.metadata['bug_tracker_uri'] = "#{spec.homepage}/issues"
+  spec.metadata['rubygems_mfa_required'] = 'true'
 
-  # Include C extension
+  # C extension. RubyGems compiles it on install and places ruby2html.so into
+  # the require path (lib/gem/ruby2html/), where render.rb's
+  # `require 'ruby2html/ruby2html'` finds it. On JRuby extconf.rb writes a no-op
+  # Makefile and the pure-Ruby implementation is used.
   spec.extensions = ['ext/ruby2html/extconf.rb']
 
-  # Include both lib and ext directories
-  spec.files = Dir.glob('{lib,ext}/{**/*,*}') +
-    ['README.md', File.basename(__FILE__)]
+  # Ship only the gem library and the extension sources. The repository root is
+  # also a Rails demo app, so never glob all of lib/ (lib/assets, lib/tasks,
+  # and the locally compiled lib/ruby2html/ruby2html.so must stay out).
+  root = __dir__
+  spec.files = Dir.chdir(root) do
+    Dir.glob(%w[lib/gem/**/*.rb ext/ruby2html/*.{c,h,rb}]) +
+      %w[README.md LICENSE CHANGELOG.md].select { |f| File.file?(f) }
+  end.sort
 
-  # Set require paths for both the gem and extension
-  spec.require_paths = %w[lib/gem lib]
+  # lib/gem holds the Ruby code and receives the compiled extension on install.
+  # (A checkout's `rake compile` output in lib/ruby2html is found by render.rb
+  # via require_relative, so lib itself need not be a require path.)
+  spec.require_paths = ['lib/gem']
 
-  # Runtime dependencies
-  spec.add_dependency 'htmlbeautifier', '>= 1.4'
-
-  # Development dependencies
-  spec.add_development_dependency 'rake', '~> 13.0'
-  spec.add_development_dependency 'rake-compiler', '~> 1.2'
-  spec.add_development_dependency 'minitest', '~> 5.14'
-  spec.add_development_dependency 'benchmark-ips', '~> 2.10'
+  # No runtime dependencies. htmlbeautifier is optional: only
+  # Ruby2html::HtmlBeautifierMiddleware needs it, and it requires it lazily.
 end

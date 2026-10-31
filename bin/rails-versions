@@ -1,0 +1,21 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Prints the Rails lines to test as a JSON array, newest release lines from
+# rubygems.org: every MAJOR.MINOR >= MIN that has a stable release, e.g.
+#   bin/rails-versions 7.2   # => ["7.2","8.0","8.1"]
+# Used by CI so new Rails releases join the matrix without editing anything.
+
+require 'json'
+require 'net/http'
+
+min = Gem::Version.new(ARGV.fetch(0, '7.2'))
+body = Net::HTTP.get(URI('https://rubygems.org/api/v1/versions/rails.json'))
+lines = JSON.parse(body)
+            .reject { |v| v['prerelease'] }
+            .map { |v| Gem::Version.new(v['number']).segments.first(2).join('.') }
+            .uniq
+            .select { |line| Gem::Version.new(line) >= min }
+            .sort_by { |line| Gem::Version.new(line) }
+abort 'No Rails versions found' if lines.empty?
+puts JSON.generate(lines)

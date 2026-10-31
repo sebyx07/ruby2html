@@ -3,47 +3,276 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [ main ]
+    branches: [main]
+  workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CI: '1'
+
+# Branch protection only needs to require the final "CI OK" check.
+# Gems are cached by ruby/setup-ruby (bundler-cache), keyed on the lockfile or
+# gemfile, Ruby version and OS.
 jobs:
-  ruby_check:
+  lint:
+    name: Lint / RuboCop
     runs-on: ubuntu-latest
-
+    timeout-minutes: 10
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential
-
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
+      - uses: actions/checkout@v5
+      - uses: ruby/setup-ruby@v1
         with:
           ruby-version: .ruby-version
           bundler-cache: true
+      - run: bin/rubocop --parallel
 
-      - name: Compile C extension
-        run: bundle exec rake compile
+  audit:
+    name: Security / bundle-audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: .ruby-version
+          bundler: none
+      - run: gem install --no-document bundler-audit
+      - name: Check Gemfile.lock against the Ruby advisory database
+        run: bundle-audit check --update
 
-      - name: RSPEC
+  test:
+    name: Rails app / full suite + Brakeman
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      # ubuntu runners ship gcc/make: no apt build-essential step needed.
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: .ruby-version
+          bundler-cache: true
+      - run: bundle exec rake compile
+      - name: RSpec (features, gem, benchmarks)
         run: bundle exec rspec
-
-      - name: Scan for security vulnerabilities in Ruby dependencies
+      - name: Brakeman
         run: bin/brakeman --no-pager
 
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+  ruby-versions:
+    name: Matrix / Ruby versions
+    # Every maintained CRuby (>= 3.1, the gemspec floor) plus head, from
+    # cache.ruby-lang.org, so new Ruby releases are tested automatically.
+    uses: ruby/actions/.github/workflows/ruby_versions.yml@master
+    with:
+      engine: cruby
+      min_version: 3.1
 
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
+  gem-specs:
+    name: Gem specs / Ruby ${{ matrix.ruby }}
+    needs: ruby-versions
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    continue-on-error: ${{ matrix.ruby == 'head' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby: ${{ fromJSON(needs.ruby-versions.outputs.versions) }}
+    env:
+      # No Rails and no lockfile: resolves on every Ruby, old and new.
+      BUNDLE_GEMFILE: ${{ github.workspace }}/gemfiles/standalone.gemfile
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          bundler-cache: true
+      - name: Compile + RSpec (spec/gem without Rails)
+        run: bundle exec rake spec:standalone
+
+  native:
+    # x86_64 = SSE2 path, aarch64/arm64 = NEON path.
+    name: C ext / ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: Linux arm64 (gcc), os: ubuntu-24.04-arm }
+          - { name: macOS arm64 (clang), os: macos-latest }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ruby/setup-ruby@v1
         with:
           ruby-version: .ruby-version
           bundler-cache: true
+      - name: Compile + RSpec (spec/gem)
+        run: bundle exec rake spec:gem
+      - name: Packaged gem installs and renders
+        run: bundle exec rake smoke
 
-      - name: Lint code for consistent style
-        run: bin/rubocop --parallel
+  strict-ext:
+    name: C ext / ${{ matrix.cc }} -Werror
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        cc: [gcc, clang]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: .ruby-version
+          bundler-cache: true
+      - name: Build with warnings as errors
+        run: bin/build-ext --cc=${{ matrix.cc }} --werror
+      - name: RSpec (spec/gem) against that build
+        run: bundle exec rake spec:gem
+        env:
+          SKIP_COMPILE: '1'
+
+  sanitizers:
+    name: C ext / ASAN + UBSAN (allowed to fail)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: .ruby-version
+          bundler-cache: true
+      - name: Build instrumented extension
+        run: bin/build-ext --sanitize
+      - name: RSpec (spec/gem) with sanitizer runtimes preloaded
+        run: |
+          LD_PRELOAD="$(gcc -print-file-name=libasan.so):$(gcc -print-file-name=libubsan.so)"
+          export LD_PRELOAD
+          bundle exec rspec spec/gem
+        env:
+          ASAN_OPTIONS: detect_leaks=0:abort_on_error=1:strict_string_checks=1
+          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+
+  fallback:
+    name: Pure Ruby fallback / RUBY2HTML_DISABLE_EXT=1
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: .ruby-version
+          bundler-cache: true
+      - name: RSpec (spec/gem) without the C extension
+        run: bundle exec rake spec:gem
+        env:
+          RUBY2HTML_DISABLE_EXT: '1'
+          SKIP_COMPILE: '1'
+
+  engines:
+    name: Engine / ${{ matrix.ruby }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby: [jruby, truffleruby] # setup-ruby aliases for the latest releases
+    env:
+      # rspec + activesupport + htmlbeautifier only: no Rails, no sqlite3.
+      BUNDLE_GEMFILE: ${{ github.workspace }}/gemfiles/standalone.gemfile
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          bundler-cache: true
+      - name: RSpec (spec/gem without Rails)
+        run: bundle exec rake spec:standalone
+      - name: Packaged gem installs and renders
+        run: ruby bin/gem-smoke
+
+  rails-versions:
+    name: Matrix / Rails versions
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      versions: ${{ steps.versions.outputs.versions }}
+    steps:
+      - uses: actions/checkout@v5
+      - id: versions
+        # Every stable Rails MAJOR.MINOR >= 7.2 (the demo app's floor), from rubygems.org.
+        run: echo "versions=$(ruby bin/rails-versions 7.2)" >> "$GITHUB_OUTPUT"
+
+  rails:
+    name: Rails ${{ matrix.rails }}
+    needs: rails-versions
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    continue-on-error: ${{ matrix.rails == 'edge' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # "edge" = rails/rails main, allowed to fail: new majors show up early.
+        rails: ${{ fromJSON(needs.rails-versions.outputs.versions) }}
+        include:
+          - rails: edge
+    env:
+      RAILS_VERSION: ${{ matrix.rails }}
+      BUNDLE_GEMFILE: ${{ github.workspace }}/gemfiles/rails.gemfile
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: .ruby-version
+          bundler-cache: true
+      - run: bundle exec rake compile
+      - name: Resolved versions
+        run: bundle list | grep -E ' (rails|view_component|phlex-rails|rspec-rails|sqlite3) ' || true
+      - name: RSpec (integration specs)
+        run: bundle exec rspec spec/features spec/gem/rails
+
+  package:
+    name: Package / build + install on Ruby ${{ matrix.ruby }}
+    needs: ruby-versions
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: ${{ matrix.ruby == 'head' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby: ${{ fromJSON(needs.ruby-versions.outputs.versions) }}
+    steps:
+      - uses: actions/checkout@v5
+      # No Bundler on purpose: the gem must build and install with plain RubyGems.
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          bundler: none
+      - name: Build gem, install into temp GEM_HOME, render without Rails
+        run: ruby bin/gem-smoke
+
+  ci-ok:
+    name: CI OK
+    if: always()
+    # Experimental legs (Ruby head, Rails edge) use continue-on-error and do not block.
+    needs: [lint, audit, test, gem-specs, native, strict-ext, fallback, engines, rails, package]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: All required jobs passed
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Results: $RESULTS"
+          for r in $RESULTS; do
+            if [ "$r" != success ]; then
+              echo "::error::A required job finished with '$r'"
+              exit 1
+            fi
+          done
