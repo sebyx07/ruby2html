@@ -38,6 +38,9 @@ else
     Rake::ExtensionTask.new('ruby2html') do |ext|
       ext.lib_dir = 'lib/ruby2html'
       ext.ext_dir = 'ext/ruby2html'
+      # Build in tmp/ext, not tmp/: `rake clobber` removes the tmp dir, and tmp/ holds the demo
+      # app's tracked .keep files.
+      ext.tmp_dir = 'tmp/ext'
     end
   rescue LoadError
     desc 'Compile the C extension (requires rake-compiler)'
