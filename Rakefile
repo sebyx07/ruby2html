@@ -47,6 +47,12 @@ if RUBY_ENGINE == 'jruby'
     desc 'Compile the Java extension (requires rake-compiler)'
     task(:compile) { abort 'rake-compiler is not installed: bundle install' }
   end
+elsif RUBY_ENGINE == 'truffleruby'
+  # TruffleRuby runs the C extension through Sulong but is ~28x faster on pure
+  # Ruby under Graal, so extconf.rb skips the build there. rake-compiler's
+  # ExtensionTask would still expect a .so and fail, so don't define it.
+  desc 'No-op on TruffleRuby (the pure-Ruby implementation is faster than the C extension)'
+  task(:compile) { puts 'TruffleRuby: skipping the C extension, using the pure-Ruby implementation' }
 else
   begin
     require 'rake/extensiontask'
