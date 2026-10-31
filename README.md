@@ -1,5 +1,9 @@
 # Ruby2html
 
+[![CI](https://github.com/sebyx07/ruby2html/actions/workflows/ci.yml/badge.svg)](https://github.com/sebyx07/ruby2html/actions/workflows/ci.yml)
+[![Gem Version](https://img.shields.io/gem/v/ruby2html)](https://rubygems.org/gems/ruby2html)
+[![Maintained by developerz.ai](https://img.shields.io/badge/maintained%20by-developerz.ai-6f42c1)](https://developerz.ai)
+
 Write views in pure Ruby; get escaped, compact HTML. A C extension handles escaping, attribute serialization and tag rendering. Works standalone, as Rails `.html.rb` templates, inside ERB, and in ViewComponent.
 
 ```ruby
@@ -37,7 +41,7 @@ bundle install   # compiles the native extension (needs a C compiler); pure-Ruby
 
 ## AI agents
 
-This repo is set up to be used and maintained by AI coding agents.
+**This project is maintained by [developerz.ai](https://developerz.ai).** Its maintainer agent triages issues, reviews every pull request, merges dependency and contributor PRs once CI passes, watches project health daily, and opens release PRs. The policy is in [`.dz/maintainer/maintainer.yml`](.dz/maintainer/maintainer.yml). Breaking changes and major releases stay with the owner.
 
 - **Using ruby2html in your app?** Point your agent at [`llms.txt`](llms.txt), the complete reference in one file (DSL rules, escaping, Rails, components, forms, pitfalls). Paste this into your app's `CLAUDE.md` / `AGENTS.md`:
   ```markdown

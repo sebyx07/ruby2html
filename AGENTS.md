@@ -40,7 +40,7 @@ bin/rails server                  # demo: /, /rb_files, /form, /benchmark/{html,
 
 - Gem tasks (`compile clean clobber spec spec:gem spec:standalone bench smoke build install release default`) do not boot Rails; any other task loads the Rails tasks. `RUBY2HTML_RAILS_TASKS=1` forces that.
 - After editing `ext/` always `rake compile`; otherwise specs run the stale `.so` (or PureRuby if none).
-- Never run `rake release` locally; releases go through the tag-triggered workflow.
+- Never run `rake release`, push `v*` tags or `gem push`: merging a version bump to `main` is the release (`docs/release.md`).
 
 ## Code map
 
@@ -101,13 +101,14 @@ bin/rails server                  # demo: /, /rb_files, /form, /benchmark/{html,
 Goal: the repo needs no hand maintenance except major-version dependency upgrades.
 
 Automated:
-- **Dependencies**: Dependabot (`.github/dependabot.yml`) opens grouped weekly PRs for Bundler and GitHub Actions; patch and minor updates are auto-merged when CI passes.
+- **Maintainer agent**: the repo is managed by [developerz.ai](https://developerz.ai) (policy: `.dz/maintainer/maintainer.yml`). It triages issues, reviews every PR, merges outside and bot PRs on a green `CI OK`, runs a daily `health` and weekday `release-due` checkup (`.dz/briefs/`), and opens release PRs. Owner/collaborator PRs are reviewed but left to their author; breaking changes escalate to the owner.
+- **Dependencies**: Dependabot (`.github/dependabot.yml`) opens grouped weekly PRs; the developerz.ai agent reviews and merges them on green (it is the only merger).
 - **CI** (`.github/workflows/ci.yml`; branch protection requires only the aggregate `CI OK` job): RuboCop, bundle-audit, full suite + Brakeman, gem specs across the Ruby matrix (generated automatically from maintained CRuby versions; `head` allowed to fail), native builds on Linux/macOS arm64, `-Werror` builds with gcc and clang, ASAN/UBSAN (allowed to fail), the pure-Ruby fallback, JRuby/TruffleRuby via `gemfiles/standalone.gemfile`, Rails integration per `gemfiles/rails_*.gemfile`, and `bin/gem-smoke` packaging on plain RubyGems.
 - **Benchmarks** (`.github/workflows/benchmark.yml`, non-gating): every push to `main` and PR renders a table into the job summary and uploads JSON; PRs get a sticky comment with the delta vs `main`. Set repo variable `BENCH_RUNNER` for a stable self-hosted runner. README holds only a dated release snapshot.
-- **Releases** (`.github/workflows/release.yml`, on `v*` tag push): checks tag == `v#{Ruby2html::VERSION}`, runs the tests and `rake smoke`, publishes via `rubygems/release-gem` (Trusted Publishing, GitHub environment `release`; one-time trusted-publisher setup on rubygems.org) and creates a GitHub release with notes from `bin/changelog-notes`. Humans only bump `VERSION`, update the CHANGELOG, and push the tag (`docs/release.md`, `release` skill).
+- **Releases** (`.github/workflows/release.yml`): merging a `version.rb` bump to `main` (no `v<VERSION>` tag yet) runs the tests, `rake smoke` and a JRuby install, publishes the gem via RubyGems trusted publishing (environment `release`), then creates the tag and the GitHub release from `bin/changelog-notes`. The release PR is opened by the developerz.ai agent or the `release` skill (`docs/release.md`).
 - **Local hooks**: lefthook pre-commit autocorrects staged Ruby files with RuboCop; the Claude Code PostToolUse hook reminds to recompile after `ext/` edits.
 
-Manual (the one recurring job): **major-version dependency PRs** (Dependabot does not auto-merge them). Use the `upgrade-deps` skill: read the upgrade guide, fix the demo app/specs, run the full suite and benchmarks, then merge.
+Manual (the owner's only jobs): **breaking changes and major releases** (escalated by the agent), and one-time repo setup (RubyGems trusted publisher; ruleset requiring `CI OK`). Major dependency bumps are handled by the agent like any other PR; use the `upgrade-deps` skill when doing one by hand.
 
 Keep it that way: don't hardcode version lists or benchmark numbers in docs; point at the CI matrix, `.ruby-version`, the lockfiles and the benchmark workflow instead.
 
@@ -117,7 +118,7 @@ Keep it that way: don't hardcode version lists or benchmark numbers in docs; poi
 
 ### Claude Code
 
-- Project skills (`.claude/skills/`): `release` (bump → changelog → commit → tag push, asks before anything public; manual-only), `benchmark` (before/after), `add-html-tag`, `review` (checklist for `ext/` and renderer diffs), `debug-render` (C vs Ruby output diffs, sanitizer builds), `upgrade-deps`.
+- Project skills (`.claude/skills/`): `release` (bump → changelog → verify → `release: X.Y.Z` PR; merging publishes; manual-only), `benchmark` (before/after), `add-html-tag`, `review` (checklist for `ext/` and renderer diffs), `debug-render` (C vs Ruby output diffs, sanitizer builds), `upgrade-deps`.
 - Subagents (`.claude/agents/`, read-only tools): `perf-reviewer`, `xss-auditor`. Use them for an independent pass on hot-path or escaping changes.
 - `.claude/settings.json`: allowlists specs, `rake compile/spec/bench/build/smoke`, rubocop, brakeman, bench scripts and read-only git/gh; `git commit`, `git push`, `git tag`, `rake release`, `gem push/yank`, `gh release` always ask. A PostToolUse hook (`.claude/hooks/post-edit-reminder.sh`, non-blocking) reminds to recompile after `ext/` edits and to keep Native/PureRuby parity after renderer edits.
 

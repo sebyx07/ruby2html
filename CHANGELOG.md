@@ -29,7 +29,8 @@ Measured on Ruby 3.4.7 x86_64 (`bench/render_bench.rb`, a 100-item page with att
 - `capture`, `content_for` and `provide` with blocks of ruby2html tags work in `.html.rb` templates.
 - Support for Rails 8.1, ViewComponent 4, JRuby and TruffleRuby; fiber-safe rendering (no thread/fiber-global state).
 - `llms.txt`: complete reference for AI coding tools; `AGENTS.md` (with `CLAUDE.md` symlinked to it) and Claude Code skills/agents for maintainers.
-- CI: generated CRuby matrix (all maintained versions), Rails matrix, Linux x86_64/arm64 and macOS builds, `-Werror` gcc/clang builds, sanitizers, JRuby/TruffleRuby, gem install smoke test, benchmarks in every PR; Dependabot with auto-merge for patch/minor updates; tag-triggered releases via RubyGems trusted publishing.
+- CI: generated CRuby matrix (all maintained versions), Rails matrix, Linux x86_64/arm64 and macOS builds, `-Werror` gcc/clang builds, sanitizers, JRuby/TruffleRuby, gem install smoke test, benchmarks in every PR; Dependabot; releases published automatically when a version bump merges (RubyGems trusted publishing).
+- Maintained by [developerz.ai](https://developerz.ai): its maintainer agent triages issues, reviews PRs, merges on green, runs daily health and release checkups, and opens release PRs (`.dz/`).
 
 ### Fixed
 

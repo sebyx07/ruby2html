@@ -1,6 +1,6 @@
 version: 2
-# Weekly, grouped updates. Patch/minor PRs are auto-merged once "CI OK" passes
-# (.github/workflows/auto-merge.yml); majors wait for review.
+# Weekly, grouped updates. The developerz.ai maintainer agent reviews them and
+# merges on a green "CI OK" (.dz/maintainer/maintainer.yml); it is the only merger.
 #
 # gemfiles/ needs no entry: the matrix gemfiles have no lockfiles and use
 # ~> MAJOR.MINOR.0 / >= constraints, so every CI run resolves the newest

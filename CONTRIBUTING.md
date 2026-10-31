@@ -41,3 +41,8 @@ rubocop-rails_config (`.rubocop.yml`): single quotes, `# frozen_string_literal: 
 ## License
 
 By contributing you agree your contributions are licensed under the MIT License.
+
+## How PRs get merged
+
+This repo is maintained by [developerz.ai](https://developerz.ai). Its agent reviews every PR, may request changes, and merges contributor and dependency PRs once the `CI OK` check passes (policy: `.dz/maintainer/maintainer.yml`). Commit with an email linked to your GitHub account. Changes to CI, release or publishing automation (`.github/`, `bin/`, the gemspec, `Ruby2html::VERSION`) are made by the owner only.
+

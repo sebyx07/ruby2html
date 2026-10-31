@@ -1,59 +1,31 @@
 # Release checklist
 
-Releases go to RubyGems (`ruby2html`) and are tagged `vX.Y.Z` on GitHub (`sebyx07/ruby2html`). Agents: use the `release` skill (`.claude/skills/release/SKILL.md`); it follows this list and stops for confirmation before anything public.
+Releases go to RubyGems (`ruby2html`) and are tagged `vX.Y.Z` on GitHub (`sebyx07/ruby2html`).
 
-**Pushing a `v*` tag publishes the gem.** `.github/workflows/release.yml` then: checks the tag equals `v#{Ruby2html::VERSION}`, compiles, runs `rspec` + rubocop + `rake smoke`, publishes with `rubygems/release-gem` (RubyGems Trusted Publishing, GitHub environment `release`; no API key in the repo), and creates a GitHub release with `pkg/*.gem` and notes from `bin/changelog-notes vX.Y.Z` (falls back to generated notes if the CHANGELOG section is missing).
+**Merging a version bump to `main` is the release.** When `lib/gem/ruby2html/version.rb` changes on
+`main` and tag `vX.Y.Z` does not exist yet, `.github/workflows/release.yml`:
+1. checks that `CHANGELOG.md` has a `## [X.Y.Z]` section, then runs compile, `rspec`, rubocop and `rake smoke`, plus a JRuby install;
+2. publishes the gem (RubyGems trusted publishing, GitHub environment `release`; no API key in the repo);
+3. only then creates the tag and the GitHub release, with the `.gem` attached and notes from `bin/changelog-notes`.
 
-## 0. Preconditions
+Nobody tags or `gem push`es by hand. The developerz.ai maintainer agent decides when a release is due
+and opens the release PR (`.dz/briefs/release-due.md`). A **major** release is the owner's call: the
+agent never opens one.
 
-- On `main`, clean tree, up to date with `origin/main`; CI green on that commit.
-- One-time (maintainer): Trusted Publisher configured on rubygems.org for `sebyx07/ruby2html`, workflow `release.yml`, environment `release`. The gemspec sets `rubygems_mfa_required`.
+## The release PR
 
-## 1. Pick the version (SemVer)
+1. Pick the version (SemVer): patch for fixes; minor for new tags/helpers/options, perf work or intentional output changes; major for removed or renamed public API, or a raised Ruby/Rails floor.
+2. `lib/gem/ruby2html/version.rb` → `VERSION = 'X.Y.Z'` (the gemspec reads it).
+3. `CHANGELOG.md`: move `## [Unreleased]` into `## [X.Y.Z] - YYYY-MM-DD` (with "Upgrading to X.0" for a major), leave an empty `## [Unreleased]`, add the `[X.Y.Z]` link at the bottom. `bin/changelog-notes X.Y.Z` must print the section.
+4. Verify: `bundle exec rake compile && CI=1 bundle exec rspec && bundle exec rubocop && bundle exec rake smoke`.
+5. One PR titled `release: X.Y.Z`, containing nothing else. Merge on green.
 
-- Patch: bug fixes only.
-- Minor: new tags/helpers/options, perf work, intentional HTML output changes.
-- Major: removed/renamed public API (`Render`, `plain`, `component`, `html` helpers, template handler) or a raised Ruby/Rails floor.
+## After
 
-## 2. Bump and document
+- `gh run list --workflow release.yml --limit 1`; `gem list -r ruby2html` shows X.Y.Z; the GitHub release exists.
+- Failed before publishing: fix on `main` and re-run the workflow (`workflow_dispatch`); it releases whatever version has no tag yet.
+- Failed after publishing (gem is out, tag missing): re-run the workflow; never reuse or bump past a published version to "fix" it. `gem yank` only by the owner.
 
-1. `lib/gem/ruby2html/version.rb` → `VERSION = 'X.Y.Z'` (single source; gemspec reads it).
-2. `CHANGELOG.md`: move `## [Unreleased]` entries (including "Upgrading to 2.0" for a major) into `## [X.Y.Z] - YYYY-MM-DD`, leave an empty `## [Unreleased]`, update link references at the bottom. Check: `bin/changelog-notes X.Y.Z` prints the section.
-3. If README benchmark numbers are refreshed, include Ruby version, YJIT state and machine.
+## One-time setup (owner)
 
-## 3. Verify locally
-
-```bash
-bundle exec rake compile
-CI=1 bundle exec rspec
-bundle exec rubocop
-bundle exec rake smoke      # builds pkg/ruby2html-X.Y.Z.gem, checks file list, installs into a temp GEM_HOME, renders without Rails
-```
-
-`rake build` writes `pkg/ruby2html-X.Y.Z.gem` (Bundler gem tasks; Rails is not booted). Optional manual check of the package contents:
-
-```bash
-tar -xOf pkg/ruby2html-X.Y.Z.gem data.tar.gz | tar -tz   # lib/gem/**/*.rb, ext/ruby2html/*.{c,h,rb}, README.md, LICENSE, CHANGELOG.md; no .so/.o (bin/gem-smoke checks this)
-```
-
-## 4. Commit, tag, push (explicit maintainer confirmation required)
-
-```bash
-git add lib/gem/ruby2html/version.rb CHANGELOG.md
-git commit -m "Release vX.Y.Z"
-git push origin main
-git tag -a vX.Y.Z -m "vX.Y.Z"
-git push origin vX.Y.Z          # triggers release.yml -> publishes
-```
-
-Do not run `rake release` locally (it tags, pushes and `gem push`es in one step, bypassing the workflow).
-
-## 5. After
-
-- Watch the run: `gh run watch` / `gh run list --workflow release.yml`.
-- `gem list -r ruby2html` shows X.Y.Z; GitHub release exists with the `.gem` attached.
-- Workflow failed before publishing: fix on `main`, delete the tag (`git push --delete origin vX.Y.Z && git tag -d vX.Y.Z`), re-tag. Failed after publishing: never reuse the version; release a patch. `gem yank` only by the maintainer.
-
-## Manual fallback (workflow unavailable)
-
-`bundle exec rake build` → `gem push pkg/ruby2html-X.Y.Z.gem` (OTP required) → `gh release create vX.Y.Z pkg/ruby2html-X.Y.Z.gem --notes-file <(bin/changelog-notes vX.Y.Z)`.
+- rubygems.org → gem `ruby2html` → Trusted publishers → GitHub Actions: repository `sebyx07/ruby2html`, workflow `release.yml`, environment `release`.

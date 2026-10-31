@@ -1,0 +1,110 @@
+# yaml-language-server: $schema=https://developerz.ai/schemas/maintainer.v1.json
+# developerz.ai maintainer policy for sebyx07/ruby2html
+#
+# AI-MANAGED. For outside contributors and the dependency bots, the agent handles issues, pull
+# requests and updates end to end: it triages, answers, reviews, declines with a reason, merges on
+# green, and closes what has stalled on its reporter or author. Issues and PRs by anyone with write
+# access are left to their author (still reviewed; an @-mention is answered). A human is asked only
+# for what `escalate` names plus the platform's hardcoded categories (security, license, CLA).
+#
+# Releases follow the work: the `release-due` checkup opens a release PR when shipping work has
+# waited, and merging it IS the release (.github/workflows/release.yml publishes when
+# lib/gem/ruby2html/version.rb changes on main). Dependabot PRs merge through this agent only:
+# there is no second merger (no GitHub auto-merge workflow) that would skip its review.
+#
+# The gate is the repository, not this file: CI's aggregate "CI OK" check. Verify the ruleset with
+# `gh api repos/sebyx07/ruby2html/rulesets` before trusting any sentence here about it.
+version: 1
+
+tone:
+  voice: friendly
+  language: en
+
+triage:
+  skip_project_members: true
+  ask_for_repro: true
+  required_fields: [steps, expected, actual, version]
+  qualify_into: [bug, feature, dupe, question]
+  close_unanswered_repro_after_days: 14
+  # Proposals this project will not take (from AGENTS.md "Sharp edges / invariants").
+  non_goals:
+    - "Caching rendered output or attributes keyed by Object#hash (collisions render another input's output)"
+    - "Divergence between the C extension and the pure-Ruby implementation: both must produce byte-identical output"
+    - "Escaping off by default, or treating a plain String as html_safe"
+    - "A runtime dependency in the gemspec"
+    - "Backwards-compatibility shims, dead-code comments, or speculative abstractions"
+    - "Hardcoded version lists or benchmark numbers in docs (CI generates the matrices and posts benchmarks)"
+    - "Outside contributors' changes to CI, release or publish automation (.github/, bin/, Rakefile release tasks, ruby2html.gemspec, Ruby2html::VERSION): the owner owns the gem pipeline"
+
+handoff:
+  mode: fleet
+  ask_reporter_first: false
+
+pr:
+  wait_for_other_bots: [copilot]
+  auto_merge: true
+  # The bot's own PRs, the dependency bots' and outside contributors'. Never one by an author with
+  # write access: reviewed, then left to its author.
+  auto_merge_scope: not_project
+  # The one required check: ci.yml's aggregate job (every required job must pass; experimental
+  # legs like Ruby head and Rails edge cannot fail it).
+  required_checks:
+    - "CI OK"
+  close_awaiting_author_after_days: 21
+
+review:
+  enabled: true
+  force: true
+  depth: inline
+  profile: chill
+  request_changes: true
+  approval: false
+  high_level_summary: true
+  learnings: false
+  chat_auto_reply: true
+  auto_review:
+    enabled: true
+    incremental: true
+    drafts: false
+    base_branches: [main]
+    ignore_title_keywords: [WIP, "DO NOT MERGE"]
+  anti_noise:
+    severity_floor: minor
+    max_comments: 10
+    dedupe: true
+  path_filters: []
+  path_instructions:
+    - path: "ext/ruby2html/**"
+      instructions: >-
+        C extension hot path. Check GC safety (RB_GC_GUARD after the last use of a VALUE whose
+        pointer is read across an allocating call), buffer sizing and re-reading RSTRING_PTR after
+        growth, escaping correctness, and that lib/gem/ruby2html/render/pure_ruby.rb got the same
+        change (byte-identical output). Speed claims need before/after numbers.
+    - path: "lib/gem/ruby2html/render/pure_ruby.rb"
+      instructions: >-
+        Must stay byte-identical to the C extension (ext/ruby2html). Any rule change needs the
+        matching C change and specs in a RenderSpecHelper.describe_each group.
+    - path: "lib/gem/ruby2html/rails_components/**"
+      instructions: >-
+        Escaping is a security boundary: helper output must be html_safe-aware, never
+        double-escaped or under-escaped. Template rewrites must insert text only (no newlines).
+
+release:
+  # No release manager and no agent-published channels: release.yml owns the whole lane (gem
+  # first via RubyGems trusted publishing, then the tag and the GitHub release from CHANGELOG).
+  manager: none
+  channels: []
+
+escalate:
+  # A breaking change asks the owner first: a major version is a maintainer's decision.
+  ask_before_acting: [breaking_change]
+
+schedules:
+  - name: release-due
+    days: [mon, tue, wed, thu, fri]
+    hours_utc: [6]
+    brief_file: .dz/briefs/release-due.md
+  - name: health
+    days: [mon, tue, wed, thu, fri, sat, sun]
+    hours_utc: [7]
+    brief_file: .dz/briefs/health.md
