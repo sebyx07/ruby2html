@@ -1,0 +1,26 @@
+name: Feature request
+description: New tag, helper wrapper, DSL behavior or integration
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What can't you express today? Include the code you'd like to write.
+      render: ruby
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Desired HTML output
+      render: html
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Current workaround / alternatives considered
+  - type: dropdown
+    id: perf
+    attributes:
+      label: Could this affect rendering speed of existing templates?
+      options: ["No", "Yes", "Not sure"]

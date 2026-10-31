@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(bundle install)",
+      "Bash(bundle check)",
+      "Bash(bundle exec rspec *)",
+      "Bash(bundle exec rspec)",
+      "Bash(CI=1 bundle exec rspec *)",
+      "Bash(CI=1 bundle exec rspec)",
+      "Bash(bundle exec rake compile)",
+      "Bash(bundle exec rake clean)",
+      "Bash(bundle exec rake clobber)",
+      "Bash(bundle exec rake spec)",
+      "Bash(bundle exec rake spec:gem)",
+      "Bash(bundle exec rake bench)",
+      "Bash(bundle exec rake build)",
+      "Bash(bundle exec rake smoke)",
+      "Bash(bundle exec rubocop)",
+      "Bash(bundle exec rubocop *)",
+      "Bash(bin/rubocop *)",
+      "Bash(bin/brakeman *)",
+      "Bash(bin/gem-smoke *)",
+      "Bash(bin/gem-smoke)",
+      "Bash(bundle exec ruby -Ilib/gem -Ilib bench/*)",
+      "Bash(bundle exec ruby bench/*)",
+      "Bash(bundle exec ruby --yjit bench/*)",
+      "Bash(RUBY2HTML_DISABLE_EXT=1 bundle exec ruby bench/*)",
+      "Bash(RUBY2HTML_DISABLE_EXT=1 bundle exec ruby --yjit bench/*)",
+      "Bash(gem build ruby2html.gemspec)",
+      "Bash(git status *)",
+      "Bash(git status)",
+      "Bash(git diff *)",
+      "Bash(git diff)",
+      "Bash(git log *)",
+      "Bash(git show *)",
+      "Bash(bin/changelog-notes *)",
+      "Bash(gh run list *)",
+      "Bash(gh run watch *)",
+      "Bash(gh run view *)",
+      "Bash(bundle exec rake spec:standalone)",
+      "Bash(RUBY2HTML_DISABLE_EXT=1 bundle exec rake spec:standalone)",
+      "Bash(RUBY2HTML_DISABLE_EXT=1 bundle exec rspec *)",
+      "Bash(RUBY2HTML_NO_SIMD=1 bundle exec rake compile)",
+      "Bash(bin/build-ext)",
+      "Bash(bin/build-ext *)"
+    ],
+    "ask": [
+      "Bash(git push *)",
+      "Bash(git tag *)",
+      "Bash(git commit *)",
+      "Bash(bundle exec rake release*)",
+      "Bash(rake release*)",
+      "Bash(gem push *)",
+      "Bash(gem yank *)",
+      "Bash(gh release *)"
+    ],
+    "deny": [
+      "Read(./config/master.key)",
+      "Read(./.env*)",
+      "Read(./tmp/local_secret.txt)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/post-edit-reminder.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

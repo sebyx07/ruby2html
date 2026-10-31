@@ -1,0 +1,23 @@
+name: Performance report
+description: Regression or optimization opportunity, with numbers
+labels: [performance]
+body:
+  - type: textarea
+    id: bench
+    attributes:
+      label: Benchmark and results
+      description: Command run (bench/ script or spec/benchmarks), before/after i/s, error margins.
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      placeholder: "ruby 3.4.7 +YJIT, x86_64-linux, Ruby2html.native? => true"
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Analysis / suspected cause

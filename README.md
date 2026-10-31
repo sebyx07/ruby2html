@@ -1,159 +1,116 @@
-# Ruby2html 🔮✨
+# Ruby2html
 
-Transform your view logic into elegant, semantic HTML with the power of pure Ruby! 🚀✨
-
-## 🌟 What is Ruby2html?
-
-Ruby2html is a magical gem that allows you to write your views in pure Ruby and automatically converts them into clean, well-formatted HTML. Say goodbye to messy ERB templates and hello to the full power of Ruby in your views! 🎉
-
-## 🚀 Installation
-
-Add this line to your application's Gemfile:
-
+Write views in pure Ruby; get escaped, compact HTML. A C extension handles escaping, attribute serialization and tag rendering. Works standalone, as Rails `.html.rb` templates, inside ERB, and in ViewComponent.
 
 ```ruby
+div class: 'card', 'data-controller': 'card' do
+  h2 @product.title
+  p @product.description
+  a 'Details', href: product_path(@product), class: 'btn'
+end
+```
+
+```html
+<div class="card" data-controller="card"><h2>Lamp</h2><p>Warm &amp; bright</p><a href="/products/1" class="btn">Details</a></div>
+```
+
+## Why ruby2html
+
+- **Fastest Ruby HTML renderer we've measured.** The page benchmark renders 1.35x faster than Erubi (Rails' ERB engine) and 2.4–16x faster than Phlex 2, with 40–90% fewer allocations; in a full Rails request it leads ERB, Slim and Phlex ([numbers](#performance)).
+- **Light.** No runtime dependencies, a 32 KB gem, and `require 'ruby2html'` costs about 0.4 MB and 19 ms. Prism, the Rails glue and the optional beautifier load only when used, or at boot in eager-loading production apps.
+- **Plain Ruby views.** `.html.rb` templates, ERB interop, ViewComponent, or the built-in `Ruby2html::Component`. Escaped by default.
+- **Runs everywhere.** CRuby ≥ 3.1 with a C extension (SIMD escaping on x86_64 and arm64), and JRuby/TruffleRuby through a byte-identical pure-Ruby implementation. Rails 7.2+.
+- **AI-ready.** One-file reference for coding agents: [`llms.txt`](llms.txt).
+
+## Installation
+
+Supports all maintained CRuby versions (>= 3.1), JRuby (via the pure-Ruby implementation), TruffleRuby, and Rails 7.2+; the CI matrix is generated automatically.
+
+```ruby
+# Gemfile
 gem 'ruby2html'
 ```
 
-And then execute:
+```bash
+bundle install   # compiles the native extension (needs a C compiler); pure-Ruby fallback otherwise
+```
 
-    $ bundle install
+## AI agents
 
-Or install it yourself as:
+This repo is set up to be used and maintained by AI coding agents.
 
-    $ gem install ruby2html
+- **Using ruby2html in your app?** Point your agent at [`llms.txt`](llms.txt), the complete reference in one file (DSL rules, escaping, Rails, components, forms, pitfalls). Paste this into your app's `CLAUDE.md` / `AGENTS.md`:
+  ```markdown
+  ## ruby2html views
+  `*.html.rb` templates and `html do ... end` blocks use the ruby2html gem. Before editing them read
+  https://github.com/sebyx07/ruby2html/blob/main/llms.txt
+  ```
+- **Working on this repo?** [`AGENTS.md`](AGENTS.md) is the only agent-instructions file (`CLAUDE.md` is a symlink to it): commands, code map, invariants, how to verify a change, CI/release automation.
+- **Claude Code**: project skills in `.claude/skills/` (`release`, `benchmark`, `add-html-tag`, `review`, `debug-render`, `upgrade-deps`), read-only reviewer subagents in `.claude/agents/` (`perf-reviewer`, `xss-auditor`), and `.claude/settings.json` with a safe permission allowlist and a non-blocking recompile-reminder hook.
 
-## 🎨 Usage
+## Usage
 
-### In your views
+### DSL basics
 
-File: `app/views/your_view.html.rb`
+- Every HTML5 tag is a method (`div`, `p`, `ul`, `li`, `img`, `input`, ...), plus `turbo_frame` / `turbo_stream`.
+- `tag content, **attrs` or `tag(**attrs) { nested tags }`. Text and attribute values are HTML-escaped; numbers and symbols are converted (`td 42`).
+- Raw HTML only from `html_safe` strings (Rails helpers, `'<hr>'.html_safe`), as content or via `plain`. `plain 'text'` escapes.
+- Attributes: `'data-id': 1` or `data: { id: 1 }`, `class: ['btn', active && 'on']`, `disabled: true` → bare `disabled`, `nil`/`false` omitted.
+
+Full rules and pitfalls: [`llms.txt`](llms.txt).
+
+### Rails views (`.html.rb`)
+
+File: `app/views/products/index.html.rb`
 
 ```ruby
 div class: 'container' do
-  h1 'Welcome to Ruby2html! 🎉', class: 'main-title', 'data-controller': 'welcome'
-  link_to 'Home Sweet Home 🏠', root_path, class: 'btn btn-primary', 'data-turbo': false
+  h1 'Products', class: 'main-title'
+  link_to 'Home', root_path, class: 'btn btn-primary', 'data-turbo': false
 
   @products.each do |product|
-    h2 class: 'item-title', id: "product-#{product[:id]}" do
-      product.title
-    end
-    p class: 'item-description' do
-      product.description
-    end
+    h2 product.title, class: 'item-title', id: "product-#{product.id}"
+    p product.description, class: 'item-description'
   end
 end
 
 plain '<div>Inline html</div>'.html_safe
-
 render partial: 'shared/navbar'
 ```
 
-### (Optional) Nicely Format the HTML for source inspection
+Controller instance variables are available. Partials can be `.html.rb` too. `link_to`, `image_tag`, `button_to`, `form_with` and `render` write their output directly; other helpers return a value you must output (`h1 t('.title')`, `plain some_safe_html_helper`).
 
-File: `config/environments/development.rb` or `config/environments/test.rb`
-```ruby
-config.middleware.use Ruby2html::HtmlBeautifierMiddleware
-```
-
-#### Or use your current .erb views
-
-### In your ApplicationController
-
-File: `app/controllers/application_controller.rb`
+### Inside ERB
 
 ```ruby
-# frozen_string_literal: true
-
 class ApplicationController < ActionController::Base
-  include Ruby2html::RailsHelper # to access the <%= html %> helper
+  include Ruby2html::RailsHelper # exposes the html(context) helper to views
 end
 ```
 
-File: `app/views/your_view.html.erb`
-
-Replace your ERB with beautiful Ruby code:
-
 ```erb
-<%=
-  html(self) do
-    h1 "Welcome to Ruby2html! 🎉", class: 'main-title', 'data-controller': 'welcome'
-    div id: 'content', class: 'container' do
-      link_to 'Home Sweet Home 🏠', root_path, class: 'btn btn-primary', 'data-turbo': false
-    end
-
-    @items.each do |item|
-      h2 class: 'item-title', id: "item-#{item[:id]}" do
-        item.title
-      end
-      p class: 'item-description' do
-        item.description
-      end
-    end
-
-    plain "<div>Inline html</div>".html_safe
-
-    render partial: 'shared/navbar'
+<h1>Legacy ERB header</h1>
+<%= html(self) do
+  div class: 'ruby2html-section' do
+    h2 'This section is powered by Ruby2html'
+    @items.each { |item| p item[:title] }
   end
-%>
+end %>
 ```
 
-### Benchmark
+ERB, Slim and Ruby2html views, partials and components can be mixed freely, so adoption can be gradual.
 
-```bash
-ruby 3.4.7 (2025-10-08 revision 7a5688e2a2) +YJIT +PRISM [x86_64-linux]
-Warming up --------------------------------------
-GET /benchmark/html (ERB)
-                        32.000 i/100ms
-GET /benchmark/ruby (Ruby2html templates .html.rb)
-                        17.000 i/100ms
-GET /benchmark/ruby (Ruby2html + view components)
-                        12.000 i/100ms
-GET /benchmark/slim (Slim)
-                        36.000 i/100ms
-GET /benchmark/phlex (Phlex)
-                        28.000 i/100ms
-Calculating -------------------------------------
-GET /benchmark/html (ERB)
-                        330.530 (± 2.4%) i/s -     19.840k in  60.061301s
-GET /benchmark/ruby (Ruby2html templates .html.rb)
-                        180.060 (± 1.7%) i/s -     10.812k in  60.068993s
-GET /benchmark/ruby (Ruby2html + view components)
-                        121.379 (± 2.5%) i/s -      7.284k in  60.055909s
-GET /benchmark/slim (Slim)
-                        367.488 (± 2.2%) i/s -     22.068k in  60.078459s
-GET /benchmark/phlex (Phlex)
-                        284.998 (± 1.8%) i/s -     17.108k in  60.047103s
-
-Comparison:
-GET /benchmark/slim (Slim):      367.5 i/s
-GET /benchmark/html (ERB):      330.5 i/s - 1.11x  slower
-GET /benchmark/phlex (Phlex):      285.0 i/s - 1.29x  slower
-GET /benchmark/ruby (Ruby2html templates .html.rb):      180.1 i/s - 2.04x  slower
-GET /benchmark/ruby (Ruby2html + view components):      121.4 i/s - 3.03x  slower
-```
-
-### With ViewComponents
-
-Ruby2html seamlessly integrates with ViewComponents, offering flexibility in how you define your component's HTML structure. You can use the `call` method with Ruby2html syntax, or stick with traditional `.erb` template files.
-
-File: `app/components/application_component.rb`
+### ViewComponent
 
 ```ruby
-# frozen_string_literal: true
-
 class ApplicationComponent < ViewComponent::Base
   include Ruby2html::ComponentHelper
 end
 ```
 
-#### Option 1: Using `call` method with Ruby2html
-
-File: `app/components/greeting_component.rb`
+Inline `call`:
 
 ```ruby
-# frozen_string_literal: true
-
 class GreetingComponent < ApplicationComponent
   def initialize(name)
     @name = name
@@ -161,254 +118,142 @@ class GreetingComponent < ApplicationComponent
 
   def call
     html do
-      h1 class: 'greeting', 'data-user': @name do
-        "Hello, #{@name}! 👋"
-      end
-      p class: 'welcome-message' do
-        'Welcome to the wonderful world of Ruby2html!'
-      end
+      h1 "Hello, #{@name}!", class: 'greeting', 'data-user': @name
+      p 'Welcome to Ruby2html!', class: 'welcome-message'
     end
   end
 end
 ```
 
-#### Option 2: Using traditional ERB template
-
-File: `app/components/farewell_component.rb`
+Or a sidecar template, `app/components/farewell_component.html.rb`:
 
 ```ruby
-# frozen_string_literal: true
-
-class FarewellComponent < ApplicationComponent
-  def initialize(name)
-    @name = name
-  end
-end
-```
-
-File: `app/components/farewell_component.html.rb`
-
-```rb
 div class: 'farewell' do
-  h1 class: 'farewell-message' do
-    "Goodbye, #{@name}! 👋"
-  end
-  p class: 'farewell-text' do
-    'We hope to see you again soon!'
-  end
+  h1 "Goodbye, #{@name}!", class: 'farewell-message'
 end
 ```
 
-This flexibility allows you to:
-- Use Ruby2html syntax for new components or when refactoring existing ones
-- Keep using familiar ERB templates where preferred
-- Mix and match approaches within your application as needed
+Public component methods can be called from the template and may emit tags themselves (see `app/components/first_component.rb`).
 
-### More Component Examples
-
-File: `app/components/first_component.rb`
+### `Ruby2html::Component` (no ViewComponent required)
 
 ```ruby
-# frozen_string_literal: true
-
-class FirstComponent < ApplicationComponent
-  def initialize
-    @item = 'Hello, World!'
+class CardComponent < Ruby2html::Component
+  def initialize(title:)
+    @title = title
   end
 
-  def call
-    html do
-      h1 id: 'first-component-title' do
-        'first component'
-      end
-      div class: 'content-wrapper' do
-        h2 'A subheading'
-      end
-      p class: 'greeting-text', 'data-testid': 'greeting' do
-        @item
-      end
+  def view_template
+    div class: 'card' do
+      h2 @title
+      content                              # block passed to render
+      link_to 'More', helpers.root_path
     end
   end
 end
+
+# any view or controller
+render CardComponent.new(title: 'Hi')
 ```
 
-File: `app/components/second_component.rb`
+Tag methods run on the component itself (no instance-variable copying); nested ruby2html components write into the parent's buffer.
+
+### Forms
 
 ```ruby
-# frozen_string_literal: true
-
-class SecondComponent < ApplicationComponent
-  def call
-    html do
-      h1 class: 'my-class', id: 'second-component-title', 'data-controller': 'second' do
-        'second component'
-      end
-      link_to 'Home', root_path, class: 'nav-link', 'data-turbo-frame': false
-    end
-  end
+form_with model: @user do |f|
+  f.label :email
+  f.text_field :email
+  f.submit 'Save'
 end
 ```
 
-## Without Rails
+### Without Rails
+
 ```ruby
-renderer = Ruby2html::Render.new(nil) do # context by default is nil, you can use self or any other object
+require 'ruby2html'
+
+Ruby2html::Render.new do # optional context object: its public methods and ivars become available
   html do
-    head do
-      title 'Ruby2html Example'
-    end
-    body do
-      h1 'Hello, World!'
-    end
+    head { title 'Ruby2html Example' }
+    body { h1 'Hello, World!' }
   end
-end
-
-puts renderer.render # => "<html><head><title>Ruby2html Example</title></head><body><h1>Hello, World!</h1></body></html>"
+end.render
+# => "<html><head><title>Ruby2html Example</title></head><body><h1>Hello, World!</h1></body></html>"
 ```
 
-## 🐢 Gradual Adoption
+### Pretty HTML in development
 
-One of the best features of Ruby2html is that you don't need to rewrite all your views at once! You can adopt it gradually, mixing Ruby2html with your existing ERB templates. This allows for a smooth transition at your own pace.
-
-### Mixed usage example
-
-File: `app/views/your_mixed_view.html.erb`
-
-```erb
-<h1>Welcome to our gradually evolving page!</h1>
-
-<%= render partial: 'legacy_erb_partial' %>
-
-<%=
-  html(self) do
-    div class: 'ruby2html-section' do
-      h2 "This section is powered by Ruby2html!"
-      p "Isn't it beautiful? 😍"
-    end
-  end
-%>
-
-<%= render ModernComponent.new %>
-
-<footer>
-  <!-- More legacy ERB code -->
-</footer>
+```ruby
+# Gemfile (development group): gem 'htmlbeautifier'
+# config/environments/development.rb
+config.middleware.use Ruby2html::HtmlBeautifierMiddleware
 ```
 
-In this example, you can see how Ruby2html seamlessly integrates with existing ERB code. This approach allows you to:
+## Performance
 
-- Keep your existing ERB templates and partials
-- Gradually introduce Ruby2html in specific sections
-- Use Ruby2html in new components while maintaining older ones
-- Refactor your views at your own pace
+Benchmarks run in CI on every push to `main` and every pull request ([`.github/workflows/benchmark.yml`](.github/workflows/benchmark.yml)): the latest run's summary page has the current table, and PRs get a sticky comment with the delta against `main`. Run them locally with `bundle exec rake bench` (standalone scripts in `bench/`) or `bundle exec rspec spec/benchmarks/` (request-level through the demo app, vs ERB, Slim, Phlex and ViewComponent).
 
-Remember, there's no rush! You can keep your `.erb` files and Ruby2html code side by side until you're ready to fully transition. This flexibility ensures that adopting Ruby2html won't disrupt your existing workflow or require a massive rewrite of your application. 🌈
+### Snapshot at 2.0.0 release (2026-10-31)
 
-## ⚡ Performance
+This is a dated snapshot. CI has the live numbers. Measured on Ruby 3.4.7 x86_64 on a busy machine (load average about 7), so read the ratios rather than the absolute figures.
 
-Ruby2html features extensive C extension optimizations for high-performance HTML generation:
+**Page render** (`bench/render_bench.rb`, no Rails): a header with nav, 100 list items with links, images, attributes and escaped text, about 34 KB of HTML.
 
-### Benchmark Results (50 users × 1-5 orders × 1-10 items)
+| Engine | Renders/s | Time per render | Allocations per render |
+|---|---|---|---|
+| **ruby2html 2.0 (C extension)** | **2,676** | **0.37 ms** | **419** |
+| Erubi 1.x (Rails' ERB engine) | 1,988 (1.35x slower) | 0.50 ms | 713 |
+| ruby2html 2.0 (pure Ruby: JRuby, no compiler) | ~820 | ~1.2 ms | 1,029 |
+| Phlex 2.4, enlarged attribute cache¹ | ~1,250 (≈2.4x slower) | ~0.8 ms | 831 |
+| Phlex 2.4, defaults | 164 (16x slower) | 6.1 ms | 6,410 |
+| ruby2html 1.6.6 | ~620 | ~1.6 ms | 3,531 |
 
-#### Ruby 3.4.7 +YJIT (After Optimizations)
+¹ Phlex 2's default attribute cache (2 KB, FIFO) misses on per-row values such as ids and hrefs. `Phlex::ATTRIBUTE_CACHE.expand(1_000_000)` is its best case. Phlex 2 also checks URLs for `javascript:`; ruby2html leaves URL validation to you.
 
+**Full Rails request** (`spec/benchmarks/requests_spec.rb`; Rails 8.1, a 7 ms request where most of the time is Rails itself; differences are within ±15% error):
+
+| Engine | Requests/s |
+|---|---|
+| **`Ruby2html::Component`** | **144.5** |
+| **ViewComponent 4 + ruby2html** | **142.2** |
+| **`.html.rb` template** | **139.6** |
+| Slim | 128.3 |
+| ERB | 122.6 |
+| Phlex 2.4 | 116.6 |
+
+**HTML escaping** (SIMD vs scalar): up to 5.9x faster on 10 KB clean text, about 2x on 200-byte strings; short strings take the scalar path.
+
+**Footprint:**
+
+| | Ruby/C lines | Runtime dependencies | `require` cost |
+|---|---|---|---|
+| **ruby2html** | 1.1k Ruby + 0.8k C | none | ~0.4 MB, ~19 ms |
+| phlex + phlex-rails | 6.2k | refract, zeitwerk, railties | ~1.4 MB, ~30 ms (phlex alone) |
+| view_component | 5.3k | actionview, activesupport, prism | |
+| slim | 7.3k | temple, tilt | |
+
+How it is fast:
+
+- **Tag methods in C**: each tag writes open tag, content/block output and close tag straight into one shared buffer (no nested buffers, no `*args`/`**kwargs` allocation without keywords).
+- **HTML escaping**: 16-byte SSE2/NEON scan for `& < > " '`; clean strings are one `memcpy`, dirty strings get their exact size computed once.
+- **Attributes**: written directly into the buffer, no intermediate strings, no cache to thrash or leak.
+- **Lazy loading**: `require 'ruby2html'` loads only the renderer. Production Rails apps load everything at boot, so forked workers share it copy-on-write.
+- **Templates and components**: `.html.rb` templates are rewritten at compile time (Prism) to run in the view itself; `Ruby2html::Component` runs tag methods on the component. No instance-variable copying or `method_missing` per render.
+- A pure-Ruby implementation with identical output is used when the extension is unavailable.
+
+## Development
+
+```bash
+bundle install
+bundle exec rake compile   # build the C extension
+CI=1 bundle exec rspec     # specs (CI=1 skips the slow benchmark spec)
+bundle exec rubocop
+bin/rails server           # demo app
 ```
-Slim:                367.5 i/s - fastest
-ERB:                 330.5 i/s - 1.11x slower
-Phlex:               285.0 i/s - 1.29x slower
-Ruby2html templates: 180.1 i/s - 2.04x slower
-Ruby2html components:121.4 i/s - 3.03x slower
-```
 
-**Improvement on Ruby 3.3.4 baseline**: 125.0 → 180.1 i/s = **44% faster!**
-**Gap to Phlex narrowed**: From 2.63x slower to only **1.58x slower** (180.1 vs 285.0 i/s)
+The repository is both the gem (`lib/gem/`, `ext/ruby2html/`) and a Rails demo app (`app/`, `config/`). See [CONTRIBUTING.md](CONTRIBUTING.md), [docs/architecture.md](docs/architecture.md), [docs/release.md](docs/release.md) and [CHANGELOG.md](CHANGELOG.md).
 
-**Performance varies by Ruby version.** The results above are on Ruby 3.4.7.
+## License
 
-### C Extension + Phlex-Inspired Optimizations
-
-1. **SIMD HTML Escaping** (SSE4.2)
-   - Vectorized character scanning (16 bytes at once)
-   - 3-10x faster for clean strings
-   - Early exit fast path for content without special characters
-
-2. **Optimized Tag Generation**
-   - Complete tag rendering in C
-   - Pre-allocated buffers with size estimation
-   - 2-3x faster than pure Ruby
-
-3. **Attribute Caching** (Phlex-inspired)
-   - Global cache by `options.hash`
-   - Frozen strings for zero-copy cache hits
-   - **32% faster** on attribute-heavy rendering
-   - Eliminates regenerating identical attribute combinations
-
-4. **Specialized Code Paths** (Phlex-inspired)
-   - Separate fast paths for ±attributes, ±block
-   - Early returns for common cases
-   - Direct buffer operations with chained `<<`
-   - **17% faster** on complex nested structures
-
-5. **Direct Hash Iteration**
-   - Uses `rb_hash_foreach` instead of array allocation
-   - 30% fewer allocations for attributes
-
-6. **Lookup Table Escaping**
-   - Branch-free character lookups
-   - Zero branch mispredictions
-   - 4-5% faster than switch statements
-
-7. **Type & Compiler Optimizations**
-   - Proper `size_t` usage for lengths/indices
-   - `restrict` keyword for non-aliasing pointers
-   - `__attribute__((always_inline))` for hot paths
-   - Loop unrolling by 4
-
-8. **Optimized Template Usage**
-   - Direct string arguments instead of `plain` method
-   - Eliminates unnecessary method call overhead
-   - **78% improvement** in template rendering speed
-
-### Performance vs Phlex
-
-While Ruby2html is slower than Phlex in benchmarks, the difference is architectural rather than optimization-related:
-
-- **Phlex advantage**: Direct instantiation, no Rails template overhead
-- **Ruby2html focus**: Rails integration, automatic escaping, template-based architecture
-
-See [PERFORMANCE_ANALYSIS.md](PERFORMANCE_ANALYSIS.md) for detailed analysis.
-
-### When to Choose Ruby2html
-
-- ✅ Need `.html.rb` template files (Rails conventions)
-- ✅ Want automatic HTML escaping (security-first)
-- ✅ Prefer template-based architecture
-- ✅ Working with existing Rails views/controllers
-
-## 🛠 Development
-
-After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
-
-## 🤝 Contributing
-
-Bug reports and pull requests are welcome on GitHub at https://github.com/sebyx07/ruby2html. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](https://github.com/sebyx07/ruby2html/blob/master/CODE_OF_CONDUCT.md).
-
-## 📜 License
-
-The gem is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
-
-## 🌈 Code of Conduct
-
-Everyone interacting in the Ruby2html project's codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](https://github.com/sebyx07/ruby2html/blob/master/CODE_OF_CONDUCT.md).
-
-## 🌟 Features
-
-- Write views in pure Ruby 💎
-- Seamless Rails integration 🛤️
-- ViewComponent support with flexible template options 🧩
-- Automatic HTML beautification 💅
-- Easy addition of custom attributes and data attributes 🏷️
-- Gradual adoption - mix with existing ERB templates 🐢
-- Improved readability and maintainability 📚
-- Full access to Ruby's power in your views 💪
-
-Start writing your views in Ruby today and experience the magic of Ruby2html! ✨🔮
+MIT. See [LICENSE](LICENSE).

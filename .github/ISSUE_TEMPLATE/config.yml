@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Usage guide (also for AI agents)
+    url: https://github.com/sebyx07/ruby2html/blob/main/llms.txt
+    about: DSL rules, escaping, components, forms and common pitfalls.
