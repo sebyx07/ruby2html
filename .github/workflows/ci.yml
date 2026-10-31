@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: .ruby-version
@@ -37,7 +37,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: .ruby-version
@@ -51,7 +51,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       # ubuntu runners ship gcc/make: no apt build-essential step needed.
       - uses: ruby/setup-ruby@v1
         with:
@@ -86,7 +86,7 @@ jobs:
       # No Rails and no lockfile: resolves on every Ruby, old and new.
       BUNDLE_GEMFILE: ${{ github.workspace }}/gemfiles/standalone.gemfile
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ matrix.ruby }}
@@ -106,7 +106,7 @@ jobs:
           - { name: Linux arm64 (gcc), os: ubuntu-24.04-arm }
           - { name: macOS arm64 (clang), os: macos-latest }
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: .ruby-version
@@ -125,7 +125,7 @@ jobs:
       matrix:
         cc: [gcc, clang]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: .ruby-version
@@ -143,7 +143,7 @@ jobs:
     timeout-minutes: 20
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: .ruby-version
@@ -164,7 +164,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: .ruby-version
@@ -187,7 +187,7 @@ jobs:
       # rspec + activesupport + htmlbeautifier only: no Rails, no sqlite3.
       BUNDLE_GEMFILE: ${{ github.workspace }}/gemfiles/standalone.gemfile
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ matrix.ruby }}
@@ -204,7 +204,7 @@ jobs:
     outputs:
       versions: ${{ steps.versions.outputs.versions }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - id: versions
         # Every stable Rails MAJOR.MINOR >= 7.2 (the demo app's floor), from rubygems.org.
         run: echo "versions=$(ruby bin/rails-versions 7.2)" >> "$GITHUB_OUTPUT"
@@ -226,7 +226,7 @@ jobs:
       RAILS_VERSION: ${{ matrix.rails }}
       BUNDLE_GEMFILE: ${{ github.workspace }}/gemfiles/rails.gemfile
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: .ruby-version
@@ -248,7 +248,7 @@ jobs:
       matrix:
         ruby: ${{ fromJSON(needs.ruby-versions.outputs.versions) }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       # No Bundler on purpose: the gem must build and install with plain RubyGems.
       - uses: ruby/setup-ruby@v1
         with:

@@ -41,7 +41,7 @@ jobs:
       CI: '1'
       BENCH_TIME: '2'
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - uses: ruby/setup-ruby@v1
         with:
@@ -83,7 +83,7 @@ jobs:
           ruby bin/bench-report markdown "${args[@]}" > bench.md
           cat bench.md >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: bench-${{ matrix.arch }}
           path: |
@@ -93,7 +93,7 @@ jobs:
 
       - name: Sticky PR comment
         if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@v3
         with:
           header: benchmarks-${{ matrix.arch }}
           path: bench.md
