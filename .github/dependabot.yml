@@ -5,12 +5,17 @@ version: 2
 # gemfiles/ needs no entry: the matrix gemfiles have no lockfiles and use
 # ~> MAJOR.MINOR.0 / >= constraints, so every CI run resolves the newest
 # compatible gems, and CI derives the Ruby and Rails matrices dynamically.
+#
+# cooldown: a release must be 14 days old before it is proposed, so broken or
+# compromised releases are usually yanked first. Security updates skip it.
 updates:
   - package-ecosystem: bundler
     directory: /
     schedule:
       interval: weekly
       day: monday
+    cooldown:
+      default-days: 14
     open-pull-requests-limit: 10
     groups:
       rails:
@@ -25,6 +30,8 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    cooldown:
+      default-days: 14
     groups:
       github-actions:
         patterns: ['*']
@@ -34,6 +41,8 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    cooldown:
+      default-days: 14
     groups:
       devcontainers:
         patterns: ['*']
@@ -43,3 +52,5 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    cooldown:
+      default-days: 14
