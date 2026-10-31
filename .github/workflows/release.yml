@@ -113,7 +113,7 @@ jobs:
           ruby-version: .ruby-version
 
       - name: Exchange the OIDC token for RubyGems credentials
-        uses: rubygems/configure-rubygems-credentials@v1
+        uses: rubygems/configure-rubygems-credentials@v2.1.0
 
       # Gem first: a tag and release with no gem behind them would advertise a
       # version `gem install` cannot serve.
