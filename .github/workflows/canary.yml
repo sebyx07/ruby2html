@@ -1,0 +1,53 @@
+name: Canary
+
+# Monthly look ahead: Ruby head and Rails edge (rails/rails main). Not part of
+# CI OK, so an upstream break never blocks a pull request. The developerz.ai
+# `improve` checkup (.dz/briefs/improve.md) reads the latest run and fixes what
+# it finds in a pull request, before the next Ruby or Rails release ships it.
+on:
+  schedule:
+    - cron: '0 4 1 * *' # 04:00 UTC on the 1st, before the improve checkup
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CI: '1'
+
+jobs:
+  ruby-head:
+    name: Ruby head / gem specs + package
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      BUNDLE_GEMFILE: ${{ github.workspace }}/gemfiles/standalone.gemfile
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: head
+          bundler-cache: true
+      - name: Compile + RSpec (spec/gem without Rails)
+        run: bundle exec rake spec:standalone
+      - name: Build gem, install into temp GEM_HOME, render without Rails
+        run: ruby bin/gem-smoke
+
+  rails-edge:
+    name: Rails edge
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      RAILS_VERSION: edge
+      BUNDLE_GEMFILE: ${{ github.workspace }}/gemfiles/rails.gemfile
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: .ruby-version
+          bundler-cache: true
+      - run: bundle exec rake compile
+      - name: Resolved versions
+        run: bundle list | grep -E ' (rails|view_component|phlex-rails|rspec-rails|sqlite3) ' || true
+      - name: RSpec (integration specs)
+        run: bundle exec rspec spec/features spec/gem/rails

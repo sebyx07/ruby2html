@@ -65,8 +65,8 @@ jobs:
 
   ruby-versions:
     name: Matrix / Ruby versions
-    # Every maintained CRuby (>= 3.1, the gemspec floor) plus head, from
-    # cache.ruby-lang.org, so new Ruby releases are tested automatically.
+    # Every maintained CRuby (>= 3.1, the gemspec floor) from cache.ruby-lang.org; head is excluded
+    # below (monthly in canary.yml), so new Ruby releases are tested automatically.
     uses: ruby/actions/.github/workflows/ruby_versions.yml@master
     with:
       engine: cruby
@@ -77,11 +77,12 @@ jobs:
     needs: ruby-versions
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    continue-on-error: ${{ matrix.ruby == 'head' }}
     strategy:
       fail-fast: false
       matrix:
         ruby: ${{ fromJSON(needs.ruby-versions.outputs.versions) }}
+        exclude:
+          - ruby: head # monthly in canary.yml
     env:
       # No Rails and no lockfile: resolves on every Ruby, old and new.
       BUNDLE_GEMFILE: ${{ github.workspace }}/gemfiles/standalone.gemfile
@@ -138,10 +139,9 @@ jobs:
           SKIP_COMPILE: '1'
 
   sanitizers:
-    name: C ext / ASAN + UBSAN (allowed to fail)
+    name: C ext / ASAN + UBSAN
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v7
       - uses: ruby/setup-ruby@v1
@@ -156,7 +156,9 @@ jobs:
           export LD_PRELOAD
           bundle exec rspec spec/gem
         env:
-          ASAN_OPTIONS: detect_leaks=0:abort_on_error=1:strict_string_checks=1
+          # use_sigaltstack=0: Ruby installs its own signal stack; ASAN's collides with it
+          # ("failed to deallocate ... munmap") in a non-instrumented ruby.
+          ASAN_OPTIONS: detect_leaks=0:abort_on_error=1:strict_string_checks=1:use_sigaltstack=0
           UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
 
   fallback:
@@ -214,14 +216,10 @@ jobs:
     needs: rails-versions
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    continue-on-error: ${{ matrix.rails == 'edge' }}
     strategy:
       fail-fast: false
       matrix:
-        # "edge" = rails/rails main, allowed to fail: new majors show up early.
-        rails: ${{ fromJSON(needs.rails-versions.outputs.versions) }}
-        include:
-          - rails: edge
+        rails: ${{ fromJSON(needs.rails-versions.outputs.versions) }} # edge: monthly in canary.yml
     env:
       RAILS_VERSION: ${{ matrix.rails }}
       BUNDLE_GEMFILE: ${{ github.workspace }}/gemfiles/rails.gemfile
@@ -242,11 +240,12 @@ jobs:
     needs: ruby-versions
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    continue-on-error: ${{ matrix.ruby == 'head' }}
     strategy:
       fail-fast: false
       matrix:
         ruby: ${{ fromJSON(needs.ruby-versions.outputs.versions) }}
+        exclude:
+          - ruby: head # monthly in canary.yml
     steps:
       - uses: actions/checkout@v7
       # No Bundler on purpose: the gem must build and install with plain RubyGems.
@@ -260,8 +259,9 @@ jobs:
   ci-ok:
     name: CI OK
     if: always()
-    # Experimental legs (Ruby head, Rails edge) use continue-on-error and do not block.
-    needs: [lint, audit, test, gem-specs, native, strict-ext, fallback, engines, rails, package]
+    # Every job here must pass; nothing is allowed to fail. Ruby head and Rails edge run monthly in
+    # canary.yml, where the developerz.ai `improve` checkup picks up what they find.
+    needs: [lint, audit, test, gem-specs, native, strict-ext, sanitizers, fallback, engines, rails, package]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

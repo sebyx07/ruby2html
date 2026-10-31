@@ -63,15 +63,16 @@ jobs:
 
       - name: Download main baseline
         if: github.event_name == 'pull_request'
-        continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
           ARCH: ${{ matrix.arch }}
         run: |
           run_id=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow benchmark.yml --branch main \
             --event push --status success --limit 1 --json databaseId --jq '.[0].databaseId')
+          # A missing or expired baseline artifact means "no delta", not a failure.
           if [ -n "$run_id" ]; then
-            gh run download "$run_id" --repo "$GITHUB_REPOSITORY" -n "bench-$ARCH" -D baseline
+            gh run download "$run_id" --repo "$GITHUB_REPOSITORY" -n "bench-$ARCH" -D baseline ||
+              echo "No baseline artifact for $ARCH in run $run_id"
           else
             echo "No successful main run yet"
           fi
