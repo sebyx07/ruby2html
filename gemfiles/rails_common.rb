@@ -12,7 +12,13 @@ gem 'slim-rails', '>= 3.6'
 gem 'rake-compiler', '~> 1.2', require: false
 
 group :test do
-  gem 'rspec-rails', '>= 6.1'
+  # Rails main pairs with rspec-rails main: releases trail Rails main changes (e.g. Rails main
+  # freezes default_url_options, which rspec-rails 8.0.x still writes to).
+  if ENV['RAILS_VERSION'] == 'edge'
+    gem 'rspec-rails', github: 'rspec/rspec-rails', branch: 'main'
+  else
+    gem 'rspec-rails', '>= 6.1'
+  end
   gem 'capybara', '~> 3.40'
   gem 'faker', '>= 3.4'
   gem 'benchmark-ips'

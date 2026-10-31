@@ -50,9 +50,9 @@ RSpec.describe Ruby2html::Component do
   it 'never builds a String for nested components' do
     child = CardComponent.new(title: 'x')
     expect(child).not_to receive(:render_in)
-    parent = Class.new(described_class) do
+    parent = stub_const('ParentComponent', Class.new(described_class) do
       define_method(:view_template) { render child }
-    end
+    end)
     view.render(parent.new)
   end
 
@@ -71,26 +71,27 @@ RSpec.describe Ruby2html::Component do
   end
 
   it 'supports #call and an overridden #template as the entry point' do
-    via_call = Class.new(described_class) { def call = p('call') }
-    via_template = Class.new(described_class) { def template = p('template') }
+    via_call = stub_const('ViaCallComponent', Class.new(described_class) { def call = p('call') })
+    via_template = stub_const('ViaTemplateComponent', Class.new(described_class) { def template = p('template') })
     expect(view.render(via_call.new)).to eq('<p>call</p>')
     expect(view.render(via_template.new)).to eq('<p>template</p>')
   end
 
   it 'raises a clear error without an entry point, and helpers outside a render' do
-    expect { view.render(Class.new(described_class).new) }.to raise_error(NotImplementedError, /view_template/)
+    stub_const('EmptyComponent', Class.new(described_class))
+    expect { view.render(EmptyComponent.new) }.to raise_error(NotImplementedError, /view_template/)
     expect { CardComponent.new(title: 'x').helpers }.to raise_error(Ruby2html::Error)
   end
 
   it 'restores its state when the template raises, so it can be rendered again' do
-    flaky = Class.new(described_class) do
+    flaky = stub_const('FlakyComponent', Class.new(described_class) do
       attr_accessor :fail
 
       def view_template
         h1 'ok'
         raise 'boom' if fail
       end
-    end.new
+    end).new
     flaky.fail = true
     expect { view.render(flaky) }.to raise_error('boom')
     expect(flaky.current_output).to be_nil
@@ -99,7 +100,7 @@ RSpec.describe Ruby2html::Component do
   end
 
   it 'renders two components interleaved in fibers without crosstalk' do
-    yielding = Class.new(described_class) do
+    yielding = stub_const('YieldingComponent', Class.new(described_class) do
       def initialize(name) = @name = name
 
       def view_template
@@ -107,7 +108,7 @@ RSpec.describe Ruby2html::Component do
         Fiber.yield
         p @name
       end
-    end
+    end)
     fibers = %w[a b].map { |name| Fiber.new { view.render(yielding.new(name)) } }
     fibers.each(&:resume)
     expect(fibers.reverse.map(&:resume)).to eq(['<h1>b</h1><p>b</p>', '<h1>a</h1><p>a</p>'])

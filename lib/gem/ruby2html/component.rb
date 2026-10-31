@@ -64,8 +64,10 @@ module Ruby2html
     # The buffer currently written to (RailsComponents swap it to capture blocks).
     attr_accessor :current_output
 
-    # Rails' entry point: `render component` in views and controllers.
-    def render_in(view_context, &block)
+    # Rails' entry point: `render component` in views and controllers. Rails 8.2+ passes
+    # `locals:` (render_in without options is deprecated there); a component takes its data
+    # through #initialize, so options are accepted and ignored.
+    def render_in(view_context, **_options, &block)
       buffer = String.new(capacity: self.class.__r2h_capacity, encoding: Encoding::UTF_8)
       content = block && -> { plain(view_context.capture(self, &block)) }
       render_into(buffer, view_context, content)
