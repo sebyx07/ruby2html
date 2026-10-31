@@ -38,16 +38,15 @@ HOOK = <<~'RUBY'
       before = GC.stat(:total_allocated_objects)
       n.times { call.call }
       (GC.stat(:total_allocated_objects) - before) / n.to_f
-    rescue StandardError
-      nil
     ensure
       GC.enable
     end
 
+    # Linux only (macOS has no /proc): nil means "not measured here".
     def self.peak_rss_kb
+      return unless File.readable?('/proc/self/status')
+
       File.read('/proc/self/status')[/^VmHWM:\s+(\d+)/, 1]&.to_i
-    rescue StandardError
-      nil
     end
 
     module JobHook

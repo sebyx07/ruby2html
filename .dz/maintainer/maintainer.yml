@@ -36,7 +36,7 @@ triage:
     - "A runtime dependency in the gemspec"
     - "Backwards-compatibility shims, dead-code comments, or speculative abstractions"
     - "Hardcoded version lists or benchmark numbers in docs (CI generates the matrices and posts benchmarks)"
-    - "Outside contributors' changes to CI, release or publish automation (.github/, bin/, Rakefile release tasks, ruby2html.gemspec, Ruby2html::VERSION): the owner owns the gem pipeline"
+    - "Outside contributors' changes to CI, release or publish automation (.github/, bin/, Rakefile release tasks, ruby2html.gemspec, Ruby2html::VERSION): the owner owns the gem pipeline. Dependency-bot version bumps of actions and gems are not covered by this: review and merge them on green"
 
 handoff:
   mode: fleet
@@ -49,8 +49,8 @@ pr:
   # "Ready" is the author's call: a PR merges only once it is out of draft, reviewed and green.
   auto_merge_scope: any
   require_review: true
-  # The one required check: ci.yml's aggregate job (every required job must pass; experimental
-  # legs like Ruby head and Rails edge cannot fail it).
+  # The one required check: ci.yml's aggregate job. Every CI job must pass; nothing is allowed to
+  # fail. Ruby head and Rails edge run monthly in canary.yml and are fixed by the `improve` checkup.
   required_checks:
     - "CI OK"
   close_awaiting_author_after_days: 21
@@ -111,3 +111,9 @@ schedules:
     days: [mon, tue, wed, thu, fri, sat, sun]
     hours_utc: [7]
     brief_file: .dz/briefs/health.md
+  # Monthly: fires every Monday, the brief acts only on the first Monday of the month (day 1-7),
+  # after canary.yml's run on the 1st.
+  - name: improve
+    days: [mon]
+    hours_utc: [8]
+    brief_file: .dz/briefs/improve.md

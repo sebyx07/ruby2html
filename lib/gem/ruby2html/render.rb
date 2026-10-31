@@ -16,7 +16,10 @@ module Ruby2html
       require_relative '../../ruby2html/ruby2html'
     end
     defined?(Native) ? true : false
-  rescue LoadError
+  rescue LoadError => e
+    # Expected on JRuby/TruffleRuby. On CRuby it means a broken or missing build: say so instead of
+    # silently rendering about 3x slower.
+    warn "ruby2html: C extension not loaded (#{e.message}); using the pure-Ruby renderer" if RUBY_ENGINE == 'ruby'
     false
   end
   private_class_method :load_native_extension

@@ -12,7 +12,8 @@
 #
 # A sanitized build needs the runtime preloaded into a normal ruby. On Linux:
 #   LD_PRELOAD="$(gcc -print-file-name=libasan.so):$(gcc -print-file-name=libubsan.so)" \
-#   ASAN_OPTIONS=detect_leaks=0 bundle exec rspec spec/gem
+#   ASAN_OPTIONS=detect_leaks=0:use_sigaltstack=0 bundle exec rspec spec/gem
+# (use_sigaltstack=0: Ruby installs its own signal stack, which collides with ASAN's.)
 
 require 'fileutils'
 require 'optparse'

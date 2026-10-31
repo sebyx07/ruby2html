@@ -37,7 +37,7 @@ Scalar vs SIMD escape path: `RUBY2HTML_NO_SIMD=1 bundle exec rake compile` and r
 ```bash
 bin/build-ext --sanitize              # ASAN + UBSAN build into lib/ruby2html
 LD_PRELOAD="$(gcc -print-file-name=libasan.so):$(gcc -print-file-name=libubsan.so)" \
-  ASAN_OPTIONS=detect_leaks=0 bundle exec ruby -Ilib/gem "$SCRATCH/repro.rb"   # or: ... bundle exec rspec spec/gem
+  ASAN_OPTIONS=detect_leaks=0:use_sigaltstack=0 bundle exec ruby -Ilib/gem "$SCRATCH/repro.rb"   # or: ... bundle exec rspec spec/gem
 bundle exec rake clobber && bundle exec rake compile   # ALWAYS rebuild normally afterwards
 bin/build-ext --werror                # / --cc=clang --werror: warnings as errors
 ```

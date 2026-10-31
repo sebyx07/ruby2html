@@ -6,6 +6,10 @@ Entries before 1.6.6 were reconstructed from `git log` and RubyGems release date
 
 ## [Unreleased]
 
+### Changed
+
+- On CRuby, a C extension that fails to load now prints one warning with the reason (`ruby2html: C extension not loaded (...); using the pure-Ruby renderer`) instead of silently rendering about 3x slower. JRuby/TruffleRuby and `RUBY2HTML_DISABLE_EXT=1` stay silent.
+
 ## [2.0.0] - 2026-10-31
 
 A rewrite of the renderer for speed, memory and correctness, plus a new component class, Rails 8.1 / ViewComponent 4 support, JRuby/TruffleRuby support and full CI/release automation. **Contains breaking changes: read "Upgrading to 2.0" below.**

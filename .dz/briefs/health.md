@@ -9,8 +9,8 @@ maintained so that nobody has to watch it. This covers the failures no issue or 
 | the last release published | `gh run list --workflow release.yml --limit 1 --json conclusion,displayTitle` | `success` (or no run yet) |
 | RubyGems serves `Ruby2html::VERSION` | `gem list ruby2html --remote --exact` vs `lib/gem/ruby2html/version.rb` | equal, or a release run is in flight |
 | benchmarks still run | `gh run list --workflow benchmark.yml --branch main --limit 1 --json conclusion` | `success` |
-| Dependabot is not stuck | `gh pr list --app dependabot --json number,createdAt` | none older than 7 days |
-| experimental legs | the latest `ci.yml` run on `main`: Ruby head, Rails edge, ASAN | informational: if one has failed for 7+ days, file one issue naming the cause |
+| Dependabot is not stuck | `gh pr list --app dependabot --json number,createdAt` | none older than 7 days (updates wait a 14-day cooldown before they open) |
+| canary ran | `gh run list --workflow canary.yml --limit 1 --json conclusion,createdAt` | a run in the last 35 days; its failures are the monthly `improve` checkup's job, not an issue |
 
 For each unhealthy signal, file one issue unless an open issue already names it. The title names the
 signal (`main is red at <sha>`, `release <v> did not publish`), and the body carries the command, its
