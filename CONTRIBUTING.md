@@ -44,5 +44,5 @@ By contributing you agree your contributions are licensed under the MIT License.
 
 ## How PRs get merged
 
-This repo is maintained by [developerz.ai](https://developerz.ai). Its agent reviews every PR, may request changes, and merges contributor and dependency PRs once the `CI OK` check passes (policy: `.dz/maintainer/maintainer.yml`). Commit with an email linked to your GitHub account. Changes to CI, release or publishing automation (`.github/`, `bin/`, the gemspec, `Ruby2html::VERSION`) are made by the owner only.
+This repo is maintained by [developerz.ai](https://developerz.ai). Its agent reviews every PR, may request changes, and merges every PR (contributors, members, bots) once you mark it ready for review and the `CI OK` check passes; keep it a draft until then (policy: `.dz/maintainer/maintainer.yml`). Commit with an email linked to your GitHub account. Changes to CI, release or publishing automation (`.github/`, `bin/`, the gemspec, `Ruby2html::VERSION`) are made by the owner only.
 

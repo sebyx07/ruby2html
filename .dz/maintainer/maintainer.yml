@@ -1,11 +1,13 @@
 # yaml-language-server: $schema=https://developerz.ai/schemas/maintainer.v1.json
 # developerz.ai maintainer policy for sebyx07/ruby2html
 #
-# AI-MANAGED. For outside contributors and the dependency bots, the agent handles issues, pull
-# requests and updates end to end: it triages, answers, reviews, declines with a reason, merges on
-# green, and closes what has stalled on its reporter or author. Issues and PRs by anyone with write
-# access are left to their author (still reviewed; an @-mention is answered). A human is asked only
-# for what `escalate` names plus the platform's hardcoded categories (security, license, CLA).
+# AI-MANAGED. The agent handles issues, pull requests and updates end to end, for everyone:
+# outside contributors, collaborators, the owner and the dependency bots. It triages, answers,
+# reviews, declines with a reason, merges, and closes what has stalled on its reporter or author.
+# A pull request merges once its author says it is ready (out of draft / marked ready for review),
+# it has been reviewed and "CI OK" is green. A draft or a "WIP" / "DO NOT MERGE" title is never
+# merged. A human is asked only for what `escalate` names plus the platform's hardcoded categories
+# (security, license, CLA).
 #
 # Releases follow the work: the `release-due` checkup opens a release PR when shipping work has
 # waited, and merging it IS the release (.github/workflows/release.yml publishes when
@@ -21,7 +23,7 @@ tone:
   language: en
 
 triage:
-  skip_project_members: true
+  skip_project_members: false
   ask_for_repro: true
   required_fields: [steps, expected, actual, version]
   qualify_into: [bug, feature, dupe, question]
@@ -43,9 +45,10 @@ handoff:
 pr:
   wait_for_other_bots: [copilot]
   auto_merge: true
-  # The bot's own PRs, the dependency bots' and outside contributors'. Never one by an author with
-  # write access: reviewed, then left to its author.
-  auto_merge_scope: not_project
+  # Every author: the bot's own PRs, the dependency bots', contributors' and project members'.
+  # "Ready" is the author's call: a PR merges only once it is out of draft, reviewed and green.
+  auto_merge_scope: any
+  require_review: true
   # The one required check: ci.yml's aggregate job (every required job must pass; experimental
   # legs like Ruby head and Rails edge cannot fail it).
   required_checks:
