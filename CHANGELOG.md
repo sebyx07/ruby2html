@@ -8,6 +8,7 @@ Entries before 1.6.6 were reconstructed from `git log` and RubyGems release date
 
 ### Changed
 
+- `Ruby2html::Component#render_in` accepts Rails' keyword options (`locals:`), as Rails main (8.2) passes them and deprecates `render_in` without options.
 - On CRuby, a C extension that fails to load now prints one warning with the reason (`ruby2html: C extension not loaded (...); using the pure-Ruby renderer`) instead of silently rendering about 3x slower. JRuby/TruffleRuby and `RUBY2HTML_DISABLE_EXT=1` stay silent.
 
 ## [2.0.0] - 2026-10-31
