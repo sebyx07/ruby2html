@@ -1,0 +1,132 @@
+# ruby2html
+
+> Ruby gem that renders HTML from a pure-Ruby block DSL (`div class: 'card' do h2 @title end`). Tag methods are C (with an output-identical pure-Ruby fallback used on JRuby or when the extension can't load). Works standalone, as Rails `.html.rb` templates, inside ERB, in ViewComponent, and as lightweight `Ruby2html::Component` classes. Text and attribute values are escaped by default. No runtime dependencies. Performance at 2.0.0: page rendering 1.35x faster than Erubi and 2.4–16x faster than Phlex 2, with fewer allocations than either; `require` costs about 0.4 MB (README "Performance").
+
+Install: `gem 'ruby2html'`. CRuby >= 3.1 (builds a C extension), JRuby/TruffleRuby (pure Ruby fallback), Rails 7.2+ (optional). MIT. Source: https://github.com/sebyx07/ruby2html. Upgrading from 1.x: CHANGELOG "Upgrading to 2.0". Maintained by developerz.ai (AI maintainer agent: triage, review, merges, releases).
+
+## DSL rules
+
+1. Every HTML5 tag is a method (`div`, `h1`..`h6`, `table`, `output`, `turbo_frame` → `<turbo-frame>`, ...; list: `Ruby2html::Render::HTML5_TAGS`). No SVG/MathML elements and no generic `tag(name)`: insert such markup with `plain trusted_svg.html_safe`.
+2. Signature `tag(content = nil, **attributes) { block } -> nil`. At most one positional argument (`div 'a', 'b'` raises `ArgumentError`). Tags append to the output; their return value is `nil`.
+3. Content is escaped: `h1 '<b>'` → `<h1>&lt;b&gt;</h1>`. Non-strings use `to_s`: `td 42`, `td :ok`. `nil` renders nothing.
+4. `html_safe` strings (Rails helpers' `SafeBuffer`) are inserted raw. Plain `String`s are always escaped.
+5. Block = nested content: `div { h1 'A'; p 'B' }`. The content argument is ignored when a block is given.
+6. If the block wrote nothing, its return value is the content when it is a String, Symbol or Numeric: `td { user.name }`. If it wrote anything, the return value is ignored: `div { span 'x'; 'y' }` drops `'y'` (use `plain 'y'`). Arrays/nil/Hashes are ignored, so `ul { items.each { |i| li i } }` is fine.
+7. `plain(text)`: escaped text (raw if `html_safe`). `component(html)`: appends `html.to_s` raw, always (trusted HTML only; never user input).
+8. Void tags (`area base br col embed hr img input link meta param source track wbr`) take attributes only: `img src: 'a.png'` → `<img src="a.png" />`.
+9. Logic is plain Ruby: `if`, `each`, locals, methods.
+
+## Attributes
+
+| You write | HTML |
+|---|---|
+| `div class: 'card', id: "p-#{id}"` | `<div class="card" id="p-1">` |
+| `div data: { user_id: 1, turbo: false }` | `data-user-id="1" data-turbo="false"` (nested Hash expanded, `_` → `-`) |
+| `div aria: { hidden: true }`, `'aria-label': 'Close'` | `aria-hidden="true"`, `aria-label="Close"` |
+| `div class: ['btn', active && 'active', nil]` | `class="btn active"` |
+| `input disabled: true, checked: false` | `<input disabled />` (`true` bare, `false`/`nil` omitted) |
+| `div title: %q("><x>)` | `title="&quot;&gt;&lt;x&gt;"` (values always escaped) |
+| `div aria_label: 'x'` | `aria_label="x"` (top-level keys are not dasherized) |
+| `div 'x y': 1` | raises `ArgumentError` (space, quotes, `= < > /`, control chars) |
+
+`data-*`, `aria-*`, `draggable`, `spellcheck`, `contenteditable` keep literal `"true"`/`"false"`. Don't pass user-controlled attribute *names* (`div(**params)`), and validate URLs (`javascript:`) yourself.
+
+## Rails view (`app/views/posts/index.html.rb`)
+
+```ruby
+div class: 'posts' do
+  h1 t('.title')                                    # helper result as content
+  link_to 'New post', new_post_path, class: 'btn'   # writes itself
+  link_to(post_path(@featured)) { span 'Featured' } # block goes inside <a>
+  @posts.each do |post|
+    article id: dom_id(post) do
+      h2 post.title
+      div simple_format(post.body)                  # SafeBuffer: raw
+    end
+  end
+  content_for(:sidebar) { nav { a 'Home', href: '/' } }
+  render partial: 'posts/footer', locals: { total: @posts.size }
+  render PaginationComponent.new(page: @page)
+end
+```
+
+- The template runs in the view (`self` = view: ivars, locals, helpers, routes). Write `div`, never `self.div`.
+- Write themselves: `link_to`, `button_to`, `image_tag`, `form_with`, `render`, `capture`/`content_for`/`provide` (blocks of tags are captured). Any other helper only returns a value: wrap it (`p t('.x')`, `plain content_tag(:em, 'e')`). A bare `t('.x')` line outputs nothing.
+- Partials can be `.html.rb`; layouts can stay ERB/Slim. Templates are rewritten at compile time with Prism (stdlib in Ruby >= 3.3, else the `prism` gem); without Prism they run on a renderer (1.x mode, public view methods only).
+
+ERB: `include Ruby2html::RailsHelper` in a controller, then `<%= html(self) { ul { @items.each { |i| li i } } } %>`.
+
+## Components
+
+`Ruby2html::Component` (fastest; no ViewComponent needed; `self` is the component, private methods work):
+
+```ruby
+class CardComponent < Ruby2html::Component
+  def initialize(title:) = @title = title
+
+  def view_template                 # or `call`
+    div class: 'card' do
+      h2 @title
+      content                       # block given to render(CardComponent.new(...)) { ... }
+      render BadgeComponent.new     # nested Ruby2html::Component: same buffer, no copy
+      link_to 'More', helpers.root_path
+    end
+  end
+end
+# render CardComponent.new(title: 'Hi')            (views, controllers, .html.rb)
+```
+
+`helpers` is the view context (raises `Ruby2html::Error` outside a render). A method named like a tag shadows that tag in the component.
+
+ViewComponent: `include Ruby2html::ComponentHelper` in the base class, then `def call = html { div { h3 @user.name } }` (or a sidecar `*.html.rb` template). Inside `html { }` `self` is the renderer: component ivars are copied in, component methods must be public, and tag names win over same-named methods/slots, so use `component = self` before `html` and call `component.header`.
+
+## Forms
+
+`form_with` wraps Rails' real `form_with`/`FormBuilder` (CSRF, `_method`, multipart, every builder method); builder calls write themselves:
+
+```ruby
+form_with model: @user do |f|
+  div(class: 'field') { f.label :email; f.email_field :email, required: true }
+  f.select :role, %w[admin member]
+  f.submit 'Save'
+end
+```
+
+## Without Rails
+
+```ruby
+require 'ruby2html'
+Ruby2html::Render.new { ul { %w[a b].each { |x| li x } } }.render  # => "<ul><li>a</li><li>b</li></ul>"
+Ruby2html::Render.new(ctx) { h1 title }.render                      # ctx's public methods + ivars available
+Ruby2html.escape_html(%q(<'&">))                                     # => "&lt;&#39;&amp;&quot;&gt;"
+```
+
+`render` returns a `SafeBuffer` when ActiveSupport is loaded, else a UTF-8 `String`; one `render` per instance. A nested `Ruby2html::Render.new { }.render` returns its own string.
+
+## API
+
+- `Ruby2html.escape_html(obj)`, `Ruby2html.native?` (C extension loaded), `Ruby2html::IMPLEMENTATION` (`Native`/`PureRuby`), `Ruby2html::VERSION`, `Ruby2html::Error`.
+- `Render#current_output` / `#current_output=`: the buffer being written (swap to capture). `Component#render_in(view_context)`, `#render_into(buffer, view_context, content = nil)`.
+- `ComponentHelper#__ruby2html_renderer__`: active renderer (stored on the object, fiber-safe; no `Thread.current`).
+- Dev only: `config.middleware.use Ruby2html::HtmlBeautifierMiddleware` plus `gem 'htmlbeautifier'`.
+- `RUBY2HTML_DISABLE_EXT=1` forces pure Ruby (install and runtime); `RUBY2HTML_NO_SIMD=1` builds scalar escaping.
+
+## Pitfalls
+
+| Wrong | Right |
+|---|---|
+| `div { h2 'x'; 'suffix' }` | `div { h2 'x'; plain 'suffix' }` |
+| `t('.hi')` alone | `p t('.hi')` |
+| `content_tag :span, 'x'` (lost) | `span 'x'` |
+| `div raw_html` (escaped) | `plain sanitize(raw_html)`, or `.html_safe` if trusted |
+| `button 'X', aria_label: 'Close'` | `button 'X', aria: { label: 'Close' }` |
+| `div 'a', 'b'` | `div { plain 'a'; plain 'b' }` |
+| `self.div` in a template | `div` |
+| `component user_input` | `plain user_input` |
+| slot `header` inside ViewComponent `html { }` | `component = self`; `component.header` |
+
+## Links
+
+- README: https://github.com/sebyx07/ruby2html/blob/main/README.md
+- CHANGELOG: https://github.com/sebyx07/ruby2html/blob/main/CHANGELOG.md
+- Maintaining the repo (agents): https://github.com/sebyx07/ruby2html/blob/main/AGENTS.md

@@ -1,8 +1,21 @@
+# Installed by bin/setup (bundle exec lefthook install).
+#
+# pre-commit: RuboCop on the staged Ruby files only (safe autocorrect; fixed
+#             files are re-staged). Full check: bin/rubocop
+# pre-push:   compile + gem specs (`rake spec:gem`, a few seconds), so pushes
+#             do not break CI's RuboCop/spec jobs. Skip once: LEFTHOOK=0 git push
 pre-commit:
+  parallel: true
   commands:
     rubocop:
-      run: bundle exec rubocop -A
+      glob: '{*.rb,*.rake,*.gemspec,Gemfile,Rakefile,*.gemfile}'
+      run: bundle exec rubocop --force-exclusion --autocorrect {staged_files}
       skip:
         - merge
         - rebase
       stage_fixed: true
+
+pre-push:
+  commands:
+    gem-specs:
+      run: bundle exec rake spec:gem

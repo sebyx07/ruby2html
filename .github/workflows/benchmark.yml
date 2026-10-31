@@ -1,0 +1,99 @@
+name: Benchmarks
+
+# Non-gating (not part of "CI OK"), but a crashing benchmark fails the job.
+# Each run renders a Markdown table into the job summary and uploads the raw
+# JSON (bench-<arch>). On PRs the table gets a delta column against the latest
+# successful main run and is posted as one sticky comment per architecture
+# (skipped for fork PRs, whose token cannot comment).
+#
+# Runner: GitHub-hosted runners are noisy (expect a few % run-to-run). For
+# stable numbers set the repository variable BENCH_RUNNER to a self-hosted
+# runner label; it then replaces the per-arch runners below.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  bench:
+    name: Benchmarks / ${{ matrix.arch }}
+    runs-on: ${{ vars.BENCH_RUNNER || matrix.runner }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: read # download the main-branch baseline artifact
+      pull-requests: write # sticky PR comment
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { arch: x86_64, runner: ubuntu-latest }
+          - { arch: arm64, runner: ubuntu-24.04-arm }
+    env:
+      CI: '1'
+      BENCH_TIME: '2'
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: .ruby-version
+          bundler-cache: true
+
+      - run: bundle exec rake compile
+
+      - name: Prepare the demo app database
+        run: bin/rails db:prepare
+        env:
+          RAILS_ENV: test
+
+      # bench/*.rb with the C extension and with RUBY2HTML_DISABLE_EXT=1, then
+      # the Rails comparison (ERB, Slim, Phlex, ViewComponent + ruby2html,
+      # .html.rb templates, Ruby2html::Component) over the /benchmark/* routes.
+      - name: Run benchmarks
+        run: bundle exec bin/bench-report run bench-results.json
+
+      - name: Download main baseline
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          run_id=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow benchmark.yml --branch main \
+            --event push --status success --limit 1 --json databaseId --jq '.[0].databaseId')
+          if [ -n "$run_id" ]; then
+            gh run download "$run_id" --repo "$GITHUB_REPOSITORY" -n "bench-$ARCH" -D baseline
+          else
+            echo "No successful main run yet"
+          fi
+
+      - name: Render summary
+        run: |
+          args=(bench-results.json)
+          [ -f baseline/bench-results.json ] && args+=(baseline/bench-results.json)
+          ruby bin/bench-report markdown "${args[@]}" > bench.md
+          cat bench.md >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bench-${{ matrix.arch }}
+          path: |
+            bench-results.json
+            bench.md
+          retention-days: 90
+
+      - name: Sticky PR comment
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: benchmarks-${{ matrix.arch }}
+          path: bench.md

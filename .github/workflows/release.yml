@@ -1,0 +1,131 @@
+name: Release
+
+# Merging a version bump is the release: when lib/gem/ruby2html/version.rb
+# changes on main and no tag v<VERSION> exists yet, this verifies, publishes the
+# gem, then creates the tag and the GitHub release from CHANGELOG.md. Never tag
+# or `gem push` by hand. (The developerz.ai agent opens the release PR: see
+# .dz/briefs/release-due.md.)
+#
+# One-time setup on rubygems.org (Trusted Publishing, no API key secret):
+#   gem "ruby2html" -> Trusted publishers -> GitHub Actions
+#   repository: sebyx07/ruby2html, workflow: release.yml, environment: release
+on:
+  push:
+    branches: [main]
+    paths: ['lib/gem/ruby2html/version.rb']
+  workflow_dispatch:
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  version:
+    name: Is v<VERSION> unreleased?
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      tag: ${{ steps.v.outputs.tag }}
+      due: ${{ steps.v.outputs.due }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - id: v
+        run: |
+          version=$(ruby -e 'require "./lib/gem/ruby2html/version"; print Ruby2html::VERSION')
+          tag="v$version"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+            echo "$tag already exists: nothing to release"
+            echo "due=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "due=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  test:
+    name: Verify ${{ needs.version.outputs.tag }}
+    needs: version
+    if: needs.version.outputs.due == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: .ruby-version
+          bundler-cache: true
+
+      - name: CHANGELOG has a section for this version
+        env:
+          TAG: ${{ needs.version.outputs.tag }}
+        run: bin/changelog-notes "$TAG" > /dev/null
+
+      - name: Compile C extension
+        run: bundle exec rake compile
+
+      - name: RSpec
+        run: bundle exec rspec
+
+      - name: RuboCop
+        run: bin/rubocop --parallel
+
+      - name: Build gem + standalone install smoke test
+        run: bundle exec rake smoke
+
+  jruby:
+    name: Verify install on JRuby
+    needs: version
+    if: needs.version.outputs.due == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: jruby
+          bundler: none
+      # Builds the gem with JRuby, installs it (extconf.rb must not fail there)
+      # and renders with the pure-Ruby implementation.
+      - name: Build + install + render
+        run: ruby bin/gem-smoke
+
+  release:
+    name: Publish to RubyGems, tag, GitHub release
+    needs: [version, test, jruby]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: release
+    permissions:
+      contents: write # create the tag + GitHub release
+      id-token: write # RubyGems trusted publishing (OIDC)
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: .ruby-version
+
+      - name: Exchange the OIDC token for RubyGems credentials
+        uses: rubygems/configure-rubygems-credentials@v1
+
+      # Gem first: a tag and release with no gem behind them would advertise a
+      # version `gem install` cannot serve.
+      - name: Build + publish gem
+        run: |
+          gem build ruby2html.gemspec
+          gem push ruby2html-*.gem
+
+      - name: Tag + GitHub release from CHANGELOG
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.version.outputs.tag }}
+        run: |
+          bin/changelog-notes "$TAG" > release-notes.md
+          gh release create "$TAG" ruby2html-*.gem --title "$TAG" --target "$GITHUB_SHA" --notes-file release-notes.md

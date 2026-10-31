@@ -1,0 +1,52 @@
+name: Bug report
+description: Wrong HTML output, crash, escaping problem or Rails/ViewComponent integration issue
+labels: [bug]
+body:
+  - type: textarea
+    id: template
+    attributes:
+      label: Minimal template / code
+      description: Smallest ruby2html code that reproduces it (a `Ruby2html::Render.new { ... }.render` snippet is ideal).
+      render: ruby
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected HTML
+      render: html
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual HTML or error (with backtrace)
+      render: text
+    validations:
+      required: true
+  - type: dropdown
+    id: context
+    attributes:
+      label: Where is it rendered?
+      options:
+        - Plain Ruby (no Rails)
+        - Rails .html.rb view/partial
+        - ERB via html(self) helper
+        - ViewComponent (call + html)
+        - ViewComponent (.html.rb template)
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: "ruby2html, ruby -v (with/without YJIT), Rails, ViewComponent, OS/arch"
+      placeholder: "ruby2html 2.0.0, ruby 3.4.7 +YJIT, Rails 8.1.4, x86_64-linux"
+    validations:
+      required: true
+  - type: checkboxes
+    id: ext
+    attributes:
+      label: C extension
+      options:
+        - label: "`Ruby2html.native?` is true (C extension loaded). Does the bug also happen with RUBY2HTML_DISABLE_EXT=1?"

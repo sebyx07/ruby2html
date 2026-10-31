@@ -21,6 +21,10 @@ class BenchmarkController < ApplicationController
     render BenchmarkComponent.new(COMPLEX_DATA)
   end
 
+  def native
+    render NativeBenchmarkComponent.new(COMPLEX_DATA)
+  end
+
   COMPLEX_DATA = {
     users: 50.times.map do |i|
       {

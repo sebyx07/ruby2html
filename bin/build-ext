@@ -1,0 +1,72 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Out-of-tree build of the C extension with CI-style variants. `rake compile` is
+# the normal path; this script exists for the strict/clang/sanitizer CI jobs.
+#
+#   bin/build-ext                       # same flags as `gem install`
+#   bin/build-ext --werror              # treat every warning as an error
+#   bin/build-ext --cc=clang --werror   # build (and probe) with clang
+#   bin/build-ext --sanitize            # ASAN + UBSAN instrumented build
+#   bin/build-ext --out=DIR             # where ruby2html.so goes (default lib/ruby2html)
+#
+# A sanitized build needs the runtime preloaded into a normal ruby. On Linux:
+#   LD_PRELOAD="$(gcc -print-file-name=libasan.so):$(gcc -print-file-name=libubsan.so)" \
+#   ASAN_OPTIONS=detect_leaks=0 bundle exec rspec spec/gem
+
+require 'fileutils'
+require 'optparse'
+require 'rbconfig'
+
+ROOT = File.expand_path('..', __dir__)
+opts = { cc: nil, werror: false, sanitize: false, out: File.join(ROOT, 'lib/ruby2html') }
+OptionParser.new do |o|
+  o.on('--cc=CC', 'C compiler (default: the one Ruby was built with)') { |v| opts[:cc] = v }
+  o.on('--werror', 'Fail on any compiler warning') { opts[:werror] = true }
+  o.on('--sanitize', 'Instrument with -fsanitize=address,undefined') { opts[:sanitize] = true }
+  o.on('--out=DIR', 'Output directory for the shared object') { |v| opts[:out] = File.expand_path(v) }
+end.parse!
+
+abort "The C extension is CRuby/TruffleRuby only (running #{RUBY_ENGINE})" if RUBY_ENGINE == 'jruby'
+
+tag = [opts[:cc] || 'default', ('werror' if opts[:werror]), ('sanitize' if opts[:sanitize])].compact.join('-')
+build_dir = File.join(ROOT, 'tmp', 'ext-build', "#{RUBY_ENGINE}-#{RUBY_VERSION}-#{tag}")
+FileUtils.rm_rf(build_dir)
+FileUtils.mkdir_p(build_dir)
+
+def sh!(*cmd, chdir:)
+  puts "+ #{cmd.join(' ')}"
+  system(*cmd, chdir: chdir, exception: true)
+end
+
+# Ruby's own warnflags come from the compiler it was built with (often gcc);
+# another compiler must tolerate warning options it does not know.
+clang = (opts[:cc] || RbConfig::CONFIG['CC']).include?('clang')
+warnflags = RbConfig::CONFIG['warnflags'].to_s
+warnflags += ' -Wno-unknown-warning-option' if clang
+
+# mkmf ignores $CC, so swap the compiler in RbConfig before extconf.rb loads
+# mkmf; append_cflags/have_header then probe the compiler that builds. (mkmf
+# probes with -Werror, so the warnflags fix above matters for the probes too.)
+extconf = File.join(ROOT, 'ext/ruby2html/extconf.rb')
+cc_setup = +''
+if opts[:cc]
+  cc_setup << "RbConfig::MAKEFILE_CONFIG['CC'] = RbConfig::CONFIG['CC'] = #{opts[:cc].dump}; "
+  cc_setup << "RbConfig::MAKEFILE_CONFIG['warnflags'] = RbConfig::CONFIG['warnflags'] = #{warnflags.dump}; "
+end
+sh!(RbConfig.ruby, '-rrbconfig', '-e', "#{cc_setup}$0 = ARGV.shift; load $0", extconf, chdir: build_dir)
+
+make_vars = []
+make_vars << "CC=#{opts[:cc]}" if opts[:cc]
+make_vars << "warnflags=#{warnflags} -Werror" if opts[:werror]
+if opts[:sanitize]
+  # ARCH_FLAG is appended to both CFLAGS and DLDFLAGS in mkmf Makefiles.
+  make_vars << "ARCH_FLAG=#{RbConfig::CONFIG['ARCH_FLAG']} -fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=undefined"
+  make_vars << 'optflags=-O1 -g'
+end
+sh!(ENV.fetch('MAKE', 'make'), "-j#{ENV.fetch('JOBS', 4)}", 'V=1', *make_vars, chdir: build_dir)
+
+so = Dir[File.join(build_dir, "ruby2html.#{RbConfig::CONFIG['DLEXT']}")].first or abort 'No shared object was built'
+FileUtils.mkdir_p(opts[:out])
+FileUtils.cp(so, opts[:out])
+puts "== Built #{File.join(opts[:out], File.basename(so))} (#{tag})"

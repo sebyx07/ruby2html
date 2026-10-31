@@ -1,0 +1,23 @@
+# frozen_string_literal: true
+
+# Demo app + integration specs against one Rails line, chosen by RAILS_VERSION:
+#   RAILS_VERSION=8.1  -> rails ~> 8.1.0 (newest patch, no lockfile committed)
+#   RAILS_VERSION=edge -> rails main branch
+# CI computes the list of maintained Rails lines from rubygems.org, so new
+# Rails releases are tested without editing this file.
+#
+#   RAILS_VERSION=8.1 BUNDLE_GEMFILE=gemfiles/rails.gemfile bundle install
+#   RAILS_VERSION=8.1 BUNDLE_GEMFILE=gemfiles/rails.gemfile bundle exec rspec spec/features spec/gem/rails
+source 'https://rubygems.org'
+
+rails_version = ENV.fetch('RAILS_VERSION', 'edge')
+
+if rails_version == 'edge'
+  gem 'rails', github: 'rails/rails', branch: 'main'
+else
+  gem 'rails', "~> #{rails_version}.0"
+end
+# Rails < 7.2 only accepts sqlite3 1.x at runtime.
+gem 'sqlite3', rails_version != 'edge' && Gem::Version.new(rails_version) < Gem::Version.new('7.2') ? '~> 1.4' : '>= 2.1'
+
+eval_gemfile 'rails_common.rb'

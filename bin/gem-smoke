@@ -1,0 +1,81 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Packaging smoke test: builds the gem (or uses the .gem passed as ARGV[0]),
+# checks its file list, installs it into a throwaway GEM_HOME and renders HTML
+# with plain `ruby` -- no Bundler, no Rails, no repository files on the load path.
+#
+#   bin/gem-smoke                    # build from ruby2html.gemspec
+#   bin/gem-smoke pkg/ruby2html.gem  # test an already built gem
+
+require 'fileutils'
+require 'open3'
+require 'rbconfig'
+require 'rubygems/package'
+require 'tmpdir'
+
+ROOT = File.expand_path('..', __dir__)
+
+def run!(env, *cmd, chdir:)
+  out, status = Open3.capture2e(env, *cmd, chdir: chdir)
+  abort "FAILED: #{cmd.join(' ')}\n#{out}" unless status.success?
+  out
+end
+
+Dir.mktmpdir('ruby2html-smoke') do |tmp|
+  # Never let the caller's Bundler/RubyGems environment leak into the checks.
+  clean_env = ENV.keys.grep(/\A(BUNDLE|BUNDLER|RUBYOPT|RUBYLIB|GEM_)/).product([nil]).to_h
+
+  gem_path =
+    if ARGV[0]
+      File.expand_path(ARGV[0])
+    else
+      out = run!(clean_env, Gem.ruby, '-S', 'gem', 'build', 'ruby2html.gemspec', chdir: ROOT)
+      built = out[/File: (\S+\.gem)/, 1] or abort "Could not find built gem in output:\n#{out}"
+      FileUtils.mv(File.join(ROOT, built), tmp)
+      File.join(tmp, built)
+    end
+  puts "== Gem: #{File.basename(gem_path)}"
+
+  files = Gem::Package.new(gem_path).spec.files
+  forbidden = files.grep(%r{\.(so|o|bundle|dll)\z|(\A|/)Makefile\z|mkmf\.log\z|\Alib/(assets|tasks|ruby2html)/|\A(tmp|spec|app|config)/})
+  abort "Gem ships files it must not:\n  #{forbidden.join("\n  ")}" if forbidden.any?
+  %w[lib/gem/ruby2html.rb lib/gem/ruby2html/render.rb ext/ruby2html/extconf.rb README.md LICENSE CHANGELOG.md].each do |f|
+    abort "Gem is missing #{f}" unless files.include?(f)
+  end
+  puts "== File list OK (#{files.size} files)"
+
+  gem_home = File.join(tmp, 'gems')
+  run!(clean_env, Gem.ruby, '-S', 'gem', 'install', '--no-document', '--install-dir', gem_home, gem_path, chdir: tmp)
+  puts '== Installed into temporary GEM_HOME'
+
+  # Renders with the C extension (except on JRuby) and with the pure-Ruby
+  # implementation (RUBY2HTML_DISABLE_EXT=1); both must produce the same HTML.
+  script = <<~'RUBY'
+    require 'ruby2html'
+    expect_native = ENV['EXPECT_NATIVE'] == '1'
+    html = Ruby2html::Render.new { div(class: 'a') { plain 'x' } }.render
+    raise "unexpected output: #{html.inspect}" unless html == '<div class="a">x</div>'
+    page = Ruby2html::Render.new do
+      div(id: 'p', class: 'x"y', data_n: 1) { h1 'T & <C>'; br; plain "it's" }
+    end.render
+    puts html, page
+    native = Ruby2html.respond_to?(:native?) ? Ruby2html.native? : !$LOADED_FEATURES.grep(/ruby2html\.(so|bundle|dll)\z/).empty?
+    raise "expected native=#{expect_native}, got #{native}" unless native == expect_native
+    # realpath: on macOS the temp dir is /var/... but loaded paths are /private/var/...
+    home = File.realpath(ENV['GEM_HOME'])
+    libs = $LOADED_FEATURES.grep(%r{/ruby2html(/|\.)})
+    outside = libs.reject { |f| File.realpath(f).start_with?(home) }
+    raise "ruby2html loaded from outside GEM_HOME: #{outside}" unless outside.empty?
+    raise 'Rails leaked into standalone load' if defined?(Rails)
+    puts "native=#{native} #{$LOADED_FEATURES.grep(/ruby2html\.(so|bundle|dll)\z/).first}"
+  RUBY
+  env = clean_env.merge('GEM_HOME' => gem_home, 'GEM_PATH' => gem_home)
+  native_env = env.merge('RUBY2HTML_DISABLE_EXT' => nil, 'EXPECT_NATIVE' => RUBY_ENGINE == 'jruby' ? '0' : '1')
+  pure_env = env.merge('RUBY2HTML_DISABLE_EXT' => '1', 'EXPECT_NATIVE' => '0')
+  native_out = run!(native_env, RbConfig.ruby, '-e', script, chdir: tmp)
+  pure_out = run!(pure_env, RbConfig.ruby, '-e', script, chdir: tmp)
+  puts native_out, pure_out
+  abort 'Native and pure-Ruby output differ' unless native_out.lines[0, 2] == pure_out.lines[0, 2]
+  puts "== Standalone smoke test passed on #{RUBY_DESCRIPTION}"
+end
