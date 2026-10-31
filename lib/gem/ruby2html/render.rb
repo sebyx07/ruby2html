@@ -1,14 +1,36 @@
 # frozen_string_literal: true
 
-begin
-  require 'ruby2html/ruby2html'
-rescue LoadError
-  puts 'ruby2html not installed'
-end
+require_relative 'render/pure_ruby'
 
 module Ruby2html
-  # Global cache for attribute strings (similar to Phlex::ATTRIBUTE_CACHE)
-  ATTRIBUTE_CACHE = {}
+  # Loads the C extension (Ruby2html::Native). Without it (JRuby, a failed
+  # build, or RUBY2HTML_DISABLE_EXT=1) the pure-Ruby twin is used instead.
+  # Installed gems find the extension on the load path; this repo builds it
+  # into lib/ruby2html.
+  def self.load_native_extension
+    return false if ENV['RUBY2HTML_DISABLE_EXT'] == '1'
+
+    begin
+      require 'ruby2html/ruby2html'
+    rescue LoadError
+      require_relative '../../ruby2html/ruby2html'
+    end
+    defined?(Native) ? true : false
+  rescue LoadError
+    false
+  end
+  private_class_method :load_native_extension
+
+  # The module providing tag methods, #plain and #component: Native or PureRuby.
+  IMPLEMENTATION = load_native_extension ? Native : PureRuby
+
+  def self.native?
+    IMPLEMENTATION != PureRuby
+  end
+
+  def self.escape_html(obj)
+    IMPLEMENTATION.escape_html(obj)
+  end
 
   class Render
     HTML5_TAGS = %w[
@@ -22,131 +44,45 @@ module Ruby2html
     ].freeze
 
     VOID_ELEMENTS = %w[area base br col embed hr img input link meta param source track wbr].freeze
-    COMMON_RAILS_METHOD_HELPERS = %w[link_to image_tag form_with button_to].freeze
+    # Rails helpers that write their markup into the ruby2html buffer, mapped
+    # to their RailsComponents wrapper (shared by Render and Component).
+    RAILS_HELPER_COMPONENTS = { link_to: :LinkTo, button_to: :ButtonTo, image_tag: :ImageTag, form_with: :FormWith }.freeze
+    # Context ivars that would clobber the renderer's own state if copied.
+    SKIPPED_IVAR_PREFIXES = %w[@_ @output @current_output @context @root].freeze
 
-    # Pre-generate all HTML tag methods with Phlex-inspired optimizations
-    METHOD_DEFINITIONS = HTML5_TAGS.map do |tag|
-      method_name = tag.tr('-', '_')
-      is_void = VOID_ELEMENTS.include?(tag)
+    # Both implementations get the tags so specs can compare them in one process.
+    [PureRuby, IMPLEMENTATION].uniq.each do |implementation|
+      HTML5_TAGS.each { |tag| implementation.define_tag(tag.tr('-', '_'), tag, VOID_ELEMENTS.include?(tag)) }
+    end
 
-      if is_void
-        # Void elements: optimized with attribute caching
-        <<-RUBY
-          def #{method_name}(*args, **options)
-            buffer = @current_output
+    include IMPLEMENTATION
 
-            if options.empty?
-              buffer << '<#{tag} />'
-            else
-              # Check attribute cache first
-              cached = Ruby2html::ATTRIBUTE_CACHE[options.hash]
-              if cached
-                buffer << '<#{tag}' << cached << ' />'
-              else
-                attrs = fast_attributes_to_s(options)
-                Ruby2html::ATTRIBUTE_CACHE[options.hash] = attrs.freeze
-                buffer << '<#{tag}' << attrs << ' />'
-              end
-            end
-          end
-        RUBY
-      else
-        # Regular elements: C tag generation
-        <<-RUBY
-          def #{method_name}(*args, **options, &block)
-            content = args.first.is_a?(String) ? args.shift : nil
-
-            # Handle block execution to get nested content
-            if block
-              prev_output = @current_output
-              nested_content = String.new(capacity: 1024)
-              @current_output = nested_content
-              block_result = block.call
-              @current_output = prev_output
-              # Block returns string -> escape it, else use buffer without escaping
-              if block_result.is_a?(String)
-                content = block_result
-                escape_content = true
-              else
-                content = nested_content
-                escape_content = false
-              end
-            elsif content
-              # Direct string content -> escape it
-              escape_content = true
-            else
-              # No content at all
-              escape_content = false
-            end
-
-            # Use fast C function to render complete tag
-            tag_html = fast_render_tag('#{tag}', options, content, false, escape_content)
-            @current_output << tag_html; nil
-          end
-        RUBY
-      end
-    end.join("\n")
-
-    # Evaluate all method definitions at once
-    class_eval(METHOD_DEFINITIONS, __FILE__, __LINE__ + 1)
-
-    attr_reader :output
+    # No `output` reader: it would shadow the <output> tag method.
     attr_accessor :current_output
 
     def initialize(context = nil, &root)
       @context = context
       @root = root
-      @output = String.new(capacity: 4096)
+      @output = String.new(capacity: 4096, encoding: Encoding::UTF_8)
       @current_output = @output
     end
 
-    def __render_from_rails(template_path)
-      result = render
-      return result unless annotate_rendered_view_with_filenames?
-
-      template_path = template_path.sub("#{Rails.root}/", '')
-      comment_start = "<!-- BEGIN #{template_path} -->"
-      comment_end = "<!-- END #{template_path} -->"
-
-      final_result = String.new(capacity: result.length + comment_start.length + comment_end.length)
-      final_result << comment_start
-      final_result << result
-      final_result << comment_end
-      final_result.html_safe
-    end if defined?(ActionView)
-
+    # Without arguments renders the root block and returns the HTML (a
+    # SafeBuffer under ActiveSupport). With arguments it is the context's
+    # render (partials, components), appended to the output.
     def render(*args, **options, &block)
-      # Optimized instance variable copying: only copy once and cache the list
-      set_instance_variables if @context && !@__vars_copied
+      copy_instance_variables if @context && !@__vars_copied
 
-      return plain @context.render(*args, **options, &block) if !args.empty? || !options.empty? || block_given?
+      return plain @context.render(*args, **options, &block) if !args.empty? || !options.empty? || block
 
       instance_exec(&@root)
-      result = @output
-      result = ActiveSupport::SafeBuffer.new(result) if defined?(ActiveSupport)
-      result
-    end
-
-    def respond_to?(method_name, include_private = false)
-      HTML5_TAGS.include?(method_name.to_s.tr('_', '-')) || super
-    end
-
-    def plain(text)
-      if defined?(ActiveSupport) && (text.is_a?(ActiveSupport::SafeBuffer) || text.html_safe?)
-        fast_buffer_append(@current_output, text)
-      else
-        fast_buffer_append(@current_output, fast_escape_html(text.to_s))
-      end
-    end
-
-    def component(component_output)
-      fast_buffer_append(@current_output, component_output)
+      defined?(ActiveSupport::SafeBuffer) ? ActiveSupport::SafeBuffer.new(@output) : @output
     end
 
     private
-      def method_missing(method_name, *args, **options, &block)
+      def method_missing(method_name, ...)
         if @context.respond_to?(method_name)
-          @context.send(method_name, *args, **options, &block)
+          @context.send(method_name, ...)
         else
           super
         end
@@ -156,33 +92,24 @@ module Ruby2html
         @context.respond_to?(method_name) || super
       end
 
-      COMMON_RAILS_METHOD_HELPERS.each do |method|
+      # Resolved per call (const_get with a Symbol; autoloaded on first use).
+      RAILS_HELPER_COMPONENTS.each do |method, component_name|
         define_method(method) do |*args, **options, &block|
-          constant = "Ruby2html::RailsComponents::#{method.to_s.camelize}".constantize
-          constant.new(self, @context, method, *args, **options).render(&block)
+          RailsComponents.const_get(component_name).new(self, @context, method, *args, **options).render(&block)
         end
       end if defined?(ActionView)
 
       def escape_html(text)
-        fast_escape_html(text.to_s)
+        IMPLEMENTATION.escape_html(text)
       end
 
-      def annotate_rendered_view_with_filenames?
-        return @annotate_rendered_view_with_filenames if defined?(@annotate_rendered_view_with_filenames)
-        @annotate_rendered_view_with_filenames = Rails.application.config.action_view.annotate_rendered_view_with_filenames
-      end
-
-      # Optimized instance variable copying - only runs once per renderer instance
-      def set_instance_variables
-        # Skip internal renderer variables (start with @_ or renderer-specific)
+      # Templates read the view's assigns (@users, ...) as their own ivars.
+      def copy_instance_variables
         @context.instance_variables.each do |name|
-          # Skip internal variables for performance
-          next if name.to_s.start_with?('@_', '@output', '@current_output', '@context', '@root')
+          next if name.start_with?(*SKIPPED_IVAR_PREFIXES)
 
           instance_variable_set(name, @context.instance_variable_get(name))
         end
-
-        # Mark that we've copied variables to avoid doing it again
         @__vars_copied = true
       end
   end
