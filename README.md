@@ -23,12 +23,12 @@ end
 - **Fastest Ruby HTML renderer we've measured.** The page benchmark renders 1.35x faster than Erubi (Rails' ERB engine) and 2.4–16x faster than Phlex 2, with 40–90% fewer allocations; in a full Rails request it leads ERB, Slim and Phlex ([numbers](#performance)).
 - **Light.** No runtime dependencies, a 32 KB gem, and `require 'ruby2html'` costs about 0.4 MB and 19 ms. Prism, the Rails glue and the optional beautifier load only when used, or at boot in eager-loading production apps.
 - **Plain Ruby views.** `.html.rb` templates, ERB interop, ViewComponent, or the built-in `Ruby2html::Component`. Escaped by default.
-- **Runs everywhere.** CRuby ≥ 3.1 with a C extension (SIMD escaping on x86_64 and arm64), and JRuby/TruffleRuby through a byte-identical pure-Ruby implementation. Rails 7.2+.
+- **Runs everywhere.** CRuby ≥ 3.1 with a C extension (SIMD escaping on x86_64 and arm64), JRuby with a Java escaper over the pure-Ruby implementation, and TruffleRuby on pure Ruby (faster there than the C extension) — all byte-identical. Rails 7.2+.
 - **AI-ready.** One-file reference for coding agents: [`llms.txt`](llms.txt).
 
 ## Installation
 
-Supports all maintained CRuby versions (>= 3.1), JRuby (via the pure-Ruby implementation), TruffleRuby, and Rails 7.2+; the CI matrix is generated automatically.
+Supports all maintained CRuby versions (>= 3.1; CI currently covers 3.3, 3.4 and 4.0), JRuby (pure Ruby plus a Java escaper), TruffleRuby (pure Ruby), and Rails 7.2+; the CI matrix is generated automatically, so new Ruby releases are picked up without edits.
 
 ```ruby
 # Gemfile
@@ -208,7 +208,7 @@ This is a dated snapshot. CI has the live numbers. Measured on Ruby 3.4.7 x86_64
 |---|---|---|---|
 | **ruby2html 2.0 (C extension)** | **2,676** | **0.37 ms** | **419** |
 | Erubi 1.x (Rails' ERB engine) | 1,988 (1.35x slower) | 0.50 ms | 713 |
-| ruby2html 2.0 (pure Ruby: JRuby, no compiler) | ~820 | ~1.2 ms | 1,029 |
+| ruby2html 2.0 (pure Ruby, no C extension; CRuby) | ~820 | ~1.2 ms | 1,029 |
 | Phlex 2.4, enlarged attribute cache¹ | ~1,250 (≈2.4x slower) | ~0.8 ms | 831 |
 | Phlex 2.4, defaults | 164 (16x slower) | 6.1 ms | 6,410 |
 | ruby2html 1.6.6 | ~620 | ~1.6 ms | 3,531 |

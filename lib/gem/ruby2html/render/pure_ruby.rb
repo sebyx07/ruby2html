@@ -8,6 +8,16 @@ rescue LoadError
   nil
 end
 
+if RUBY_ENGINE == 'jruby' && ENV['RUBY2HTML_DISABLE_EXT'] != '1'
+  begin
+    # Defines Ruby2html::JavaNative (a byte-level HTML escaper, ext/java).
+    # JRuby's only native code; PureRuby.escape uses it when present.
+    require 'ruby2html/ruby2html_jruby'
+  rescue LoadError
+    nil
+  end
+end
+
 module Ruby2html
   # Pure-Ruby twin of the C extension's Ruby2html::Native (ext/ruby2html),
   # used on JRuby, when the extension isn't built, or with
@@ -32,6 +42,13 @@ module Ruby2html
         # May return str itself: only for appending to the buffer.
         def escape(str)
           ERB::Escape.html_escape(utf8_compatible(str))
+        end
+      elsif defined?(Ruby2html::JavaNative)
+        # JRuby: the Java escaper (ext/java). Byte-identical with the regex
+        # branch below (and with the C extension); also returns str itself
+        # when clean. utf8_compatible first, so it sees UTF-8/US-ASCII/BINARY.
+        def escape(str)
+          Ruby2html::JavaNative.escape(utf8_compatible(str))
         end
       else
         def escape(str)

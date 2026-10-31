@@ -295,6 +295,17 @@ RSpec.describe Ruby2html do
     expect(Ruby2html::Render.include?(Ruby2html::PureRuby)).to eq(!described_class.native?)
   end
 
+  it 'loads the Java escaper on JRuby (fail loudly, not a silent slow fallback)' do
+    skip 'not JRuby' unless RUBY_ENGINE == 'jruby'
+    skip 'extension disabled' if ENV['RUBY2HTML_DISABLE_EXT'] == '1'
+
+    expect(defined?(Ruby2html::JavaNative)).to be_truthy
+    # Byte-identical with the pure-Ruby escaping it accelerates.
+    ['x', 'a<b>&"\'c', 'λ<x>', 'emoji 😀 & <br>'].each do |s|
+      expect(Ruby2html::JavaNative.escape(s.dup)).to eq(s.gsub(/[&<>"']/, '&' => '&amp;', '<' => '&lt;', '>' => '&gt;', '"' => '&quot;', "'" => '&#39;'))
+    end
+  end
+
   it 'defines the same methods in the C extension and the pure-Ruby fallback' do
     skip 'C extension not loaded' unless described_class.native?
 

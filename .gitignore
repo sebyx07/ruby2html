@@ -49,6 +49,11 @@
 /ext/ruby2html/extconf.h
 *.dSYM/
 compile_commands.json
+
+# JRuby Java escaper build artifacts (rake compile on JRuby; the -java gem
+# ships this jar, but it is rebuilt from ext/java and never committed)
+*.jar
+*.class
 .cache/clangd/
 
 # Editors / IDEs

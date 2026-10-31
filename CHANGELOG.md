@@ -6,10 +6,18 @@ Entries before 1.6.6 were reconstructed from `git log` and RubyGems release date
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-10-31
+
+### Added
+
+- JRuby now ships a small Java extension (`Ruby2html::JavaNative`) that accelerates HTML escaping — the renderer's hot path — over the pure-Ruby implementation. About 1.9x faster end-to-end rendering on JRuby; output is byte-identical. Distributed as a `ruby2html-<version>-java` platform gem with the jar prebuilt (no JDK needed to install); everything else stays pure Ruby.
+
 ### Changed
 
 - `Ruby2html::Component#render_in` accepts Rails' keyword options (`locals:`), as Rails main (8.2) passes them and deprecates `render_in` without options.
+- TruffleRuby now uses the pure-Ruby implementation instead of the C extension. TruffleRuby runs C extensions through Sulong but JITs pure Ruby with Graal, which here renders ~28x faster; `Ruby2html.native?` is now `false` on TruffleRuby.
 - On CRuby, a C extension that fails to load now prints one warning with the reason (`ruby2html: C extension not loaded (...); using the pure-Ruby renderer`) instead of silently rendering about 3x slower. JRuby/TruffleRuby and `RUBY2HTML_DISABLE_EXT=1` stay silent.
+- Development and single-version CI jobs now run on the latest stable Ruby (4.0). The CRuby test matrix already tracks the official maintained-versions list automatically (currently 3.3, 3.4, 4.0).
 
 ## [2.0.0] - 2026-10-31
 
@@ -175,7 +183,8 @@ Published to RubyGems; no separate commits in the repository history.
 ### Added
 - Initial release: `Ruby2html::Render` DSL, `Ruby2html::RailsHelper#html` for ERB.
 
-[Unreleased]: https://github.com/sebyx07/ruby2html/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/sebyx07/ruby2html/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/sebyx07/ruby2html/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/sebyx07/ruby2html/releases/tag/v2.0.0
 [1.6.6]: https://rubygems.org/gems/ruby2html/versions/1.6.6
 [1.6.4]: https://rubygems.org/gems/ruby2html/versions/1.6.4

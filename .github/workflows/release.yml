@@ -78,21 +78,33 @@ jobs:
         run: bundle exec rake smoke
 
   jruby:
-    name: Verify install on JRuby
+    name: Verify + build the -java gem on JRuby
     needs: version
     if: needs.version.outputs.due == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      BUNDLE_GEMFILE: ${{ github.workspace }}/gemfiles/standalone.gemfile
     steps:
       - uses: actions/checkout@v7
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: jruby
-          bundler: none
-      # Builds the gem with JRuby, installs it (extconf.rb must not fail there)
-      # and renders with the pure-Ruby implementation.
-      - name: Build + install + render
-        run: ruby bin/gem-smoke
+          bundler-cache: true
+      # Compile the Java escaper, then build + install + render the -java gem
+      # (gem-smoke builds a ruby2html-<v>-java.gem and renders from it).
+      - name: Compile Java escaper
+        run: bundle exec rake compile
+      - name: Build + install + render the -java gem
+        run: bundle exec ruby bin/gem-smoke
+      - name: Build the -java gem for publishing
+        run: gem build ruby2html.gemspec
+      - uses: actions/upload-artifact@v7
+        with:
+          name: java-gem
+          path: ruby2html-*-java.gem
+          retention-days: 7
+          if-no-files-found: error
 
   release:
     name: Publish to RubyGems, tag, GitHub release
@@ -112,15 +124,22 @@ jobs:
         with:
           ruby-version: .ruby-version
 
+      - name: Download the JRuby-built -java gem
+        uses: actions/download-artifact@v7
+        with:
+          name: java-gem
+
       - name: Exchange the OIDC token for RubyGems credentials
         uses: rubygems/configure-rubygems-credentials@v2.1.0
 
       # Gem first: a tag and release with no gem behind them would advertise a
-      # version `gem install` cannot serve.
-      - name: Build + publish gem
+      # version `gem install` cannot serve. Two artifacts: the C-extension gem
+      # (built here on CRuby) and the prebuilt -java gem (from the jruby job).
+      - name: Build + publish both gems
         run: |
           gem build ruby2html.gemspec
-          gem push ruby2html-*.gem
+          gem push ruby2html-*-java.gem
+          gem push "$(ls ruby2html-*.gem | grep -v -- -java)"
 
       - name: Tag + GitHub release from CHANGELOG
         env:
