@@ -1,93 +1,67 @@
 # frozen_string_literal: true
 
+require_relative 'base_component'
+
 module Ruby2html
   module RailsComponents
+    # Delegates to Rails' +form_with+ so the form tag, CSRF token, method
+    # spoofing (_method), multipart detection and URL resolution match Rails
+    # exactly. The yielded builder is wrapped in a FormBuilderProxy so that
+    # calls like +f.text_field :name+ write straight into the Ruby2html output.
     class FormWith < BaseComponent
-      include ActionView::Helpers::FormHelper
-      def render(&block)
-        model = @options[:model]
-        scope = @options[:scope]
-        url = @options[:url]
-        method = @options[:method]
-        local = @options[:local]
-
-        form_options = @options.except(:model, :scope, :url, :method, :local)
-        form_options[:action] = determine_url(model, url)
-        form_options[:method] = determine_method(model, method)
-        form_options['data-remote'] = 'true' unless local
-        @model = model
-        @scope = determine_scope(model, scope)
-
-        @render.form(**form_options) do
-          authenticity_token_tag
-          utf8_enforcer_tag
-          block.call(self)
+      private
+        def block_arg(arg)
+          FormBuilderProxy.wrap(@render, arg)
         end
+    end
+
+    # Forwards every call to the wrapped ActionView FormBuilder. Markup results
+    # (html_safe strings) are appended to the renderer and +nil+ is returned so
+    # a block's return value can't re-emit them; anything else (f.object,
+    # f.field_id, ...) is returned unchanged. Builder methods that clash with
+    # private Kernel methods (select, format, ...) still reach method_missing.
+    class FormBuilderProxy
+      include OutputCapture
+
+      def self.wrap(render, arg)
+        return arg unless defined?(ActionView::Helpers::FormBuilder) && arg.is_a?(ActionView::Helpers::FormBuilder)
+
+        new(render, arg)
       end
 
-      def label(method, text = nil, options = {})
-        @render.label(**options.merge(for: field_id(method))) do
-          text || method.to_s.humanize
-        end
+      def initialize(render, builder)
+        @render = render
+        @builder = builder
       end
 
-      def text_field(method, options = {})
-        @render.input(**options.merge(type: 'text', name: field_name(method), id: field_id(method), value: object_value_for(method)))
+      # The underlying ActionView::Helpers::FormBuilder.
+      def __builder__
+        @builder
       end
 
-      def hidden_field(method, options = {})
-        @render.input(**options.merge(type: 'hidden', name: field_name(method), id: field_id(method), value: object_value_for(method)))
+      def method_missing(name, ...)
+        return super unless @builder.respond_to?(name)
+
+        forward(name, ...)
       end
 
-      def password_field(method, options = {})
-        @render.input(**options.merge(type: 'password', name: field_name(method), id: field_id(method)))
-      end
-
-      def file_field(method, options = {})
-        @render.input(**options.merge(type: 'file', name: field_name(method), id: field_id(method)))
-      end
-
-      def submit(value = nil, options = {})
-        @render.input(**options.merge(type: 'submit', value: value || submit_default_value))
+      def respond_to_missing?(name, include_private = false)
+        @builder.respond_to?(name, include_private)
       end
 
       private
-        def determine_url(model, url)
-          return url if url
-          return polymorphic_path(model) if model && model.respond_to?(:persisted?)
+        def forward(name, *args, **options, &block)
+          result = @builder.public_send(name, *args, **options, &capturing(block))
+          return result unless result.is_a?(String) && result.html_safe?
+
+          @render.plain(result)
           nil
         end
 
-        def determine_method(model, method)
-          return method if method
-          return 'post' unless model
-          model.respond_to?(:persisted?) && model.persisted? ? 'patch' : 'post'
-        end
-
-        def determine_scope(model, scope)
-          return scope if scope
-          model.model_name.param_key if model.respond_to?(:model_name)
-        end
-
-        def authenticity_token_tag
-          @render.input(type: 'hidden', name: 'authenticity_token', value: @context.form_authenticity_token)
-        end
-
-        def utf8_enforcer_tag
-          @render.input(type: 'hidden', name: 'utf8', value: '✓')
-        end
-
-        def field_name(method)
-          @scope ? "#{@scope}[#{method}]" : method.to_s
-        end
-
-        def field_id(method)
-          @scope ? "#{@scope}_#{method}" : method.to_s
-        end
-
-        def object_value_for(method)
-          @model&.public_send(method) if @model
+        # Nested builders (fields_for / fields) are wrapped as well.
+        def block_arg(arg)
+          FormBuilderProxy.wrap(@render, arg)
         end
     end
   end
-end if defined?(ActionView::Helpers::FormHelper)
+end

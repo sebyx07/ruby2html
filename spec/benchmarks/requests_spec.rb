@@ -23,6 +23,11 @@ RSpec.describe 'HTML vs Ruby2html Benchmark', type: :request do
         expect(response).to have_http_status(:success)
       end
 
+      x.report('GET /benchmark/native (Ruby2html::Component)') do
+        get '/benchmark/native'
+        expect(response).to have_http_status(:success)
+      end
+
       x.report('GET /benchmark/slim (Slim)') do
         get '/benchmark/slim'
         expect(response).to have_http_status(:success)

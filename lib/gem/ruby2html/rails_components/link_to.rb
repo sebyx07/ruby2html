@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 
+require_relative 'base_component'
+
 module Ruby2html
   module RailsComponents
+    # Delegates to Rails' +link_to+; see BaseComponent.
     class LinkTo < BaseComponent
-      def render(&block)
-        @render.plain(@context.button_to(*@args, **@options, &block))
-      end
     end
   end
 end
