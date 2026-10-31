@@ -62,8 +62,11 @@ Dir.mktmpdir('ruby2html-smoke') do |tmp|
     puts html, page
     native = Ruby2html.respond_to?(:native?) ? Ruby2html.native? : !$LOADED_FEATURES.grep(/ruby2html\.(so|bundle|dll)\z/).empty?
     raise "expected native=#{expect_native}, got #{native}" unless native == expect_native
+    # realpath: on macOS the temp dir is /var/... but loaded paths are /private/var/...
+    home = File.realpath(ENV['GEM_HOME'])
     libs = $LOADED_FEATURES.grep(%r{/ruby2html(/|\.)})
-    raise "ruby2html loaded from outside GEM_HOME: #{libs - libs.grep(/\A#{Regexp.escape(ENV['GEM_HOME'])}/)}" unless libs.all? { |f| f.start_with?(ENV['GEM_HOME']) }
+    outside = libs.reject { |f| File.realpath(f).start_with?(home) }
+    raise "ruby2html loaded from outside GEM_HOME: #{outside}" unless outside.empty?
     raise 'Rails leaked into standalone load' if defined?(Rails)
     puts "native=#{native} #{$LOADED_FEATURES.grep(/ruby2html\.(so|bundle|dll)\z/).first}"
   RUBY

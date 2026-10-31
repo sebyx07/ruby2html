@@ -225,7 +225,7 @@ RenderSpecHelper.describe_each 'Ruby2html::Render' do
     it 'passes positional hashes, keywords and blocks through unchanged' do
       allow(context).to receive(:helper) { |*args, **kw, &blk| "#{args.inspect} #{kw.inspect} #{blk.call}" }
       expect(render_html(context) { plain helper({ a: 1 }, b: 2) { 'blk' } })
-        .to eq(ERB::Util.html_escape('[{a: 1}] {b: 2} blk'))
+        .to eq(ERB::Util.html_escape("#{[{ a: 1 }].inspect} #{{ b: 2 }.inspect} blk")) # Hash#inspect differs by Ruby version
     end
 
     it 'raises NoMethodError for methods nobody defines' do
