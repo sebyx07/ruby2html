@@ -6,8 +6,10 @@
 # reviews, declines with a reason, merges, and closes what has stalled on its reporter or author.
 # A pull request merges once its author says it is ready (out of draft / marked ready for review),
 # it has been reviewed and "CI OK" is green. A draft or a "WIP" / "DO NOT MERGE" title is never
-# merged. A human is asked only for what `escalate` names plus the platform's hardcoded categories
-# (security, license, CLA).
+# merged. A human is asked only for what `escalate` names, the platform's hardcoded categories
+# (security, license, CLA), and two holds on outside contributions: GitHub asks a maintainer to
+# approve a first-time contributor's CI run (a repository Actions setting), and changes to CI,
+# release or publish automation stay with the owner (the last `triage.non_goals` line).
 #
 # Releases follow the work: the `release-due` checkup opens a release PR when shipping work has
 # waited, and merging it IS the release (.github/workflows/release.yml publishes when
