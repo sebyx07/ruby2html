@@ -11,8 +11,8 @@
 # approve a first-time contributor's CI run (a repository Actions setting), and changes to CI,
 # release or publish automation stay with the owner (the last `triage.non_goals` line).
 #
-# Releases follow the work: the `release-due` checkup opens a release PR when shipping work has
-# waited, and merging it IS the release (.github/workflows/release.yml publishes when
+# Each week the `release-due` checkup judges whether a release is needed and opens a release PR when
+# so, and merging it IS the release (.github/workflows/release.yml publishes when
 # lib/gem/ruby2html/version.rb changes on main). Dependabot PRs merge through this agent only:
 # there is no second merger (no GitHub auto-merge workflow) that would skip its review.
 #
@@ -105,10 +105,17 @@ escalate:
   ask_before_acting: [breaking_change]
 
 schedules:
+  # Weekly and judged, so a merge never cuts a release (owner, 2026-11-01: "no auto, not dependabot,
+  # us developerz.ai AI decides if needed"). One weekday per repo, so the fleet is not hit at once.
   - name: release-due
-    days: [mon, tue, wed, thu, fri]
-    hours_utc: [6]
+    days: [fri]
+    hours_utc: [3]
     brief_file: .dz/briefs/release-due.md
+  # The one exception, so a confirmed security fix does not wait up to a week for the slot above.
+  - name: security-release
+    days: [mon, tue, wed, thu, sat, sun]
+    hours_utc: [2]
+    brief_file: .dz/briefs/security-release.md
   - name: health
     days: [mon, tue, wed, thu, fri, sat, sun]
     hours_utc: [7]
