@@ -38,7 +38,7 @@ triage:
     - "A runtime dependency in the gemspec"
     - "Backwards-compatibility shims, dead-code comments, or speculative abstractions"
     - "Hardcoded version lists or benchmark numbers in docs (CI generates the matrices and posts benchmarks)"
-    - "Outside contributors' changes to CI, release or publish automation (.github/, bin/, Rakefile release tasks, ruby2html.gemspec, Ruby2html::VERSION): the owner owns the gem pipeline. Dependency-bot version bumps of actions and gems are not covered by this: review and merge them on green"
+    - "Outside changes to CI, release or publish automation (.github/, bin/, Rakefile release tasks, gemspec, Ruby2html::VERSION): owner only. Dependency-bot bumps are not covered: merge those on green"
 
 handoff:
   mode: fleet
