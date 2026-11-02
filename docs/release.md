@@ -8,8 +8,9 @@ Releases go to RubyGems (`ruby2html`) and are tagged `vX.Y.Z` on GitHub (`sebyx0
 2. publishes the gem (RubyGems trusted publishing, GitHub environment `release`; no API key in the repo);
 3. only then creates the tag and the GitHub release, with the `.gem` attached and notes from `bin/changelog-notes`.
 
-Nobody tags or `gem push`es by hand. The developerz.ai maintainer agent decides when a release is due
-and opens the release PR (`.dz/briefs/release-due.md`). A **major** release is the owner's call: the
+Nobody tags or `gem push`es by hand. The developerz.ai maintainer agent judges each week whether a release
+is needed and opens the release PR (`.dz/briefs/release-due.md`); a security fix a first-tier source
+confirms goes out off-cycle (`.dz/briefs/security-release.md`). A **major** release is the owner's call: the
 agent never opens one.
 
 ## The release PR
