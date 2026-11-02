@@ -8,7 +8,7 @@ brief only decides *when*; how is `docs/release.md`.
 
 ```bash
 last=$(git describe --tags --abbrev=0 --match 'v[0-9]*' origin/main)
-git log --format='%h %cI %s' "$last"..origin/main -- 'lib/gem/**' 'ext/ruby2html/*.c' 'ext/ruby2html/*.h' 'ext/ruby2html/extconf.rb' ruby2html.gemspec
+git log --format='%h %cI %s' "$last"..origin/main -- 'lib/gem/**' 'ext/ruby2html/*.c' 'ext/ruby2html/*.h' 'ext/ruby2html/extconf.rb' 'ext/java/*.java' ruby2html.gemspec
 ```
 
 Those paths are what `ruby2html.gemspec` ships. README, LICENSE, CHANGELOG, specs, CI, the demo app,
