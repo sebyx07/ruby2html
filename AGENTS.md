@@ -20,7 +20,7 @@ Writing ruby2html templates/components (here or in a user app)? Load [`llms.txt`
 | Scripts | `bin/gem-smoke`, `bin/changelog-notes`, `bin/build-ext` | Packaging smoke test; print a CHANGELOG section; CI-style extension builds (`--werror`, `--cc=clang`, `--sanitize`) |
 
 - Supported: all maintained CRuby versions (>= 3.1, gemspec floor; CI tracks the official list — currently 3.3, 3.4, 4.0), JRuby (pure Ruby + the Java escaper), TruffleRuby (pure Ruby), Rails 7.2+.
-- Dev Ruby: `apps/ruby2html/.ruby-version` (latest stable). The CRuby CI matrix is generated automatically from the maintained-versions list, so a new release (e.g. a new 4.x) joins CI with no edit.
+- Dev Ruby: `apps/ruby2html/.ruby-version` (latest stable). The root `.ruby-version` is a symlink to it — `ruby/setup-ruby` reads version files only from the repo root, so CI jobs pass `ruby-version: .ruby-version` (a nested path there is parsed as an "engine-version" string and fails). The CRuby CI matrix is generated automatically from the maintained-versions list, so a new release (e.g. a new 4.x) joins CI with no edit.
 - rubocop `TargetRubyVersion` matches the floor (no newer syntax in `apps/ruby2html/lib/`).
 - Dependency versions: `apps/ruby2html/Gemfile.lock` and `apps/ruby2html/gemfiles/*.gemfile` (CI matrix gemfiles, unlocked).
 

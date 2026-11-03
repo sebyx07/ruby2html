@@ -61,9 +61,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # setup-ruby reads version files only from the repo root; the root
+      # .ruby-version is a symlink to apps/ruby2html/.ruby-version.
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: apps/ruby2html/.ruby-version
+          ruby-version: .ruby-version
           bundler-cache: true
 
       - name: CHANGELOG has a section for this version
@@ -134,7 +136,7 @@ jobs:
 
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: apps/ruby2html/.ruby-version
+          ruby-version: .ruby-version
 
       - name: Download the JRuby-built -java gem
         uses: actions/download-artifact@v7

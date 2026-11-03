@@ -48,9 +48,11 @@ jobs:
         working-directory: apps/ruby2html
     steps:
       - uses: actions/checkout@v7
+      # setup-ruby reads version files only from the repo root; the root
+      # .ruby-version is a symlink to apps/ruby2html/.ruby-version.
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: apps/ruby2html/.ruby-version
+          ruby-version: .ruby-version
           bundler-cache: true
       - run: bundle exec rake compile
       - name: Resolved versions

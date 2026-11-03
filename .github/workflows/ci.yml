@@ -32,8 +32,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ruby/setup-ruby@v1
+        # setup-ruby reads version files only from the repo root; the root
+        # .ruby-version is a symlink to apps/ruby2html/.ruby-version (the single
+        # source of the dev Ruby version). A nested path here would be parsed as
+        # an "engine-version" string and fail with "Unknown engine".
         with:
-          ruby-version: apps/ruby2html/.ruby-version
+          ruby-version: .ruby-version
           bundler-cache: true
       - run: ../../bin/rubocop --parallel . ../../bin
 
@@ -48,7 +52,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: apps/ruby2html/.ruby-version
+          ruby-version: .ruby-version
           bundler: none
       - run: gem install --no-document bundler-audit
       - name: Check Gemfile.lock against the Ruby advisory database
@@ -68,7 +72,7 @@ jobs:
       # ubuntu runners ship gcc/make: no apt build-essential step needed.
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: apps/ruby2html/.ruby-version
+          ruby-version: .ruby-version
           bundler-cache: true
       - run: bundle exec rake compile
       - name: RSpec (features, gem, benchmarks)
@@ -131,7 +135,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: apps/ruby2html/.ruby-version
+          ruby-version: .ruby-version
           bundler-cache: true
       - name: Compile + RSpec (spec/gem)
         run: bundle exec rake spec:gem
@@ -155,7 +159,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: apps/ruby2html/.ruby-version
+          ruby-version: .ruby-version
           bundler-cache: true
       - name: Build with warnings as errors
         run: ../../bin/build-ext --cc=${{ matrix.cc }} --werror
@@ -177,7 +181,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: apps/ruby2html/.ruby-version
+          ruby-version: .ruby-version
           bundler-cache: true
       - name: Build instrumented extension
         run: ../../bin/build-ext --sanitize
@@ -205,7 +209,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: apps/ruby2html/.ruby-version
+          ruby-version: .ruby-version
           bundler-cache: true
       - name: RSpec (spec/gem) without the C extension
         run: bundle exec rake spec:gem
@@ -276,7 +280,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: apps/ruby2html/.ruby-version
+          ruby-version: .ruby-version
           bundler-cache: true
       - run: bundle exec rake compile
       - name: Resolved versions
@@ -316,9 +320,9 @@ jobs:
     needs: [lint, audit, test, gem-specs, native, strict-ext, sanitizers, fallback, engines, rails, package]
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    defaults:
-      run:
-        working-directory: apps/ruby2html
+    # No checkout and no working-directory here: it only aggregates results, and a
+    # defaults working-directory with no checkout kills bash before the step starts
+    # ("No such file or directory" for apps/ruby2html).
     steps:
       - name: All required jobs passed
         env:

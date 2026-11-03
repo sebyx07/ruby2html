@@ -106,7 +106,12 @@ if defined?(RSpec::Core::RakeTask)
     RSpec::Core::RakeTask.new(:standalone) do |t|
       t.pattern = 'spec/gem/**/*_spec.rb'
       t.exclude_pattern = 'spec/gem/rails/**/*_spec.rb'
-      t.rspec_opts = '-I lib/gem -I lib --require ruby2html'
+      # --require ruby2html only outside the demo app's bundle: loaded before
+      # Rails, the gem's railtie never registers and the app boot dies
+      # (Zeitwerk::NameError on app/**/*.html.rb). Under the app bundle
+      # rails_helper boots Rails, which requires ruby2html itself.
+      standalone = File.basename(ENV['BUNDLE_GEMFILE'].to_s) == 'standalone.gemfile'
+      t.rspec_opts = standalone ? '-I lib/gem -I lib --require ruby2html' : '-I lib/gem -I lib'
     end
   end
   %w[spec:gem spec:standalone].each { |t| Rake::Task[t].enhance([:compile]) } unless ENV['SKIP_COMPILE'] == '1'
