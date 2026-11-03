@@ -1,0 +1,4 @@
+# Toolchain — established by dz-runner setup mode from the version this repo already pinned.
+# The box provides `mise` and nothing per-language; `bin/setup` runs `mise install`.
+[tools]
+ruby = "4.0.9"

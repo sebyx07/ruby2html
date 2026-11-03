@@ -1,0 +1,30 @@
+{
+  "mcpServers": {
+    "sentry-mcp": {
+      "type": "stdio",
+      "command": "bunx",
+      "args": ["@sentry/mcp-server"],
+      "env": {
+        "SENTRY_ACCESS_TOKEN": "${SENTRY_ACCESS_TOKEN}",
+        "SENTRY_HOST": "${SENTRY_HOST}"
+      }
+    },
+    "codegraph": {
+      "type": "stdio",
+      "command": "codegraph",
+      "args": ["serve", "--mcp"],
+      "env": {
+        "DO_NOT_TRACK": "1",
+        "CODEGRAPH_TELEMETRY": "0",
+        "CODEGRAPH_NO_UPDATE_CHECK": "1"
+      }
+    },
+    "developerz": {
+      "type": "http",
+      "url": "https://mcp.developerz.ai/v1/mcp",
+      "headers": {
+        "Authorization": "Bearer ${DEVELOPERZ_API_KEY}"
+      }
+    }
+  }
+}
