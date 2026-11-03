@@ -1,5 +1,41 @@
 #!/usr/bin/env bash
-# one-command check (typecheck + lint + test) — established by dz-runner setup mode. One command; adjust as the repo grows.
+# One-command local mirror of the CI gates in .github/workflows/ci.yml
+# (lint / audit / test / pure-Ruby fallback). No typecheck gate exists —
+# Ruby + C, no steep/sorbet. One command; adjust as the repo grows.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-bundle exec rake compile && bin/rubocop --parallel && CI=1 bundle exec rspec && bin/brakeman --no-pager
+
+bundle exec rake compile                                                               # ci.yml job: test — compile the C extension
+bin/rubocop --parallel                                                                 # ci.yml job: lint — RuboCop
+
+# audit — ci.yml job: audit. bundler-audit is not in the Gemfile: never `bundle exec` it.
+# `command -v` alone is not enough: a stale PATH shim (mise) can exist yet fail at exec
+# time, so probe by running the CLI. If PATH is still broken after the install, run the
+# same CLI through the active Ruby's binstub instead.
+bundle_audit() {
+  if bundle-audit check --help >/dev/null 2>&1 || command -v bundle-audit >/dev/null 2>&1; then
+    bundle-audit "$@"
+    return
+  fi
+  gem install --no-document bundler-audit
+  if bundle-audit check --help >/dev/null 2>&1 || command -v bundle-audit >/dev/null 2>&1; then
+    bundle-audit "$@"
+  else
+    ruby "$(ruby -e 'print Gem.bin_path("bundler-audit", "bundle-audit")')" "$@"
+  fi
+}
+bundle_audit check --update                                                            # ci.yml job: audit — Gemfile.lock vs the Ruby advisory database
+
+CI=1 bundle exec rspec                                                                 # ci.yml job: test — full suite minus benchmarks (skipped when CI=1)
+SKIP_COMPILE=1 RUBY2HTML_DISABLE_EXT=1 bundle exec rake spec:gem                       # ci.yml job: fallback — spec/gem on PureRuby, no .so
+bin/brakeman --no-pager                                                                # ci.yml job: test — Brakeman static analysis
+
+# Intentionally CI-only — the remaining required jobs in .github/workflows/ci.yml that
+# bin/check does not mirror locally, so no gate is silently skipped:
+#   gem-specs:  rake spec:standalone on every maintained CRuby (other Ruby versions)
+#   native:     C ext on Linux arm64 + macOS arm64 (SSE2/NEON paths) + rake smoke
+#   strict-ext: -Werror builds with gcc and clang
+#   sanitizers: ASAN + UBSAN instrumented build and spec run
+#   engines:    JRuby (Java escaper) + TruffleRuby, via gemfiles/standalone.gemfile
+#   rails:      Rails version matrix via gemfiles/rails.gemfile
+#   package:    plain-RubyGems gem build + install (bin/gem-smoke) on every Ruby
