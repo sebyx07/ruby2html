@@ -59,6 +59,11 @@ RenderSpecHelper.describe_each 'Ruby2html::Render hardening' do
     expect { render_html { div(data: { 'x onclick' => 1 }) } }
       .to raise_error(ArgumentError, 'invalid attribute name: "data-x onclick"')
   end
+
+  it 'reports nested names with non-ASCII prefixes unescaped' do
+    expect { render_html { div('dätä' => { 'x<' => 1 }) } }
+      .to raise_error(ArgumentError, 'invalid attribute name: "dätä-x<"')
+  end
 end
 
 RSpec.describe 'Ruby2html.escape_html encoding' do
