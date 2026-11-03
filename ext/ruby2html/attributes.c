@@ -180,7 +180,7 @@ static int append_attribute(VALUE key, VALUE value, VALUE data)
         break;
     case T_HASH: {
         /* The name just written becomes the prefix of the nested keys. */
-        attr_ctx nested = { buf, rb_str_new(RSTRING_PTR(buf) + start, RSTRING_LEN(buf) - start), ctx->depth + 1 };
+        attr_ctx nested = { buf, rb_enc_str_new(RSTRING_PTR(buf) + start, RSTRING_LEN(buf) - start, rb_utf8_encoding()), ctx->depth + 1 };
         rb_str_set_len(buf, start - 1);
         check_nesting(nested.depth);
         rb_hash_foreach(value, append_attribute, (VALUE)&nested);
