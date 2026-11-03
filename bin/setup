@@ -2,7 +2,8 @@
 # frozen_string_literal: true
 
 # Sets up (or updates) a development checkout. Idempotent: run it any time,
-# e.g. after pulling. Steps: gems, C extension, demo app database, git hooks.
+# e.g. after pulling. Steps: toolchain (mise), gems, C extension, demo app
+# database, git hooks.
 #
 #   bin/setup            # everything
 #   bin/setup --skip-db  # gem work only (no Rails database)
@@ -21,6 +22,14 @@ def system!(*args)
 end
 
 FileUtils.chdir APP_ROOT do
+  step 'Installing the toolchain (mise)' do
+    if system('mise --version', out: File::NULL, err: File::NULL)
+      system!('mise install')
+    else
+      puts 'mise not found: skipped (using the active Ruby)'
+    end
+  end
+
   step 'Installing gems' do
     system('bundle check > /dev/null') || system!('bundle install')
   end
