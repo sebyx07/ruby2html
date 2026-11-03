@@ -114,3 +114,60 @@ CLAUDE.local.md
 # (staged CI logs, run artifacts, run provenance). Written BY the agent FOR the
 # agent, cleared and rewritten on every run; never repo content.
 tmp/dz/
+
+# --- The app + gem moved under apps/ruby2html: every rule above is kept
+# verbatim; where a root anchor became a no-op the rule is re-anchored here. ---
+/apps/ruby2html/.bundle
+
+# Environment files (except templates).
+/apps/ruby2html/.env*
+!/apps/ruby2html/.env*.erb
+
+# Logfiles and tempfiles.
+/apps/ruby2html/log/*
+/apps/ruby2html/tmp/*
+!/apps/ruby2html/log/.keep
+!/apps/ruby2html/tmp/.keep
+
+# Pidfiles, but keep the directory.
+/apps/ruby2html/tmp/pids/*
+!/apps/ruby2html/tmp/pids/
+!/apps/ruby2html/tmp/pids/.keep
+
+# Storage (uploaded files in development and any SQLite databases).
+/apps/ruby2html/storage/*
+!/apps/ruby2html/storage/.keep
+/apps/ruby2html/tmp/storage/*
+!/apps/ruby2html/tmp/storage/
+!/apps/ruby2html/tmp/storage/.keep
+
+/apps/ruby2html/public/assets
+
+# Master key for decrypting credentials and more.
+/apps/ruby2html/config/master.key
+/apps/ruby2html/config/credentials/*.key
+
+# Gem packaging (rake build / rake build:checksum) and release workflow output
+/apps/ruby2html/pkg/
+/apps/ruby2html/checksums/
+/apps/ruby2html/release-notes.md
+
+# C extension build artifacts (rake compile builds in tmp/, extconf in-place builds)
+/apps/ruby2html/ext/ruby2html/Makefile
+/apps/ruby2html/ext/ruby2html/mkmf.log
+/apps/ruby2html/ext/ruby2html/extconf.h
+
+# Ruby tooling
+/apps/ruby2html/coverage/
+/apps/ruby2html/.yardoc/
+/apps/ruby2html/doc/
+/apps/ruby2html/vendor/bundle/
+/apps/ruby2html/.rspec_status
+/apps/ruby2html/spec/examples.txt
+
+# Profiling / benchmark output
+/apps/ruby2html/bench/results/
+/apps/ruby2html/profile/
+
+# Matrix gemfiles resolve fresh on every CI run; their lockfiles are not committed.
+/apps/ruby2html/gemfiles/*.lock

@@ -47,6 +47,10 @@ Gem::Specification.new do |spec|
   # also a Rails demo app, so never glob all of lib/ (lib/assets, lib/tasks,
   # and the locally compiled lib/ruby2html/ruby2html.so must stay out).
   root = __dir__
+  # README.md / LICENSE / CHANGELOG.md beside this gemspec are packaging copies of
+  # the repository-root files (which stay at the checkout root), kept in sync: the
+  # File.file? select below runs under Dir.chdir(root), and bin/gem-smoke requires
+  # them in the built gem.
   spec.files = Dir.chdir(root) do
     files = Dir.glob(%w[lib/gem/**/*.rb ext/ruby2html/*.{c,h,rb} ext/java/*.java]) +
             %w[README.md LICENSE CHANGELOG.md].select { |f| File.file?(f) }

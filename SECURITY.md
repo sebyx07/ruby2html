@@ -20,11 +20,11 @@ There is no fixed response time. Reports are read and fixed as maintainer time a
 
 - HTML escaping bypasses (cross-site scripting through text or attribute values, in the C extension, the pure-Ruby implementation or the Java escaper)
 - Output that differs between implementations in a way that defeats escaping
-- Memory safety in the C extension (`ext/ruby2html`)
+- Memory safety in the C extension (`apps/ruby2html/ext/ruby2html`)
 - Anything in the published gem or its build that runs code a user did not ask for
 
 ## Out of scope
 
-- The demo Rails app in `app/` and `config/`: it is not packaged in the gem
+- The demo Rails app in `apps/ruby2html/app/` and `apps/ruby2html/config/`: it is not packaged in the gem
 - Output a template explicitly marked as safe, such as `html_safe` strings
 - Vulnerabilities in your own application's templates

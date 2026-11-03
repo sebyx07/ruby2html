@@ -6,10 +6,10 @@ Daily checkup on the days `release-due` does not run, fired by `schedules: secur
 
 ```bash
 last=$(git describe --tags --abbrev=0 --match 'v[0-9]*' origin/main)
-git log --format='%h %cI %s' "$last"..origin/main -- 'lib/gem/**' 'ext/ruby2html/*.c' 'ext/ruby2html/*.h' 'ext/ruby2html/extconf.rb' 'ext/java/*.java' ruby2html.gemspec
+git log --format='%h %cI %s' "$last"..origin/main -- 'apps/ruby2html/lib/gem/**' 'apps/ruby2html/ext/ruby2html/*.c' 'apps/ruby2html/ext/ruby2html/*.h' 'apps/ruby2html/ext/ruby2html/extconf.rb' 'apps/ruby2html/ext/java/*.java' apps/ruby2html/ruby2html.gemspec
 ```
 
-Those paths are what `ruby2html.gemspec` ships; look there for a commit that fixes a security advisory.
+Those paths are what `apps/ruby2html/ruby2html.gemspec` ships; look there for a commit that fixes a security advisory.
 
 ## What qualifies
 

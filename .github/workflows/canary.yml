@@ -21,7 +21,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      BUNDLE_GEMFILE: ${{ github.workspace }}/gemfiles/standalone.gemfile
+      BUNDLE_GEMFILE: ${{ github.workspace }}/apps/ruby2html/gemfiles/standalone.gemfile
+    defaults:
+      run:
+        working-directory: apps/ruby2html
     steps:
       - uses: actions/checkout@v7
       - uses: ruby/setup-ruby@v1
@@ -31,7 +34,7 @@ jobs:
       - name: Compile + RSpec (spec/gem without Rails)
         run: bundle exec rake spec:standalone
       - name: Build gem, install into temp GEM_HOME, render without Rails
-        run: ruby bin/gem-smoke
+        run: ruby ../../bin/gem-smoke
 
   rails-edge:
     name: Rails edge
@@ -39,12 +42,15 @@ jobs:
     timeout-minutes: 20
     env:
       RAILS_VERSION: edge
-      BUNDLE_GEMFILE: ${{ github.workspace }}/gemfiles/rails.gemfile
+      BUNDLE_GEMFILE: ${{ github.workspace }}/apps/ruby2html/gemfiles/rails.gemfile
+    defaults:
+      run:
+        working-directory: apps/ruby2html
     steps:
       - uses: actions/checkout@v7
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: .ruby-version
+          ruby-version: apps/ruby2html/.ruby-version
           bundler-cache: true
       - run: bundle exec rake compile
       - name: Resolved versions

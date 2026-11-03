@@ -6,7 +6,7 @@ body:
     id: bench
     attributes:
       label: Benchmark and results
-      description: Command run (bench/ script or spec/benchmarks), before/after i/s, error margins.
+      description: Command run (apps/ruby2html/bench/ script or apps/ruby2html/spec/benchmarks), before/after i/s, error margins.
       render: text
     validations:
       required: true

@@ -5,12 +5,16 @@
 # e.g. after pulling. Steps: toolchain (mise), gems, C extension, demo app
 # database, git hooks.
 #
+# mise runs at the repo root (mise.toml lives there); bundler, rake and the
+# Rails commands run inside apps/ruby2html, where the app + gem now live.
+#
 #   bin/setup            # everything
 #   bin/setup --skip-db  # gem work only (no Rails database)
 
 require 'fileutils'
 
 APP_ROOT = File.expand_path('..', __dir__)
+APP_DIR = File.expand_path('apps/ruby2html', APP_ROOT)
 
 def step(title)
   puts "\n== #{title} =="
@@ -29,7 +33,9 @@ FileUtils.chdir APP_ROOT do
       puts 'mise not found: skipped (using the active Ruby)'
     end
   end
+end
 
+FileUtils.chdir APP_DIR do
   step 'Installing gems' do
     system('bundle check > /dev/null') || system!('bundle install')
   end
@@ -44,13 +50,14 @@ FileUtils.chdir APP_ROOT do
 
   unless ARGV.include?('--skip-db')
     step 'Preparing the demo app database' do
-      system!('bin/rails db:prepare')
-      system!('bin/rails log:clear tmp:clear')
+      system!('../../bin/rails db:prepare')
+      system!('../../bin/rails log:clear tmp:clear')
     end
   end
 
   step 'Installing git hooks (lefthook)' do
-    if File.directory?('.git') || File.file?('.git')
+    git_dir = File.join(APP_ROOT, '.git')
+    if File.directory?(git_dir) || File.file?(git_dir)
       system!('bundle exec lefthook install')
     else
       puts 'Not a git checkout: skipped'
@@ -61,7 +68,7 @@ FileUtils.chdir APP_ROOT do
 
     Ready. Next steps:
       bin/console           IRB with ruby2html loaded (no Rails)
-      bundle exec rake      compile + gem specs (quick)
+      cd apps/ruby2html     bundler + rake run from the app directory
       bin/rails server      demo app on http://localhost:3000
   TXT
 end

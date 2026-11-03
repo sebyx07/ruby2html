@@ -7,7 +7,7 @@
 
 ## Stack
 
-Ruby + Bundler. The gate is `bin/check` (`bundle exec rake compile && bin/rubocop --parallel && CI=1 bundle exec rspec && bin/brakeman --no-pager`): a change that does not pass it is not proven, whatever its description says.
+Ruby + Bundler. The gate is `bin/check` (`cd apps/ruby2html && bundle exec rake compile && ../../bin/rubocop --parallel . ../../bin && CI=1 bundle exec rspec && ../../bin/brakeman --no-pager`): a change that does not pass it is not proven, whatever its description says.
 
 ## Review conventions
 

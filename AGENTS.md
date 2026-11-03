@@ -2,27 +2,27 @@
 
 Single source of truth for AI coding agents (Claude Code, Codex, Cursor, Copilot, ...) working **on** this repo. `CLAUDE.md` is a symlink to this file: edit only `AGENTS.md`; there are no other per-tool instruction files.
 
-Writing ruby2html templates/components (here or in a user app)? Load [`llms.txt`](llms.txt) — the complete user reference (DSL, attributes, Rails, components, forms, API, pitfalls). Internals: [`docs/architecture.md`](docs/architecture.md). Releases: [`docs/release.md`](docs/release.md).
+Writing ruby2html templates/components (here or in a user app)? Load [`llms.txt`](apps/ruby2html/llms.txt) — the complete user reference (DSL, attributes, Rails, components, forms, API, pitfalls). Internals: [`docs/architecture.md`](docs/architecture.md). Releases: [`docs/release.md`](docs/release.md).
 
 ## Stack
 
-`ruby2html` (RubyGems; version in `lib/gem/ruby2html/version.rb`) renders HTML from a Ruby block DSL; the repo is both the gem and a Rails demo app.
+`ruby2html` (RubyGems; version in `apps/ruby2html/lib/gem/ruby2html/version.rb`) renders HTML from a Ruby block DSL; the repo is both the gem and a Rails demo app.
 
 | Part | Path | Notes |
 |---|---|---|
-| Gem (Ruby) | `lib/gem/ruby2html.rb`, `lib/gem/ruby2html/**` | Packaged; `spec.require_paths = ['lib/gem']`; no runtime dependencies |
-| C extension | `ext/ruby2html/*.{c,h}`, `extconf.rb` | `Ruby2html::Native` (CRuby only). `rake compile` → `lib/ruby2html/ruby2html.so` (gitignored, found by `render.rb` via `require_relative`); installed gems get it under `lib/gem/ruby2html/` |
-| Pure-Ruby twin | `lib/gem/ruby2html/render/pure_ruby.rb` | `Ruby2html::PureRuby` — used when the `.so` is missing (JRuby, failed build), on TruffleRuby (pure Ruby beats Sulong there), or with `RUBY2HTML_DISABLE_EXT=1` |
-| Java escaper (JRuby) | `ext/java/Ruby2htmlJrubyService.java` | `Ruby2html::JavaNative.escape` (byte-level HTML escape, the hot path); JRuby's only native code; `PureRuby.escape` uses it when present. `rake compile` on JRuby → `lib/gem/ruby2html/ruby2html_jruby.jar` (gitignored); shipped in the `-java` platform gem |
-| Demo Rails app | `app/`, `config/`, `db/` | Not packaged; loads the gem via `require_relative '../lib/gem/ruby2html'` |
-| Specs | `spec/gem/` (renderer, attributes, escaping, `render_parity_spec.rb`; `render_spec_helper.rb` runs each group against Native **and** PureRuby in one process), `spec/gem/rails/` (handler, compiler, components, middleware), `spec/features/`, `spec/benchmarks/` | Rails-booting via `spec/rails_helper.rb`; `rake spec:standalone` runs `spec/gem` minus `rails/` without Rails |
-| Benchmarks | `bench/*.rb` (standalone), `spec/benchmarks/requests_spec.rb` (request-level vs ERB/Slim/Phlex) | |
+| Gem (Ruby) | `apps/ruby2html/lib/gem/ruby2html.rb`, `apps/ruby2html/lib/gem/ruby2html/**` | Packaged; `spec.require_paths = ['lib/gem']`; no runtime dependencies |
+| C extension | `apps/ruby2html/ext/ruby2html/*.{c,h}`, `apps/ruby2html/ext/ruby2html/extconf.rb` | `Ruby2html::Native` (CRuby only). `rake compile` → `apps/ruby2html/lib/ruby2html/ruby2html.so` (gitignored, found by `render.rb` via `require_relative`); installed gems get it under `lib/gem/ruby2html/` |
+| Pure-Ruby twin | `apps/ruby2html/lib/gem/ruby2html/render/pure_ruby.rb` | `Ruby2html::PureRuby` — used when the `.so` is missing (JRuby, failed build), on TruffleRuby (pure Ruby beats Sulong there), or with `RUBY2HTML_DISABLE_EXT=1` |
+| Java escaper (JRuby) | `apps/ruby2html/ext/java/Ruby2htmlJrubyService.java` | `Ruby2html::JavaNative.escape` (byte-level HTML escape, the hot path); JRuby's only native code; `PureRuby.escape` uses it when present. `rake compile` on JRuby → `apps/ruby2html/lib/gem/ruby2html/ruby2html_jruby.jar` (gitignored); shipped in the `-java` platform gem |
+| Demo Rails app | `apps/ruby2html/app/`, `apps/ruby2html/config/`, `apps/ruby2html/db/` | Not packaged; loads the gem via `require_relative '../lib/gem/ruby2html'` |
+| Specs | `apps/ruby2html/spec/gem/` (renderer, attributes, escaping, `render_parity_spec.rb`; `render_spec_helper.rb` runs each group against Native **and** PureRuby in one process), `apps/ruby2html/spec/gem/rails/` (handler, compiler, components, middleware), `apps/ruby2html/spec/features/`, `apps/ruby2html/spec/benchmarks/` | Rails-booting via `apps/ruby2html/spec/rails_helper.rb`; `rake spec:standalone` runs `spec/gem` minus `rails/` without Rails |
+| Benchmarks | `apps/ruby2html/bench/*.rb` (standalone), `apps/ruby2html/spec/benchmarks/requests_spec.rb` (request-level vs ERB/Slim/Phlex) | |
 | Scripts | `bin/gem-smoke`, `bin/changelog-notes`, `bin/build-ext` | Packaging smoke test; print a CHANGELOG section; CI-style extension builds (`--werror`, `--cc=clang`, `--sanitize`) |
 
 - Supported: all maintained CRuby versions (>= 3.1, gemspec floor; CI tracks the official list — currently 3.3, 3.4, 4.0), JRuby (pure Ruby + the Java escaper), TruffleRuby (pure Ruby), Rails 7.2+.
-- Dev Ruby: `.ruby-version` (latest stable). The CRuby CI matrix is generated automatically from the maintained-versions list, so a new release (e.g. a new 4.x) joins CI with no edit.
-- rubocop `TargetRubyVersion` matches the floor (no newer syntax in `lib/`).
-- Dependency versions: `Gemfile.lock` and `gemfiles/*.gemfile` (CI matrix gemfiles, unlocked).
+- Dev Ruby: `apps/ruby2html/.ruby-version` (latest stable). The CRuby CI matrix is generated automatically from the maintained-versions list, so a new release (e.g. a new 4.x) joins CI with no edit.
+- rubocop `TargetRubyVersion` matches the floor (no newer syntax in `apps/ruby2html/lib/`).
+- Dependency versions: `apps/ruby2html/Gemfile.lock` and `apps/ruby2html/gemfiles/*.gemfile` (CI matrix gemfiles, unlocked).
 
 ## Non-negotiables
 
@@ -34,7 +34,7 @@ Writing ruby2html templates/components (here or in a user app)? Load [`llms.txt`
 | GC safety in C | `RB_GC_GUARD` every `VALUE` whose pointer outlives an allocating/yielding call; re-read `RSTRING_PTR(buf)` after growth; use `buffer.h` (edge 3) |
 | Speed over memory | No per-call allocations on hot paths; perf claims need before/after numbers (edge 5) |
 | Never release by hand | No `rake release`, no `v*` tag push, no `gem push` — merging a `version.rb` bump to `main` is the release |
-| Never commit artifacts | `lib/ruby2html/*.so`, `*.jar`, `*.class`, `tmp/`, `pkg/`, `*.gem`, `log/` (edge 13) |
+| Never commit artifacts | `apps/ruby2html/lib/ruby2html/*.so`, `*.jar`, `*.class`, `apps/ruby2html/tmp/`, `apps/ruby2html/pkg/`, `*.gem`, `apps/ruby2html/log/` (edge 13) |
 | Breaking public API | CHANGELOG entry ("Upgrading to 2.0") + major bump; breaking changes escalate to the owner (edge 11) |
 
 ## Commands
@@ -42,65 +42,68 @@ Writing ruby2html templates/components (here or in a user app)? Load [`llms.txt`
 | Command | Notes |
 |---|---|
 | `bundle install` | — |
-| `bundle exec rake compile` | C ext → `lib/ruby2html/ruby2html.so`; `RUBY2HTML_NO_SIMD=1` for the scalar escape path |
+| `bundle exec rake compile` | C ext → `apps/ruby2html/lib/ruby2html/ruby2html.so`; `RUBY2HTML_NO_SIMD=1` for the scalar escape path |
 | `CI=1 bundle exec rspec` | full suite minus the ~6 min benchmark spec (skipped when CI is set) |
 | `bundle exec rspec spec/gem` | renderer + Rails integration units |
 | `bundle exec rake spec` | compiles first (`SKIP_COMPILE=1` to skip); `spec:gem` = `spec/gem`; `spec:standalone` = `spec/gem` without Rails |
 | `RUBY2HTML_DISABLE_EXT=1 bundle exec rspec spec/gem` | whole process on PureRuby (parity groups already cover both) |
-| `bundle exec rubocop` | CI: `bin/rubocop --parallel`; lefthook pre-commit autocorrects staged files |
-| `bin/brakeman --no-pager` | — |
-| `bundle exec rake bench` | compiles, runs every `bench/*.rb` |
+| `bundle exec rubocop` | CI: `../../bin/rubocop --parallel . ../../bin`; lefthook pre-commit autocorrects staged files |
+| `../../bin/brakeman --no-pager` | from `apps/ruby2html` |
+| `bundle exec rake bench` | compiles, runs every `apps/ruby2html/bench/*.rb` |
 | `bundle exec rake build` | `pkg/ruby2html-X.Y.Z.gem` (does not compile) |
 | `bundle exec rake smoke` | build + `bin/gem-smoke`: file list check, install into temp GEM_HOME, render without Rails |
 | `bin/rails server` | demo: `/`, `/rb_files`, `/form`, `/benchmark/{html,ruby,compruby,slim,phlex}` |
 
+- Run bundler/rake/rspec/rubocop from `apps/ruby2html` (the `Gemfile`, `Rakefile` and `.rubocop.yml` live there; `bin/check` cds there); the `bin/*` scripts stay at the repo root and are `../../bin/*` from the app dir.
 - Gem tasks (`compile clean clobber spec spec:gem spec:standalone bench smoke build install release default`) do not boot Rails; any other task loads the Rails tasks. `RUBY2HTML_RAILS_TASKS=1` forces that.
-- After editing `ext/` always `rake compile`; otherwise specs run the stale `.so` (or PureRuby if none).
+- After editing `apps/ruby2html/ext/` always `rake compile`; otherwise specs run the stale `.so` (or PureRuby if none).
 - Never run `rake release`, push `v*` tags or `gem push`: merging a version bump to `main` is the release (`docs/release.md`).
 
 ## Code map
 
 | File | Responsibility |
 |---|---|
-| `lib/gem/ruby2html.rb` | Entry point: eager-loads only `version` + `render`; everything else `autoload`ed (Component, ComponentHelper, RailsHelper, HtmlBeautifierMiddleware, `RailsComponents::*`); requires `railtie` only if ActiveSupport is loaded. Keep `require 'ruby2html'` light (no Prism, no ERB engine, no htmlbeautifier) |
-| `lib/gem/ruby2html/render.rb` | Loads Native (or PureRuby) into `Ruby2html::IMPLEMENTATION`; `load_native_extension` returns false on JRuby/TruffleRuby (no C ext there); `Ruby2html.native?`, `Ruby2html.escape_html`; `Render`: `HTML5_TAGS`/`VOID_ELEMENTS`, defines tags on both implementations via `define_tag`, includes the implementation; `render`, `method_missing` → context, Rails helper wrappers, ivar copying |
-| `lib/gem/ruby2html/render/pure_ruby.rb` | Ruby twin of Native: tag methods, `plain`, `component`, text/attribute rules, `escape_html`. `escape` picks the fastest available: ERB's C escaper on CRuby, `Ruby2html::JavaNative` (the Java escaper) on JRuby, else a regex — all byte-identical |
-| `ext/ruby2html/ruby2html.c` | `Init_ruby2html`: defines `Ruby2html::Native` |
-| `ext/ruby2html/tag_render.c` | `Native.define_tag(method, tag, void)`: binds each tag to one of 200 C trampolines (`R2H_MAX_TAGS`), tag name `[a-z0-9-]`, max 32 chars; `render_tag` writes open tag, yields or appends content, close tag |
-| `ext/ruby2html/content.c` | Text rules (`plain`, `component`, tag content, block return values), `html_safe?` detection |
-| `ext/ruby2html/attributes.c` | Attribute rules (nil/boolean/Hash/Array/escape), name validation; no caching |
-| `ext/ruby2html/html_escape.c` | Escapes `& < > " '`; SSE2 / NEON 16-byte scan, scalar fallback; UTF-8 coercion (`r2h_utf8_compatible`); `Native.escape_html` |
-| `ext/ruby2html/buffer.h` | Inline buffer primitives (reserve ≥2x growth, memcpy, commit) |
-| `ext/ruby2html/extconf.rb` | `append_cflags -O3 -std=gnu99 -fvisibility=hidden -Wall -Wextra`, `-fno-plt` on Linux, `-DR2H_NO_SIMD` via env; compiles all `*.c` in the dir; no-op Makefile (pure Ruby) on JRuby and TruffleRuby |
-| `ext/java/Ruby2htmlJrubyService.java` | JRuby `BasicLibraryService`: `Ruby2html::JavaNative.escape`, byte-identical with `html_escape.c` and `PureRuby.escape`. Built by `Rake::JavaExtensionTask` (Rakefile); default package + the `*Service` name are load-bearing (JRuby's `require` convention) |
-| `lib/gem/ruby2html/railtie.rb` | `TemplateHandler` (`.rb` templates): compiled strategy via `TemplateCompiler` (template runs with self = view/component, renderer in `@__r2h`), closure fallback (no Prism / parse failure: `instance_exec` on a `Render` with ivar copying); filename annotations; Zeitwerk ignore `app/**/*.html.rb` |
-| `lib/gem/ruby2html/rails_components/template_compiler.rb`, `template_collector.rb` | Prism rewrite of receiverless tag/`plain`/`component`/`render`/helper calls in templates; Prism required lazily on first compile (`available?`); the Railtie's `before_eager_load` loads it at boot in eager-loading (production) apps |
-| `lib/gem/ruby2html/rails_components/template_helpers.rb` | Receiver for `link_to button_to image_tag form_with render capture content_for provide` in compiled templates |
-| `lib/gem/ruby2html/rails_components/{base_component,link_to,button_to,image_tag,form_with,output_capture}.rb` | Call the real Rails helper, capture nested ruby2html output for its block, append result; `FormBuilderProxy` |
-| `lib/gem/ruby2html/component.rb` | `Ruby2html::Component`: includes the implementation directly (self = component), `view_template`/`call`, `render_in(view_context)`, `render_into(buffer, ...)` for nesting into a parent buffer, `helpers`, `content`, Rails helper wrappers |
-| `lib/gem/ruby2html/component_helper.rb` | ViewComponent `html(&block)`; current renderer in `@__r2h` (save/restore in `ensure`, fiber-safe; no `Thread.current`); `__ruby2html_renderer__`; private `method_missing` to the renderer |
-| `lib/gem/ruby2html/rails_helper.rb` | `html(context, &block)` for ERB, `helper_method` when included in a controller |
-| `lib/gem/ruby2html/html_beautifier_middleware.rb` | Dev middleware; lazy-requires `htmlbeautifier` (helpful LoadError if missing) |
+| `apps/ruby2html/lib/gem/ruby2html.rb` | Entry point: eager-loads only `version` + `render`; everything else `autoload`ed (Component, ComponentHelper, RailsHelper, HtmlBeautifierMiddleware, `RailsComponents::*`); requires `railtie` only if ActiveSupport is loaded. Keep `require 'ruby2html'` light (no Prism, no ERB engine, no htmlbeautifier) |
+| `apps/ruby2html/lib/gem/ruby2html/render.rb` | Loads Native (or PureRuby) into `Ruby2html::IMPLEMENTATION`; `load_native_extension` returns false on JRuby/TruffleRuby (no C ext there); `Ruby2html.native?`, `Ruby2html.escape_html`; `Render`: `HTML5_TAGS`/`VOID_ELEMENTS`, defines tags on both implementations via `define_tag`, includes the implementation; `render`, `method_missing` → context, Rails helper wrappers, ivar copying |
+| `apps/ruby2html/lib/gem/ruby2html/render/pure_ruby.rb` | Ruby twin of Native: tag methods, `plain`, `component`, text/attribute rules, `escape_html`. `escape` picks the fastest available: ERB's C escaper on CRuby, `Ruby2html::JavaNative` (the Java escaper) on JRuby, else a regex — all byte-identical |
+| `apps/ruby2html/ext/ruby2html/ruby2html.c` | `Init_ruby2html`: defines `Ruby2html::Native` |
+| `apps/ruby2html/ext/ruby2html/tag_render.c` | `Native.define_tag(method, tag, void)`: binds each tag to one of 200 C trampolines (`R2H_MAX_TAGS`), tag name `[a-z0-9-]`, max 32 chars; `render_tag` writes open tag, yields or appends content, close tag |
+| `apps/ruby2html/ext/ruby2html/content.c` | Text rules (`plain`, `component`, tag content, block return values), `html_safe?` detection |
+| `apps/ruby2html/ext/ruby2html/attributes.c` | Attribute rules (nil/boolean/Hash/Array/escape), name validation; no caching |
+| `apps/ruby2html/ext/ruby2html/html_escape.c` | Escapes `& < > " '`; SSE2 / NEON 16-byte scan, scalar fallback; UTF-8 coercion (`r2h_utf8_compatible`); `Native.escape_html` |
+| `apps/ruby2html/ext/ruby2html/buffer.h` | Inline buffer primitives (reserve ≥2x growth, memcpy, commit) |
+| `apps/ruby2html/ext/ruby2html/extconf.rb` | `append_cflags -O3 -std=gnu99 -fvisibility=hidden -Wall -Wextra`, `-fno-plt` on Linux, `-DR2H_NO_SIMD` via env; compiles all `*.c` in the dir; no-op Makefile (pure Ruby) on JRuby and TruffleRuby |
+| `apps/ruby2html/ext/java/Ruby2htmlJrubyService.java` | JRuby `BasicLibraryService`: `Ruby2html::JavaNative.escape`, byte-identical with `html_escape.c` and `PureRuby.escape`. Built by `Rake::JavaExtensionTask` (apps/ruby2html/Rakefile); default package + the `*Service` name are load-bearing (JRuby's `require` convention) |
+| `apps/ruby2html/lib/gem/ruby2html/railtie.rb` | `TemplateHandler` (`.rb` templates): compiled strategy via `TemplateCompiler` (template runs with self = view/component, renderer in `@__r2h`), closure fallback (no Prism / parse failure: `instance_exec` on a `Render` with ivar copying); filename annotations; Zeitwerk ignore `app/**/*.html.rb` |
+| `apps/ruby2html/lib/gem/ruby2html/rails_components/template_compiler.rb`, `template_collector.rb` | Prism rewrite of receiverless tag/`plain`/`component`/`render`/helper calls in templates; Prism required lazily on first compile (`available?`); the Railtie's `before_eager_load` loads it at boot in eager-loading (production) apps |
+| `apps/ruby2html/lib/gem/ruby2html/rails_components/template_helpers.rb` | Receiver for `link_to button_to image_tag form_with render capture content_for provide` in compiled templates |
+| `apps/ruby2html/lib/gem/ruby2html/rails_components/{base_component,link_to,button_to,image_tag,form_with,output_capture}.rb` | Call the real Rails helper, capture nested ruby2html output for its block, append result; `FormBuilderProxy` |
+| `apps/ruby2html/lib/gem/ruby2html/component.rb` | `Ruby2html::Component`: includes the implementation directly (self = component), `view_template`/`call`, `render_in(view_context)`, `render_into(buffer, ...)` for nesting into a parent buffer, `helpers`, `content`, Rails helper wrappers |
+| `apps/ruby2html/lib/gem/ruby2html/component_helper.rb` | ViewComponent `html(&block)`; current renderer in `@__r2h` (save/restore in `ensure`, fiber-safe; no `Thread.current`); `__ruby2html_renderer__`; private `method_missing` to the renderer |
+| `apps/ruby2html/lib/gem/ruby2html/rails_helper.rb` | `html(context, &block)` for ERB, `helper_method` when included in a controller |
+| `apps/ruby2html/lib/gem/ruby2html/html_beautifier_middleware.rb` | Dev middleware; lazy-requires `htmlbeautifier` (helpful LoadError if missing) |
 
 ## How to verify a change
 
+Run the `bundle exec`/rake/rspec commands from `apps/ruby2html`; the `bin/*` scripts run from the repo root.
+
 | You changed | Run | Also |
 |---|---|---|
-| `ext/**` (C) | `bundle exec rake compile`, `bin/build-ext --werror` (also `--cc=clang`) → `CI=1 bundle exec rspec spec/gem` → `RUBY2HTML_DISABLE_EXT=1 bundle exec rspec spec/gem` | `bundle exec rake bench` before/after; `review` skill checklist; `debug-render` skill for C vs Ruby diffs |
-| `render/pure_ruby.rb` | both spec runs above | output parity with Native |
+| `apps/ruby2html/ext/**` (C) | `bundle exec rake compile`, `bin/build-ext --werror` (also `--cc=clang`) → `CI=1 bundle exec rspec spec/gem` → `RUBY2HTML_DISABLE_EXT=1 bundle exec rspec spec/gem` | `bundle exec rake bench` before/after; `review` skill checklist; `debug-render` skill for C vs Ruby diffs |
+| `apps/ruby2html/lib/gem/ruby2html/render/pure_ruby.rb` | both spec runs above | output parity with Native |
 | `render.rb` (tags, delegation, ivars) | `CI=1 bundle exec rspec` | `rake bench` if hot path |
 | Escaping / attributes (either side) | both spec runs + new specs for the case | `xss-auditor` agent |
-| `railtie.rb`, `template_compiler.rb`, `rails_components/**`, `component.rb`, `component_helper.rb` | `CI=1 bundle exec rspec spec/gem/rails spec/features` | try the demo pages (`bin/rails server`) |
-| `html_beautifier_middleware.rb` | `bundle exec rspec spec/gem/rails/html_beautifier_middleware_spec.rb` | |
-| `ext/java/**` (JRuby escaper) | on JRuby: `bundle exec rake compile` → `bundle exec rake spec:standalone` → `bundle exec ruby bin/gem-smoke` | keep byte-identical with `html_escape.c` / `PureRuby.escape`; `xss-auditor` pass |
-| gemspec, `Rakefile`, packaging | `bundle exec rake smoke` | `tar -xOf pkg/*.gem data.tar.gz \| tar -tz` |
+| `railtie.rb`, `template_compiler.rb`, `rails_components/**`, `component.rb`, `component_helper.rb` (under `apps/ruby2html/lib/gem/ruby2html/`) | `CI=1 bundle exec rspec spec/gem/rails spec/features` | try the demo pages (`bin/rails server`) |
+| `apps/ruby2html/lib/gem/ruby2html/html_beautifier_middleware.rb` | `bundle exec rspec spec/gem/rails/html_beautifier_middleware_spec.rb` | |
+| `apps/ruby2html/ext/java/**` (JRuby escaper) | on JRuby: `bundle exec rake compile` → `bundle exec rake spec:standalone` → `bundle exec ruby ../../bin/gem-smoke` | keep byte-identical with `html_escape.c` / `PureRuby.escape`; `xss-auditor` pass |
+| gemspec (`apps/ruby2html/ruby2html.gemspec`), `Rakefile`, packaging | `bundle exec rake smoke` | `tar -xOf pkg/*.gem data.tar.gz \| tar -tz` |
 | `Gemfile` / deps | `upgrade-deps` skill: full suite + benchmarks | |
-| Docs only | check every claim against code; run snippets with `bundle exec ruby -Ilib/gem -Ilib -e '...'` | |
-| Anything | `bundle exec rubocop` | CHANGELOG `## [Unreleased]` for user-visible changes; update `llms.txt` if user-facing behavior changes |
+| Docs only | check every claim against code; run snippets with `bundle exec ruby -Iapps/ruby2html/lib/gem -Iapps/ruby2html/lib -e '...'` | |
+| Anything | `bundle exec rubocop` | CHANGELOG `## [Unreleased]` for user-visible changes; update `apps/ruby2html/llms.txt` if user-facing behavior changes |
 
 ## Sharp edges / invariants
 
-1. **Native and PureRuby must produce byte-identical output** (HTML, encoding, raised errors) for every input. Any rule change goes into `content.c`/`attributes.c`/`tag_render.c` **and** `pure_ruby.rb`, with specs in the `RenderSpecHelper.describe_each` groups / `render_parity_spec.rb`; start-tag exceptions roll the buffer back to before the tag (both sides). The JRuby Java escaper (`ext/java`) is a third side of the escape rule only: byte-identical with `html_escape.c` / `PureRuby.escape` (the JRuby standalone run exercises it, and a `render_spec` example checks it is loaded and matches).
+1. **Native and PureRuby must produce byte-identical output** (HTML, encoding, raised errors) for every input. Any rule change goes into `content.c`/`attributes.c`/`tag_render.c` **and** `pure_ruby.rb`, with specs in the `RenderSpecHelper.describe_each` groups / `render_parity_spec.rb`; start-tag exceptions roll the buffer back to before the tag (both sides). The JRuby Java escaper (`apps/ruby2html/ext/java`) is a third side of the escape rule only: byte-identical with `html_escape.c` / `PureRuby.escape` (the JRuby standalone run exercises it, and a `render_spec` example checks it is loaded and matches).
 2. **Never cache by `Object#hash`**: collisions return another input's output (the old `ATTRIBUTE_CACHE` did exactly this and was removed). Exact-equality keys only, and only with a benchmark proving a win.
 3. **GC safety in C**: any `VALUE` whose `RSTRING_PTR`/internal pointer is used after a call that can allocate or yield (`rb_funcall`, `rb_yield`, `rb_str_*`, `rb_obj_as_string`) needs `RB_GC_GUARD(v)` after its last use; re-read `RSTRING_PTR(buf)` after anything that can grow `buf`; use `buffer.h` (`r2h_buf_reserve`/`commit`), never manual `rb_str_set_len` arithmetic.
 4. **Escaping is a security boundary.** Text and attribute values escaped by default; raw only for `html_safe?` objects and `component`; plain `String` (exact class) never safe. Attribute/tag **names** are validated (raise), not escaped. Every escaping change: specs (both modes) + `xss-auditor` pass.
@@ -112,7 +115,7 @@ Writing ruby2html templates/components (here or in a user app)? Load [`llms.txt`
 10. Adding a tag: `HTML5_TAGS` (+ `VOID_ELEMENTS`) only; no C change unless exceeding 200 tags or 32-char names (`.claude/skills/add-html-tag`).
 11. Public API used downstream — `Render.new(ctx, &blk)`, `#render`, `#plain`, `#component`, tag methods, `Ruby2html.escape_html`, `Ruby2html.native?`, `Ruby2html::Component`, `RailsHelper#html`, `ComponentHelper#html` / `#__ruby2html_renderer__`, the `.rb` handler, `HtmlBeautifierMiddleware` — breaking changes need a CHANGELOG entry ("Upgrading to 2.0") and a major bump.
 12. Style: rubocop-rails_config, single quotes, `# frozen_string_literal: true`, nested modules, Rails-style indented `private` methods. C: gnu99, no warnings under `-Wall -Wextra`.
-13. Never commit `lib/ruby2html/*.so`, `*.jar`, `*.class`, `tmp/`, `pkg/`, `*.gem`, `log/`.
+13. Never commit `apps/ruby2html/lib/ruby2html/*.so`, `*.jar`, `*.class`, `apps/ruby2html/tmp/`, `apps/ruby2html/pkg/`, `*.gem`, `apps/ruby2html/log/`.
 
 ## Maintenance model
 
@@ -122,10 +125,10 @@ Goal: the repo needs no hand maintenance except major-version dependency upgrade
 |---|---|
 | Maintainer agent | Repo managed by [developerz.ai](https://developerz.ai) (policy: `.dz/maintainer/maintainer.yml`): triages issues, reviews and merges every PR (contributors, members, bots) once its author marks it ready (out of draft), it is reviewed and `CI OK` is green; daily `health` + weekday `release-due` checkups and a monthly `improve` pass (`.dz/briefs/`: canary fixes, dependency majors, speed with benchmark evidence, correctness, docs drift); opens release PRs; breaking changes escalate to the owner. Sibling projects such as [wurk](https://github.com/sebyx07/wurk) run the same model |
 | Dependencies | Dependabot (`.github/dependabot.yml`) opens grouped weekly PRs after a 14-day cooldown (security updates skip it); the agent reviews and merges on green — the only merger |
-| CI | `.github/workflows/ci.yml`; branch protection requires only the aggregate `CI OK` job: RuboCop, bundle-audit, full suite + Brakeman, gem specs across the Ruby matrix (generated from maintained CRuby versions), native builds on Linux/macOS arm64, `-Werror` with gcc and clang, ASAN/UBSAN (`use_sigaltstack=0`), pure-Ruby fallback, JRuby (Java escaper jar + `-java` gem) and TruffleRuby (pure Ruby) via `gemfiles/standalone.gemfile`, Rails integration per `gemfiles/rails.gemfile`, `bin/gem-smoke` packaging on plain RubyGems. Every job required; no `continue-on-error` |
+| CI | `.github/workflows/ci.yml`; branch protection requires only the aggregate `CI OK` job: RuboCop, bundle-audit, full suite + Brakeman, gem specs across the Ruby matrix (generated from maintained CRuby versions), native builds on Linux/macOS arm64, `-Werror` with gcc and clang, ASAN/UBSAN (`use_sigaltstack=0`), pure-Ruby fallback, JRuby (Java escaper jar + `-java` gem) and TruffleRuby (pure Ruby) via `apps/ruby2html/gemfiles/standalone.gemfile`, Rails integration per `apps/ruby2html/gemfiles/rails.gemfile`, `bin/gem-smoke` packaging on plain RubyGems. Every job required; no `continue-on-error` |
 | Canary | `.github/workflows/canary.yml`, monthly on the 1st, not gating: Ruby head and Rails edge surface upstream breaks before a release ships them; the monthly `improve` checkup fixes what it finds |
 | Benchmarks | `.github/workflows/benchmark.yml`, non-gating: every push to `main` and PR renders a table into the job summary and uploads JSON; PRs get a sticky comment with the delta vs `main`. Set repo variable `BENCH_RUNNER` for a stable self-hosted runner; README holds only a dated release snapshot |
-| Releases | `.github/workflows/release.yml`: merging a `version.rb` bump to `main` (no `v<VERSION>` tag yet) runs the tests and `rake smoke`, builds the `-java` gem on JRuby (jar inside), publishes **both** the C-extension gem and the `-java` gem via RubyGems trusted publishing (environment `release`), then creates the tag and the GitHub release from `bin/changelog-notes`. The release PR is opened by the agent or the `release` skill (`docs/release.md`) |
+| Releases | `.github/workflows/release.yml`: merging an `apps/ruby2html/lib/gem/ruby2html/version.rb` bump to `main` (no `v<VERSION>` tag yet) runs the tests and `rake smoke`, builds the `-java` gem on JRuby (jar inside), publishes **both** the C-extension gem and the `-java` gem via RubyGems trusted publishing (environment `release`), then creates the tag and the GitHub release from `bin/changelog-notes`. The release PR is opened by the agent or the `release` skill (`docs/release.md`) |
 | Local hooks | lefthook pre-commit autocorrects staged Ruby files with RuboCop; the Claude Code PostToolUse hook reminds to recompile after `ext/` edits |
 | Manual (owner only) | Breaking changes and major releases (escalated by the agent); one-time repo setup (RubyGems trusted publisher; ruleset requiring `CI OK`). Major dependency bumps: the agent like any other PR (`upgrade-deps` skill if by hand) |
 | Docs rule | Don't hardcode version lists or benchmark numbers in docs; point at the CI matrix, `.ruby-version`, the lockfiles and the benchmark workflow instead |
@@ -134,10 +137,10 @@ Goal: the repo needs no hand maintenance except major-version dependency upgrade
 
 | Tool | Notes |
 |---|---|
-| `llms.txt` | The one user-facing reference for the gem (people and their LLM tools); hand-written, concise; keep accurate when behavior changes — there are no other usage docs to sync |
+| `apps/ruby2html/llms.txt` | The one user-facing reference for the gem (people and their LLM tools); hand-written, concise; keep accurate when behavior changes — there are no other usage docs to sync |
 | Skills (`.claude/skills/`) | `release` (bump → changelog → verify → `release: X.Y.Z` PR; merging publishes; manual-only), `benchmark` (before/after), `add-html-tag`, `review` (checklist for `ext/` and renderer diffs), `debug-render` (C vs Ruby output diffs, sanitizer builds), `upgrade-deps` |
 | Subagents (`.claude/agents/`, read-only tools) | `perf-reviewer`, `xss-auditor` — independent pass on hot-path or escaping changes |
-| `.claude/settings.json` | Allowlists the routine workflow (specs, `rake`, rubocop, brakeman, bench scripts, `bin/*`, git add/commit/push/branch, `gh pr|issue|api|run|workflow`). Denied outright (never needed: merging a version bump publishes): `git tag`, force pushes, `rake release`, `gem push/yank`, `gh release`, reading `.env*`/`config/master.key`. PostToolUse hook (`.claude/hooks/post-edit-reminder.sh`, non-blocking) reminds to recompile after `ext/` edits and keep Native/PureRuby parity after renderer edits |
+| `.claude/settings.json` | Allowlists the routine workflow (specs, `rake`, rubocop, brakeman, bench scripts, `bin/*`, git add/commit/push/branch, `gh pr|issue|api|run|workflow`). Denied outright (never needed: merging a version bump publishes): `git tag`, force pushes, `rake release`, `gem push/yank`, `gh release`, reading `.env*`/`apps/ruby2html/config/master.key`. PostToolUse hook (`.claude/hooks/post-edit-reminder.sh`, non-blocking) reminds to recompile after `ext/` edits and keep Native/PureRuby parity after renderer edits |
 
 ## Definition of done
 

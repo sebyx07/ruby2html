@@ -1,6 +1,6 @@
 name: Release
 
-# Merging a version bump is the release: when lib/gem/ruby2html/version.rb
+# Merging a version bump is the release: when apps/ruby2html/lib/gem/ruby2html/version.rb
 # changes on main and no tag v<VERSION> exists yet, this verifies, publishes the
 # gem, then creates the tag and the GitHub release from CHANGELOG.md. Never tag
 # or `gem push` by hand. (The developerz.ai agent opens the release PR: see
@@ -12,7 +12,7 @@ name: Release
 on:
   push:
     branches: [main]
-    paths: ['lib/gem/ruby2html/version.rb']
+    paths: ['apps/ruby2html/lib/gem/ruby2html/version.rb']
   workflow_dispatch:
 
 concurrency:
@@ -31,12 +31,13 @@ jobs:
       tag: ${{ steps.v.outputs.tag }}
       due: ${{ steps.v.outputs.due }}
     steps:
+      # runs at the repo root: the require path in the step below is root-relative
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - id: v
         run: |
-          version=$(ruby -e 'require "./lib/gem/ruby2html/version"; print Ruby2html::VERSION')
+          version=$(ruby -e 'require "./apps/ruby2html/lib/gem/ruby2html/version"; print Ruby2html::VERSION')
           tag="v$version"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
@@ -52,18 +53,23 @@ jobs:
     if: needs.version.outputs.due == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      BUNDLE_GEMFILE: ${{ github.workspace }}/apps/ruby2html/Gemfile
+    defaults:
+      run:
+        working-directory: apps/ruby2html
     steps:
       - uses: actions/checkout@v7
 
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: .ruby-version
+          ruby-version: apps/ruby2html/.ruby-version
           bundler-cache: true
 
       - name: CHANGELOG has a section for this version
         env:
           TAG: ${{ needs.version.outputs.tag }}
-        run: bin/changelog-notes "$TAG" > /dev/null
+        run: ../../bin/changelog-notes "$TAG" > /dev/null
 
       - name: Compile C extension
         run: bundle exec rake compile
@@ -72,7 +78,7 @@ jobs:
         run: bundle exec rspec
 
       - name: RuboCop
-        run: bin/rubocop --parallel
+        run: ../../bin/rubocop --parallel
 
       - name: Build gem + standalone install smoke test
         run: bundle exec rake smoke
@@ -84,7 +90,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      BUNDLE_GEMFILE: ${{ github.workspace }}/gemfiles/standalone.gemfile
+      BUNDLE_GEMFILE: ${{ github.workspace }}/apps/ruby2html/gemfiles/standalone.gemfile
+    defaults:
+      run:
+        working-directory: apps/ruby2html
     steps:
       - uses: actions/checkout@v7
       - uses: ruby/setup-ruby@v1
@@ -96,13 +105,13 @@ jobs:
       - name: Compile Java escaper
         run: bundle exec rake compile
       - name: Build + install + render the -java gem
-        run: bundle exec ruby bin/gem-smoke
+        run: bundle exec ruby ../../bin/gem-smoke
       - name: Build the -java gem for publishing
         run: gem build ruby2html.gemspec
       - uses: actions/upload-artifact@v7
         with:
           name: java-gem
-          path: ruby2html-*-java.gem
+          path: apps/ruby2html/ruby2html-*-java.gem
           retention-days: 7
           if-no-files-found: error
 
@@ -115,6 +124,9 @@ jobs:
     permissions:
       contents: write # create the tag + GitHub release
       id-token: write # RubyGems trusted publishing (OIDC)
+    defaults:
+      run:
+        working-directory: apps/ruby2html
     steps:
       - uses: actions/checkout@v7
         with:
@@ -122,7 +134,7 @@ jobs:
 
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: .ruby-version
+          ruby-version: apps/ruby2html/.ruby-version
 
       - name: Download the JRuby-built -java gem
         uses: actions/download-artifact@v7
@@ -138,7 +150,7 @@ jobs:
       - name: Build + publish both gems
         run: |
           gem build ruby2html.gemspec
-          gem push ruby2html-*-java.gem
+          gem push ../../ruby2html-*-java.gem
           gem push "$(ls ruby2html-*.gem | grep -v -- -java)"
 
       - name: Tag + GitHub release from CHANGELOG
@@ -146,5 +158,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.version.outputs.tag }}
         run: |
-          bin/changelog-notes "$TAG" > release-notes.md
-          gh release create "$TAG" ruby2html-*.gem --title "$TAG" --target "$GITHUB_SHA" --notes-file release-notes.md
+          ../../bin/changelog-notes "$TAG" > release-notes.md
+          gh release create "$TAG" ruby2html-*.gem ../../ruby2html-*-java.gem --title "$TAG" --target "$GITHUB_SHA" --notes-file release-notes.md

@@ -19,7 +19,7 @@ require 'fileutils'
 require 'optparse'
 require 'rbconfig'
 
-ROOT = File.expand_path('..', __dir__)
+ROOT = File.expand_path('../apps/ruby2html', __dir__)
 opts = { cc: nil, werror: false, sanitize: false, out: File.join(ROOT, 'lib/ruby2html') }
 OptionParser.new do |o|
   o.on('--cc=CC', 'C compiler (default: the one Ruby was built with)') { |v| opts[:cc] = v }

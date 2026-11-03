@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 Follows `docs/release.md`. Argument: target version `X.Y.Z` or `patch|minor|major`.
 
-Merging a change to `lib/gem/ruby2html/version.rb` into `main` runs `.github/workflows/release.yml`,
+Merging a change to `apps/ruby2html/lib/gem/ruby2html/version.rb` into `main` runs `.github/workflows/release.yml`,
 which **publishes to RubyGems**, then tags and creates the GitHub release. So opening the release PR
 is safe; **merging it is the publish action**.
 
@@ -20,7 +20,7 @@ is safe; **merging it is the publish action**.
    owner's explicit go-ahead.
 2. **Bump**: `VERSION = 'X.Y.Z'`; CHANGELOG `## [X.Y.Z] - <today>` + empty `## [Unreleased]` + link
    reference; `bin/changelog-notes X.Y.Z` prints the section.
-3. **Verify**: `bundle exec rake compile`, `CI=1 bundle exec rspec`, `bundle exec rubocop`,
+3. **Verify** (run from `apps/ruby2html`): `bundle exec rake compile`, `CI=1 bundle exec rspec`, `bundle exec rubocop`,
    `bundle exec rake smoke`.
 4. **PR**: branch `release/X.Y.Z`, one commit `release: X.Y.Z`, PR titled `release: X.Y.Z` with the
    changelog section as the body. Ask before pushing if the user hasn't asked for the PR.

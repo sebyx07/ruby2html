@@ -5,9 +5,9 @@ description: Review checklist for ruby2html changes, especially ext/ (C) and the
 
 # Review a ruby2html change
 
-Scope: `git diff` (uncommitted) or `git diff main...HEAD`. Read `AGENTS.md` "Sharp edges / invariants" first. Report findings as file:line + why + fix; say explicitly which checklist sections passed.
+Scope: `git diff` (uncommitted) or `git diff main...HEAD`. Read `AGENTS.md` "Sharp edges / invariants" first. Report findings as file:line + why + fix; say explicitly which checklist sections passed. Bundle/rake/rspec commands below run from `apps/ruby2html`; from the repo root those paths are `apps/ruby2html/ext/ruby2html/` and `apps/ruby2html/spec/gem`.
 
-## C extension (`ext/ruby2html/`)
+## C extension (`apps/ruby2html/ext/ruby2html/`)
 
 - [ ] **GC safety**: every `VALUE` whose pointer (`RSTRING_PTR`, `RARRAY_CONST_PTR`) is used across a call that may allocate/yield/raise has `RB_GC_GUARD` after its last use. Temporaries from `rb_obj_as_string`, `rb_sym2str`, `rb_String`, `r2h_utf8_compatible` included.
 - [ ] **Stale pointers**: no `RSTRING_PTR(buf)` cached across `r2h_buf_reserve`, `rb_yield*`, `rb_funcall` or any append (buffer may move).
@@ -27,7 +27,7 @@ Scope: `git diff` (uncommitted) or `git diff main...HEAD`. Read `AGENTS.md` "Sha
 
 ## Parity (Native vs PureRuby)
 
-- [ ] Every rule change exists in both `ext/ruby2html/*.c` and `lib/gem/ruby2html/render/pure_ruby.rb`.
+- [ ] Every rule change exists in both `apps/ruby2html/ext/ruby2html/*.c` and `apps/ruby2html/lib/gem/ruby2html/render/pure_ruby.rb`.
 - [ ] Specs pass in both modes: `CI=1 bundle exec rspec spec/gem` and `RUBY2HTML_DISABLE_EXT=1 bundle exec rspec spec/gem`. Same exceptions too.
 - [ ] Suspicious cases diffed with the `debug-render` skill.
 
@@ -45,6 +45,6 @@ Scope: `git diff` (uncommitted) or `git diff main...HEAD`. Read `AGENTS.md` "Sha
 
 ## Hygiene
 
-- [ ] `bundle exec rubocop` clean; no Ruby syntax newer than the gemspec `required_ruby_version` floor in `lib/`.
+- [ ] `bundle exec rubocop` clean; no Ruby syntax newer than the gemspec `required_ruby_version` floor in `apps/ruby2html/lib/`.
 - [ ] CHANGELOG `## [Unreleased]` entry for user-visible changes (breaking → "Upgrading to 2.0").
-- [ ] `llms.txt` updated if user-facing behavior changed.
+- [ ] `apps/ruby2html/llms.txt` updated if user-facing behavior changed.

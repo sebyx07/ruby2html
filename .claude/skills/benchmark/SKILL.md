@@ -5,13 +5,13 @@ description: Measure ruby2html rendering performance and compare before/after a 
 
 # Benchmark ruby2html (before/after)
 
-Project rule: speed over memory. Perf claims need numbers from the same machine, Ruby and YJIT state.
+Project rule: speed over memory. Perf claims need numbers from the same machine, Ruby and YJIT state. Commands run from `apps/ruby2html` (the Rakefile, Gemfile and bundle config live there); from the repo root, the scripts below are `apps/ruby2html/bench/*.rb` and the request spec is `apps/ruby2html/spec/benchmarks/`.
 
 ## Tools
 
 | Command | Measures |
 |---|---|
-| `bundle exec rake bench` | compiles, runs every `bench/*.rb` |
+| `bundle exec rake bench` | compiles, runs every `apps/ruby2html/bench/*.rb` |
 | `bundle exec ruby bench/render_bench.rb` | full page render vs Phlex / Erubi, plus allocations per render |
 | `bundle exec ruby bench/tag_bench.rb` | per-tag cost for common call shapes |
 | `bundle exec ruby bench/escape_bench.rb` | escaping throughput, clean/dirty, short/long |
@@ -23,7 +23,7 @@ Variants: `--yjit` (or `RUBY_YJIT_ENABLE=1`), `RUBY2HTML_DISABLE_EXT=1` (pure Ru
 
 1. Record environment: `ruby -v` (shows `+YJIT`), `uname -m`, which variant flags were used.
 2. **Baseline** on the base revision: `git worktree add "$SCRATCH/r2h-base" <rev>` (or `git stash`), `bundle exec rake compile` there, run the chosen command, save output to the scratch dir.
-3. **Candidate**: back on the change, `bundle exec rake compile` (mandatory after `ext/` edits), identical command, save output.
+3. **Candidate**: back on the change, `bundle exec rake compile` (mandatory after `apps/ruby2html/ext/` edits), identical command, save output.
 4. Repeat each side at least twice if the delta is < 10%; overlapping benchmark-ips error bars = "no measurable change". Check allocation counts (render_bench) for regressions too.
 5. Correctness: `CI=1 bundle exec rspec`.
 6. Report a table: benchmark, before, after, ratio, error; environment line. Never round away regressions. Remove the worktree (`git worktree remove`).

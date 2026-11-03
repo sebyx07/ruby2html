@@ -26,7 +26,7 @@ $ARGUMENTS
 4. Build primitive-first: one reusable primitive with its first real caller. No
    abstraction before a consumer.
 5. **Prove it.** `bin/setup` after any dependency change, then `bin/check`, which here is
-   `bundle exec rake compile && bin/rubocop --parallel && CI=1 bundle exec rspec && bin/brakeman --no-pager`.
+   `cd apps/ruby2html && bundle exec rake compile && ../../bin/rubocop --parallel . ../../bin && CI=1 bundle exec rspec && ../../bin/brakeman --no-pager`.
    Red is not a pull request: fix the cause, never silence the gate. Add the failing test
    first — a green run that never went red proves nothing.
 6. **One pull request in flight, start to finish.** Open it, watch it to merged, run
