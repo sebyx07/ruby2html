@@ -2,4 +2,4 @@
 # one-command stop, run by developerz.ai when a session ends — established by dz-runner setup mode. One command; adjust as the repo grows.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-pkill -f '[p]uma .*tcp://localhost:3000' >/dev/null 2>&1; fuser -k 3000/tcp >/dev/null 2>&1; exit 0
+pkill -f '[p]uma .*tcp://localhost:3000' >/dev/null 2>&1 || true; fuser -k 3000/tcp >/dev/null 2>&1 || true; exit 0
