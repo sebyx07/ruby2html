@@ -6,6 +6,11 @@ Entries before 1.6.6 were reconstructed from `git log` and RubyGems release date
 
 ## [Unreleased]
 
+### Fixed
+
+- Appending a renderer's own output buffer to itself (`plain(current_output)`, `component(current_output)`) could read freed memory with the C extension: growing the buffer while its own bytes were still being read moved them out from under the read, which aborted under ASAN in the sanitizer CI job and could crash or corrupt output anywhere. Escaped and raw appends (`r2h_append_escaped`, `r2h_append_raw`) now duplicate the string first when it is the buffer; the pure-Ruby renderer was never affected, and output stays byte-identical (pinned by the new "can append the output buffer to itself" example, which runs against both implementations).
+- Attribute names had the same hole: writing a name that is the output buffer itself (`div current_output => true`) could read the name after the buffer moved while it was copied; the name is now duplicated first too.
+
 ## [2.1.0] - 2026-10-31
 
 ### Added
