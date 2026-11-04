@@ -1,6 +1,6 @@
 # Architecture
 
-How ruby2html turns Ruby into HTML. Paths refer to `lib/gem/` and `ext/ruby2html/`. The authoritative rule text lives in the header comments of `ext/ruby2html/content.c`, `attributes.c`, `tag_render.c` and `html_escape.c`; `render/pure_ruby.rb` mirrors them.
+How ruby2html turns Ruby into HTML. Paths refer to `apps/ruby2html/lib/gem/` and `apps/ruby2html/ext/ruby2html/`. The authoritative rule text lives in the header comments of `apps/ruby2html/ext/ruby2html/content.c`, `attributes.c`, `tag_render.c` and `html_escape.c`; `apps/ruby2html/lib/gem/ruby2html/render/pure_ruby.rb` mirrors them.
 
 ## Layers
 
@@ -14,8 +14,8 @@ Ruby2html::Component#view_template   ──► self = component                 
 
 ## Load sequence
 
-1. `require 'ruby2html'` → `lib/gem/ruby2html.rb` requires every `ruby2html/**/*.rb`.
-2. `render.rb` requires `render/pure_ruby.rb`, then tries the extension: `require 'ruby2html/ruby2html'` (installed gem: built into `lib/gem/ruby2html/`), else `require_relative '../../ruby2html/ruby2html'` (checkout: `rake compile` output in `lib/ruby2html/`). `RUBY2HTML_DISABLE_EXT=1` skips it. Result: `Ruby2html::IMPLEMENTATION` = `Native` or `PureRuby`; `Ruby2html.native?`.
+1. `require 'ruby2html'` → `apps/ruby2html/lib/gem/ruby2html.rb` requires every `ruby2html/**/*.rb`.
+2. `render.rb` requires `render/pure_ruby.rb`, then tries the extension: `require 'ruby2html/ruby2html'` (installed gem: built into `lib/gem/ruby2html/`), else `require_relative '../../ruby2html/ruby2html'` (checkout: `rake compile` output in `apps/ruby2html/lib/ruby2html/`). `RUBY2HTML_DISABLE_EXT=1` skips it. Result: `Ruby2html::IMPLEMENTATION` = `Native` or `PureRuby`; `Ruby2html.native?`.
 3. `Init_ruby2html` defines module `Ruby2html::Native` with instance methods `plain`, `component` and singleton methods `define_tag`, `escape_html`.
 4. `Render` calls `define_tag(method, tag, void)` for every `HTML5_TAGS` entry on **both** PureRuby and the active implementation (so specs can compare them in one process), then `include IMPLEMENTATION`. `Ruby2html::Component` includes the same module.
 5. With ActiveSupport loaded, `railtie.rb` defines `TemplateHandler` and registers it for `.rb` in `on_load(:action_view)`; with Rails, the Railtie makes Zeitwerk ignore `app/**/*.html.rb`.
@@ -28,13 +28,13 @@ Every tag method reads the target buffer from `@current_output` of `self` (a `Re
 2. With a block: yield; if the buffer did not grow, append the block's return value when it is String/Symbol/Numeric. Without a block: append `content`.
 3. `</tag>`; return `nil`.
 
-Text (`content.c` / `__r2h_text`): `nil` → nothing; exact `String` → escaped; String subclass or other object that is `html_safe?` → raw; Symbol / Integer → escaped `to_s`; anything else → `to_s`, raw if `html_safe?` else escaped. `plain(x)` applies the same rule; `component(x)` appends `x.to_s` raw.
+Text (`apps/ruby2html/ext/ruby2html/content.c` / `__r2h_text`): `nil` → nothing; exact `String` → escaped; String subclass or other object that is `html_safe?` → raw; Symbol / Integer → escaped `to_s`; anything else → `to_s`, raw if `html_safe?` else escaped. `plain(x)` applies the same rule; `component(x)` appends `x.to_s` raw.
 
-Attributes (`attributes.c` / `__r2h_attributes`): `nil` omitted; `true` bare name / `false` omitted, except `data-*`, `aria-*`, `draggable`, `spellcheck`, `contenteditable` which get `"true"`/`"false"`; Hash expands with prefix (`data: { user_id: 1 }` → `data-user-id`, `_` → `-` only in nested keys); Array → space-joined escaped tokens, `nil`/`false` skipped; otherwise `to_s` escaped. Names are validated (no control chars, space, `" ' < > / =`, not empty) and raise `ArgumentError`. Nothing is cached.
+Attributes (`apps/ruby2html/ext/ruby2html/attributes.c` / `__r2h_attributes`): `nil` omitted; `true` bare name / `false` omitted, except `data-*`, `aria-*`, `draggable`, `spellcheck`, `contenteditable` which get `"true"`/`"false"`; Hash expands with prefix (`data: { user_id: 1 }` → `data-user-id`, `_` → `-` only in nested keys); Array → space-joined escaped tokens, `nil`/`false` skipped; otherwise `to_s` escaped. Names are validated (no control chars, space, `" ' < > / =`, not empty) and raise `ArgumentError`. Nothing is cached.
 
-Escaping (`html_escape.c`): `& < > " '` → `&amp; &lt; &gt; &quot; &#39;`. 16-byte SSE2 (x86_64) or NEON (aarch64) scan, scalar with `-DR2H_NO_SIMD` (`RUBY2HTML_NO_SIMD=1 rake compile`). Clean input is one `memcpy`; dirty input gets its exact size computed, then one pass copying clean runs. Input encodings: UTF-8/US-ASCII/BINARY copied as bytes, ASCII-only copied, others transcoded to UTF-8 (raises if impossible). `Ruby2html.escape_html` never returns the caller's mutable string.
+Escaping (`apps/ruby2html/ext/ruby2html/html_escape.c`): `& < > " '` → `&amp; &lt; &gt; &quot; &#39;`. 16-byte SSE2 (x86_64) or NEON (aarch64) scan, scalar with `-DR2H_NO_SIMD` (`RUBY2HTML_NO_SIMD=1 rake compile`). Clean input is one `memcpy`; dirty input gets its exact size computed, then one pass copying clean runs. Input encodings: UTF-8/US-ASCII/BINARY copied as bytes, ASCII-only copied, others transcoded to UTF-8 (raises if impossible). `Ruby2html.escape_html` never returns the caller's mutable string.
 
-C buffer handling (`buffer.h`): reserve (at least doubling capacity, to keep long renders linear), `memcpy`, commit length. Tag methods are C functions bound through a fixed pool of 200 trampolines (`R2H_MAX_TAGS`); tag names must be `[a-z0-9-]`, ≤ 32 bytes. IDs are interned at Init.
+C buffer handling (`apps/ruby2html/ext/ruby2html/buffer.h`): reserve (at least doubling capacity, to keep long renders linear), `memcpy`, commit length. Tag methods are C functions bound through a fixed pool of 200 trampolines (`R2H_MAX_TAGS`); tag names must be `[a-z0-9-]`, ≤ 32 bytes. IDs are interned at Init.
 
 ## `Ruby2html::Render`
 
@@ -75,7 +75,7 @@ So the template runs with `self` = the view or component: ivars, locals, private
 
 `handles_encoding?` is `false`, so ActionView transcodes the source first.
 
-### Helper wrappers (`rails_components/`)
+### Helper wrappers (`apps/ruby2html/lib/gem/ruby2html/rails_components/`)
 
 - `BaseComponent#render`: `@render.plain(@context.public_send(method, *args, **opts, &capturing(block)))`. `@render` is anything with `plain` and `current_output` (a `Render` or a `Ruby2html::Component`).
 - `OutputCapture#capturing`: wraps the block so it runs with `@render.current_output` swapped to a scratch buffer; returns the buffer as `html_safe` if anything was written, else the block's value (ActionView `capture` semantics). Nested tags therefore land inside the helper's markup.
@@ -108,10 +108,10 @@ Lazy-requires `htmlbeautifier` at construction (clear `LoadError` if absent). Be
 
 ## Demo app, specs, benchmarks
 
-- `config/application.rb` loads the gem with `require_relative '../lib/gem/ruby2html'`.
-- `BenchmarkController` renders `COMPLEX_DATA` via ERB, Slim, `.html.rb`, a ViewComponent (`BenchmarkComponent`) and Phlex; `spec/benchmarks/requests_spec.rb` compares them.
-- `bench/render_bench.rb` (page render vs Phlex/Erubi, allocations), `bench/tag_bench.rb` (per-tag call shapes), `bench/escape_bench.rb` (escaping throughput); `rake bench` runs all.
-- `spec/gem/render_spec_helper.rb` defines groups once and runs them for Native and PureRuby; `render_parity_spec.rb` compares outputs directly.
+- `apps/ruby2html/config/application.rb` loads the gem with `require_relative '../lib/gem/ruby2html'`.
+- `BenchmarkController` renders `COMPLEX_DATA` via ERB, Slim, `.html.rb`, a ViewComponent (`BenchmarkComponent`) and Phlex; `apps/ruby2html/spec/benchmarks/requests_spec.rb` compares them.
+- `apps/ruby2html/bench/render_bench.rb` (page render vs Phlex/Erubi, allocations), `apps/ruby2html/bench/tag_bench.rb` (per-tag call shapes), `apps/ruby2html/bench/escape_bench.rb` (escaping throughput); `rake bench` runs all.
+- `apps/ruby2html/spec/gem/render_spec_helper.rb` defines groups once and runs them for Native and PureRuby; `apps/ruby2html/spec/gem/render_parity_spec.rb` compares outputs directly.
 
 ## Design constraints
 

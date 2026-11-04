@@ -1,7 +1,12 @@
 # Installed by bin/setup (bundle exec lefthook install).
 #
+# Commands run with root: apps/ruby2html/ so bundler resolves the app Gemfile
+# (the app + gem moved under apps/ruby2html; there is no root bundle). Staged
+# files in the root-level bin/ are outside the glob below: lint them with
+# ../../bin/rubocop (as bin/check does) or skip the hook once with LEFTHOOK=0.
+#
 # pre-commit: RuboCop on the staged Ruby files only (safe autocorrect; fixed
-#             files are re-staged). Full check: bin/rubocop
+#             files are re-staged). Full check: bin/check
 # pre-push:   compile + gem specs (`rake spec:gem`, a few seconds), so pushes
 #             do not break CI's RuboCop/spec jobs. Skip once: LEFTHOOK=0 git push
 pre-commit:
@@ -9,6 +14,7 @@ pre-commit:
   commands:
     rubocop:
       glob: '{*.rb,*.rake,*.gemspec,Gemfile,Rakefile,*.gemfile}'
+      root: apps/ruby2html/
       run: bundle exec rubocop --force-exclusion --autocorrect {staged_files}
       skip:
         - merge
@@ -18,4 +24,5 @@ pre-commit:
 pre-push:
   commands:
     gem-specs:
+      root: apps/ruby2html/
       run: bundle exec rake spec:gem

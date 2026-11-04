@@ -14,7 +14,7 @@ ENV MISE_DATA_DIR=/usr/local/share/mise \
     MISE_CONFIG_DIR=/usr/local/share/mise/config \
     MISE_INSTALL_PATH=/usr/local/bin/mise \
     PATH=/usr/local/share/mise/shims:$PATH
-COPY .ruby-version /tmp/.ruby-version
+COPY apps/ruby2html/.ruby-version /tmp/.ruby-version
 RUN curl -fsSL https://mise.run | sh \
   && mise use --global "ruby@$(cat /tmp/.ruby-version)" \
   && chmod -R a+rwX /usr/local/share/mise \

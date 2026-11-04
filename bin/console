@@ -7,7 +7,7 @@
 #
 #   >> html { div(class: 'card') { h1 'Hi'; plain 'x < y' } }
 
-$LOAD_PATH.unshift(File.expand_path('../lib/gem', __dir__))
+$LOAD_PATH.unshift(File.expand_path('../apps/ruby2html/lib/gem', __dir__))
 require 'ruby2html'
 require 'irb'
 

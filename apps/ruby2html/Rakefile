@@ -59,8 +59,9 @@ else
     Rake::ExtensionTask.new('ruby2html') do |ext|
       ext.lib_dir = 'lib/ruby2html'
       ext.ext_dir = 'ext/ruby2html'
-      # Build in tmp/ext, not tmp/: `rake clobber` removes the tmp dir, and tmp/ holds the demo
-      # app's tracked .keep files.
+      # Build in tmp/ext, not tmp/: `rake clobber` removes the tmp dir. rake now runs inside
+      # apps/ruby2html, whose tmp/ holds only build output (the demo app's tracked tmp/.keep
+      # files remain at the repo root).
       ext.tmp_dir = 'tmp/ext'
     end
   rescue LoadError
@@ -77,7 +78,7 @@ CLOBBER.include('pkg')
 
 desc 'Build the gem, install it into a temporary GEM_HOME and render HTML without Rails'
 task smoke: :build do
-  ruby File.expand_path('bin/gem-smoke', __dir__), Dir['pkg/ruby2html-*.gem'].max_by { |f| File.mtime(f) }
+  ruby File.expand_path('../../bin/gem-smoke', __dir__), Dir['pkg/ruby2html-*.gem'].max_by { |f| File.mtime(f) }
 end
 
 # --- Specs -------------------------------------------------------------------
@@ -105,7 +106,12 @@ if defined?(RSpec::Core::RakeTask)
     RSpec::Core::RakeTask.new(:standalone) do |t|
       t.pattern = 'spec/gem/**/*_spec.rb'
       t.exclude_pattern = 'spec/gem/rails/**/*_spec.rb'
-      t.rspec_opts = '-I lib/gem -I lib --require ruby2html'
+      # --require ruby2html only outside the demo app's bundle: loaded before
+      # Rails, the gem's railtie never registers and the app boot dies
+      # (Zeitwerk::NameError on app/**/*.html.rb). Under the app bundle
+      # rails_helper boots Rails, which requires ruby2html itself.
+      standalone = File.basename(ENV['BUNDLE_GEMFILE'].to_s) == 'standalone.gemfile'
+      t.rspec_opts = standalone ? '-I lib/gem -I lib --require ruby2html' : '-I lib/gem -I lib'
     end
   end
   %w[spec:gem spec:standalone].each { |t| Rake::Task[t].enhance([:compile]) } unless ENV['SKIP_COMPILE'] == '1'

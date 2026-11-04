@@ -1,4 +1,6 @@
 #!/usr/bin/env ruby
-require_relative "../config/boot"
+require_relative "../apps/ruby2html/config/boot"
 require "rake"
+
+Dir.chdir(File.expand_path("../apps/ruby2html", __dir__))
 Rake.application.run

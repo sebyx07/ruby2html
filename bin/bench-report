@@ -18,7 +18,7 @@ require 'rbconfig'
 require 'time'
 require 'tmpdir'
 
-ROOT = File.expand_path('..', __dir__)
+ROOT = File.expand_path('../apps/ruby2html', __dir__)
 
 HOOK = <<~'RUBY'
   # Preloaded into each benchmark process (ruby -r).

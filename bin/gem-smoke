@@ -14,7 +14,7 @@ require 'rbconfig'
 require 'rubygems/package'
 require 'tmpdir'
 
-ROOT = File.expand_path('..', __dir__)
+ROOT = File.expand_path('../apps/ruby2html', __dir__)
 
 def run!(env, *cmd, chdir:)
   out, status = Open3.capture2e(env, *cmd, chdir: chdir)

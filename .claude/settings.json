@@ -77,7 +77,9 @@
       "Bash(bin/*)"
     ],
     "deny": [
-      "Read(./config/master.key)",
+      "Read(./apps/ruby2html/config/master.key)",
+      "Read(./apps/ruby2html/.env*)",
+      "Read(./apps/ruby2html/tmp/local_secret.txt)",
       "Read(./.env*)",
       "Read(./tmp/local_secret.txt)",
       "Bash(git tag *)",

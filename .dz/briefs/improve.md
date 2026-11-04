@@ -20,7 +20,7 @@ If no run is younger than 7 days, start one: `gh workflow run canary.yml`, and r
 2. Dependency majors Dependabot can't do (grouped bumps that failed, Rails/ViewComponent/Phlex majors
    in the demo app): `upgrade-deps` skill.
 3. Speed and memory: run `bundle exec rake bench` on `main`. Look for allocations or hot-path work
-   in `ext/ruby2html/` and `render/pure_ruby.rb`; a change counts only with before/after numbers
+   in `apps/ruby2html/ext/ruby2html/` and `apps/ruby2html/lib/gem/ruby2html/render/pure_ruby.rb`; a change counts only with before/after numbers
    from the `benchmark` skill.
 4. Correctness and safety: open issues labelled bug, then a look at escaping and parity with the
    `review` skill checklist. Every fix comes with a spec in both implementations.

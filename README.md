@@ -24,7 +24,7 @@ end
 - **Light.** No runtime dependencies, a 32 KB gem, and `require 'ruby2html'` costs about 0.4 MB and 19 ms. Prism, the Rails glue and the optional beautifier load only when used, or at boot in eager-loading production apps.
 - **Plain Ruby views.** `.html.rb` templates, ERB interop, ViewComponent, or the built-in `Ruby2html::Component`. Escaped by default.
 - **Runs everywhere.** CRuby ≥ 3.1 with a C extension (SIMD escaping on x86_64 and arm64), JRuby with a Java escaper over the pure-Ruby implementation, and TruffleRuby on pure Ruby (faster there than the C extension) — all byte-identical. Rails 7.2+.
-- **AI-ready.** One-file reference for coding agents: [`llms.txt`](llms.txt).
+- **AI-ready.** One-file reference for coding agents: [`llms.txt`](apps/ruby2html/llms.txt).
 
 ## Installation
 
@@ -43,11 +43,11 @@ bundle install   # compiles the native extension (needs a C compiler); pure-Ruby
 
 **This project is maintained by [developerz.ai](https://developerz.ai).** Its maintainer agent triages issues, reviews every pull request, merges every pull request once its author marks it ready and CI passes, watches project health daily, and opens release PRs. The policy is in [`.dz/maintainer/maintainer.yml`](.dz/maintainer/maintainer.yml). Breaking changes and major releases stay with the owner.
 
-- **Using ruby2html in your app?** Point your agent at [`llms.txt`](llms.txt), the complete reference in one file (DSL rules, escaping, Rails, components, forms, pitfalls). Paste this into your app's `CLAUDE.md` / `AGENTS.md`:
+- **Using ruby2html in your app?** Point your agent at [`llms.txt`](apps/ruby2html/llms.txt), the complete reference in one file (DSL rules, escaping, Rails, components, forms, pitfalls). Paste this into your app's `CLAUDE.md` / `AGENTS.md`:
   ```markdown
   ## ruby2html views
   `*.html.rb` templates and `html do ... end` blocks use the ruby2html gem. Before editing them read
-  https://github.com/sebyx07/ruby2html/blob/main/llms.txt
+  https://github.com/sebyx07/ruby2html/blob/main/apps/ruby2html/llms.txt
   ```
 - **Working on this repo?** [`AGENTS.md`](AGENTS.md) is the only agent-instructions file (`CLAUDE.md` is a symlink to it): commands, code map, invariants, how to verify a change, CI/release automation.
 - **Claude Code**: project skills in `.claude/skills/` (`release`, `benchmark`, `add-html-tag`, `review`, `debug-render`, `upgrade-deps`), read-only reviewer subagents in `.claude/agents/` (`perf-reviewer`, `xss-auditor`), and `.claude/settings.json` with a safe permission allowlist and a non-blocking recompile-reminder hook.
@@ -61,7 +61,7 @@ bundle install   # compiles the native extension (needs a C compiler); pure-Ruby
 - Raw HTML only from `html_safe` strings (Rails helpers, `'<hr>'.html_safe`), as content or via `plain`. `plain 'text'` escapes.
 - Attributes: `'data-id': 1` or `data: { id: 1 }`, `class: ['btn', active && 'on']`, `disabled: true` → bare `disabled`, `nil`/`false` omitted.
 
-Full rules and pitfalls: [`llms.txt`](llms.txt).
+Full rules and pitfalls: [`llms.txt`](apps/ruby2html/llms.txt).
 
 ### Rails views (`.html.rb`)
 
@@ -137,7 +137,7 @@ div class: 'farewell' do
 end
 ```
 
-Public component methods can be called from the template and may emit tags themselves (see `app/components/first_component.rb`).
+Public component methods can be called from the template and may emit tags themselves (see `apps/ruby2html/app/components/first_component.rb`).
 
 ### `Ruby2html::Component` (no ViewComponent required)
 
@@ -196,13 +196,13 @@ config.middleware.use Ruby2html::HtmlBeautifierMiddleware
 
 ## Performance
 
-Benchmarks run in CI on every push to `main` and every pull request ([`.github/workflows/benchmark.yml`](.github/workflows/benchmark.yml)): the latest run's summary page has the current table, and PRs get a sticky comment with the delta against `main`. Run them locally with `bundle exec rake bench` (standalone scripts in `bench/`) or `bundle exec rspec spec/benchmarks/` (request-level through the demo app, vs ERB, Slim, Phlex and ViewComponent).
+Benchmarks run in CI on every push to `main` and every pull request ([`.github/workflows/benchmark.yml`](.github/workflows/benchmark.yml)): the latest run's summary page has the current table, and PRs get a sticky comment with the delta against `main`. Run them locally with `bundle exec rake bench` (standalone scripts in `apps/ruby2html/bench/`) or `bundle exec rspec spec/benchmarks/` (request-level through the demo app, vs ERB, Slim, Phlex and ViewComponent).
 
 ### Snapshot at 2.0.0 release (2026-10-31)
 
 This is a dated snapshot. CI has the live numbers. Measured on Ruby 3.4.7 x86_64 on a busy machine (load average about 7), so read the ratios rather than the absolute figures.
 
-**Page render** (`bench/render_bench.rb`, no Rails): a header with nav, 100 list items with links, images, attributes and escaped text, about 34 KB of HTML.
+**Page render** (`apps/ruby2html/bench/render_bench.rb`, no Rails): a header with nav, 100 list items with links, images, attributes and escaped text, about 34 KB of HTML.
 
 | Engine | Renders/s | Time per render | Allocations per render |
 |---|---|---|---|
@@ -215,7 +215,7 @@ This is a dated snapshot. CI has the live numbers. Measured on Ruby 3.4.7 x86_64
 
 ¹ Phlex 2's default attribute cache (2 KB, FIFO) misses on per-row values such as ids and hrefs. `Phlex::ATTRIBUTE_CACHE.expand(1_000_000)` is its best case. Phlex 2 also checks URLs for `javascript:`; ruby2html leaves URL validation to you.
 
-**Full Rails request** (`spec/benchmarks/requests_spec.rb`; Rails 8.1, a 7 ms request where most of the time is Rails itself; differences are within ±15% error):
+**Full Rails request** (`apps/ruby2html/spec/benchmarks/requests_spec.rb`; Rails 8.1, a 7 ms request where most of the time is Rails itself; differences are within ±15% error):
 
 | Engine | Requests/s |
 |---|---|
@@ -249,14 +249,15 @@ How it is fast:
 ## Development
 
 ```bash
+cd apps/ruby2html
 bundle install
 bundle exec rake compile   # build the C extension
 CI=1 bundle exec rspec     # specs (CI=1 skips the slow benchmark spec)
 bundle exec rubocop
-bin/rails server           # demo app
+../../bin/rails server     # demo app
 ```
 
-The repository is both the gem (`lib/gem/`, `ext/ruby2html/`) and a Rails demo app (`app/`, `config/`). See [CONTRIBUTING.md](CONTRIBUTING.md), [docs/architecture.md](docs/architecture.md), [docs/release.md](docs/release.md) and [CHANGELOG.md](CHANGELOG.md).
+The repository is both the gem (`apps/ruby2html/lib/gem/`, `apps/ruby2html/ext/ruby2html/`) and a Rails demo app (`apps/ruby2html/app/`, `apps/ruby2html/config/`). See [CONTRIBUTING.md](CONTRIBUTING.md), [docs/architecture.md](docs/architecture.md), [docs/release.md](docs/release.md) and [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 

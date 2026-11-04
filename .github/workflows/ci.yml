@@ -24,18 +24,30 @@ jobs:
     name: Lint / RuboCop
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      BUNDLE_GEMFILE: ${{ github.workspace }}/apps/ruby2html/Gemfile
+    defaults:
+      run:
+        working-directory: apps/ruby2html
     steps:
       - uses: actions/checkout@v7
       - uses: ruby/setup-ruby@v1
+        # setup-ruby reads version files only from the repo root; the root
+        # .ruby-version is a symlink to apps/ruby2html/.ruby-version (the single
+        # source of the dev Ruby version). A nested path here would be parsed as
+        # an "engine-version" string and fail with "Unknown engine".
         with:
           ruby-version: .ruby-version
           bundler-cache: true
-      - run: bin/rubocop --parallel
+      - run: ../../bin/rubocop --parallel . ../../bin
 
   audit:
     name: Security / bundle-audit
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: apps/ruby2html
     steps:
       - uses: actions/checkout@v7
       - uses: ruby/setup-ruby@v1
@@ -50,6 +62,11 @@ jobs:
     name: Rails app / full suite + Brakeman
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    env:
+      BUNDLE_GEMFILE: ${{ github.workspace }}/apps/ruby2html/Gemfile
+    defaults:
+      run:
+        working-directory: apps/ruby2html
     steps:
       - uses: actions/checkout@v7
       # ubuntu runners ship gcc/make: no apt build-essential step needed.
@@ -61,7 +78,7 @@ jobs:
       - name: RSpec (features, gem, benchmarks)
         run: bundle exec rspec
       - name: Brakeman
-        run: bin/brakeman --no-pager
+        run: ../../bin/brakeman --no-pager
 
   ruby-versions:
     name: Matrix / Ruby versions
@@ -85,7 +102,10 @@ jobs:
           - ruby: head # monthly in canary.yml
     env:
       # No Rails and no lockfile: resolves on every Ruby, old and new.
-      BUNDLE_GEMFILE: ${{ github.workspace }}/gemfiles/standalone.gemfile
+      BUNDLE_GEMFILE: ${{ github.workspace }}/apps/ruby2html/gemfiles/standalone.gemfile
+    defaults:
+      run:
+        working-directory: apps/ruby2html
     steps:
       - uses: actions/checkout@v7
       - uses: ruby/setup-ruby@v1
@@ -106,6 +126,11 @@ jobs:
         include:
           - { name: Linux arm64 (gcc), os: ubuntu-24.04-arm }
           - { name: macOS arm64 (clang), os: macos-latest }
+    env:
+      BUNDLE_GEMFILE: ${{ github.workspace }}/apps/ruby2html/Gemfile
+    defaults:
+      run:
+        working-directory: apps/ruby2html
     steps:
       - uses: actions/checkout@v7
       - uses: ruby/setup-ruby@v1
@@ -125,6 +150,11 @@ jobs:
       fail-fast: false
       matrix:
         cc: [gcc, clang]
+    env:
+      BUNDLE_GEMFILE: ${{ github.workspace }}/apps/ruby2html/Gemfile
+    defaults:
+      run:
+        working-directory: apps/ruby2html
     steps:
       - uses: actions/checkout@v7
       - uses: ruby/setup-ruby@v1
@@ -132,7 +162,7 @@ jobs:
           ruby-version: .ruby-version
           bundler-cache: true
       - name: Build with warnings as errors
-        run: bin/build-ext --cc=${{ matrix.cc }} --werror
+        run: ../../bin/build-ext --cc=${{ matrix.cc }} --werror
       - name: RSpec (spec/gem) against that build
         run: bundle exec rake spec:gem
         env:
@@ -142,6 +172,11 @@ jobs:
     name: C ext / ASAN + UBSAN
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      BUNDLE_GEMFILE: ${{ github.workspace }}/apps/ruby2html/Gemfile
+    defaults:
+      run:
+        working-directory: apps/ruby2html
     steps:
       - uses: actions/checkout@v7
       - uses: ruby/setup-ruby@v1
@@ -149,7 +184,7 @@ jobs:
           ruby-version: .ruby-version
           bundler-cache: true
       - name: Build instrumented extension
-        run: bin/build-ext --sanitize
+        run: ../../bin/build-ext --sanitize
       - name: RSpec (spec/gem) with sanitizer runtimes preloaded
         run: |
           LD_PRELOAD="$(gcc -print-file-name=libasan.so):$(gcc -print-file-name=libubsan.so)"
@@ -165,6 +200,11 @@ jobs:
     name: Pure Ruby fallback / RUBY2HTML_DISABLE_EXT=1
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      BUNDLE_GEMFILE: ${{ github.workspace }}/apps/ruby2html/Gemfile
+    defaults:
+      run:
+        working-directory: apps/ruby2html
     steps:
       - uses: actions/checkout@v7
       - uses: ruby/setup-ruby@v1
@@ -187,7 +227,10 @@ jobs:
         ruby: [jruby, truffleruby] # setup-ruby aliases for the latest releases
     env:
       # rspec + activesupport + htmlbeautifier only: no Rails, no sqlite3.
-      BUNDLE_GEMFILE: ${{ github.workspace }}/gemfiles/standalone.gemfile
+      BUNDLE_GEMFILE: ${{ github.workspace }}/apps/ruby2html/gemfiles/standalone.gemfile
+    defaults:
+      run:
+        working-directory: apps/ruby2html
     steps:
       - uses: actions/checkout@v7
       - uses: ruby/setup-ruby@v1
@@ -201,7 +244,7 @@ jobs:
       # On JRuby this builds and renders from the -java gem (jar inside); on
       # TruffleRuby the pure-Ruby gem.
       - name: Packaged gem installs and renders
-        run: bundle exec ruby bin/gem-smoke
+        run: bundle exec ruby ../../bin/gem-smoke
 
   rails-versions:
     name: Matrix / Rails versions
@@ -209,11 +252,14 @@ jobs:
     timeout-minutes: 5
     outputs:
       versions: ${{ steps.versions.outputs.versions }}
+    defaults:
+      run:
+        working-directory: apps/ruby2html
     steps:
       - uses: actions/checkout@v7
       - id: versions
         # Every stable Rails MAJOR.MINOR >= 7.2 (the demo app's floor), from rubygems.org.
-        run: echo "versions=$(ruby bin/rails-versions 7.2)" >> "$GITHUB_OUTPUT"
+        run: echo "versions=$(ruby ../../bin/rails-versions 7.2)" >> "$GITHUB_OUTPUT"
 
   rails:
     name: Rails ${{ matrix.rails }}
@@ -226,7 +272,10 @@ jobs:
         rails: ${{ fromJSON(needs.rails-versions.outputs.versions) }} # edge: monthly in canary.yml
     env:
       RAILS_VERSION: ${{ matrix.rails }}
-      BUNDLE_GEMFILE: ${{ github.workspace }}/gemfiles/rails.gemfile
+      BUNDLE_GEMFILE: ${{ github.workspace }}/apps/ruby2html/gemfiles/rails.gemfile
+    defaults:
+      run:
+        working-directory: apps/ruby2html
     steps:
       - uses: actions/checkout@v7
       - uses: ruby/setup-ruby@v1
@@ -250,6 +299,9 @@ jobs:
         ruby: ${{ fromJSON(needs.ruby-versions.outputs.versions) }}
         exclude:
           - ruby: head # monthly in canary.yml
+    defaults:
+      run:
+        working-directory: apps/ruby2html
     steps:
       - uses: actions/checkout@v7
       # No Bundler on purpose: the gem must build and install with plain RubyGems.
@@ -258,7 +310,7 @@ jobs:
           ruby-version: ${{ matrix.ruby }}
           bundler: none
       - name: Build gem, install into temp GEM_HOME, render without Rails
-        run: ruby bin/gem-smoke
+        run: ruby ../../bin/gem-smoke
 
   ci-ok:
     name: CI OK
@@ -268,6 +320,9 @@ jobs:
     needs: [lint, audit, test, gem-specs, native, strict-ext, sanitizers, fallback, engines, rails, package]
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # No checkout and no working-directory here: it only aggregates results, and a
+    # defaults working-directory with no checkout kills bash before the step starts
+    # ("No such file or directory" for apps/ruby2html).
     steps:
       - name: All required jobs passed
         env:

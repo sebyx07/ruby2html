@@ -29,7 +29,7 @@ RSpec.describe 'bin/setup' do
     FileUtils.chmod(0o755, path)
   end
 
-  let(:script_path) { File.expand_path('../../bin/setup', __dir__) }
+  let(:script_path) { File.expand_path('../../../../bin/setup', __dir__) }
 
   it 'runs mise install when the version check succeeds, before the first bundle call' do
     _stdout, status, calls = run_setup('bundle', 'mise')

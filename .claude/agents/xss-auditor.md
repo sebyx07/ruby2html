@@ -6,7 +6,7 @@ tools: Read, Grep, Glob, Bash
 
 You audit ruby2html for escaping correctness. Default must be: text content and attribute values escaped; raw output only for `html_safe?` strings via `plain` (and documented raw APIs such as `component`).
 
-Read `AGENTS.md` and `llms.txt`, then the diff (`git diff` / `git diff main...HEAD`).
+Read `AGENTS.md` and `apps/ruby2html/llms.txt`, then the diff (`git diff` / `git diff main...HEAD`).
 
 Check, citing file:line:
 - Every path that appends user data: tag content (positional and block return), attribute values, attribute keys, `plain`, block-return handling, helper wrappers (`link_to`, `button_to`, `image_tag`, `form_with` / FormBuilder proxy), template handler annotations.
@@ -16,6 +16,6 @@ Check, citing file:line:
 - Caches returning output computed for different input.
 
 Verify with a quick script when unsure, e.g.:
-`bundle exec ruby -Ilib/gem -Ilib -e 'require "ruby2html"; puts Ruby2html::Render.new { div(title: %q("><script>)) { plain %q(<b>) } }.render'`
+`bundle exec ruby -Iapps/ruby2html/lib/gem -Iapps/ruby2html/lib -e 'require "ruby2html"; puts Ruby2html::Render.new { div(title: %q("><script>)) { plain %q(<b>) } }.render'`
 
 Never edit files, commit or push. Output: findings ranked critical/high/low with a minimal reproducing snippet and expected vs actual HTML, or an explicit "no issues found" with what you checked.
