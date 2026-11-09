@@ -37,6 +37,16 @@ RSpec.describe Ruby2html::Component do
     expect(html).to eq('<div class="card"><h2>T</h2><b>hi</b><a href="/more">More</a></div>')
   end
 
+  it 'claims the public renderer methods, not the implementation singletons' do
+    component = CardComponent.new(title: 'x')
+    expect(component.respond_to?(:div)).to be(true)
+    expect(component.respond_to?(:plain)).to be(true)
+    # escape_html is a singleton on the implementation module, not an
+    # instance method, so a component does not answer to it.
+    expect(component.respond_to?(:escape_html)).to be(false)
+    expect { component.escape_html('<b>') }.to raise_error(NoMethodError)
+  end
+
   it 'renders nested components into the parent buffer without intermediate strings' do
     stub_const('ListComponent', Class.new(described_class) do
       def view_template

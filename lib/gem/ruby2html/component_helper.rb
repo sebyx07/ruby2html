@@ -38,11 +38,16 @@ module Ruby2html
         renderer.__send__(name, ...)
       end
 
-      # Only claims the renderer's own methods (tags, plain, component, ...).
-      # Asking the renderer's respond_to? here could recurse back into this
-      # object, because the renderer delegates respond_to? to its context.
+      # Only claims the renderer's own PUBLIC methods (tags, plain, component,
+      # ...). Asking the renderer's respond_to? here could recurse back into
+      # this object, because the renderer delegates respond_to? to its context.
+      #
+      # public_method_defined? (not method_defined?) keeps the claimed set
+      # equal to what #method_missing can serve: its gate, renderer.respond_to?,
+      # reports public methods only, while method_defined? also matches
+      # protected ones, which respond_to? omits and method_missing cannot call.
       def respond_to_missing?(name, include_private = false)
-        (@__r2h && Ruby2html::Render.method_defined?(name)) || super
+        (@__r2h && Ruby2html::Render.public_method_defined?(name)) || super
       end
   end
 end
