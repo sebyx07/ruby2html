@@ -1,0 +1,75 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Guard: the demo app's Rails floor, the floor the gem advertises and the
+# oldest Rails line of the CI matrix must be the same version.
+#
+#   ruby bin/rails-defaults-check                  # app floor vs README.md + llms.txt
+#   ruby bin/rails-defaults-check '["7.2","8.0"]'  # ... and vs the matrix's oldest entry
+#
+# Exits 1 and names every version compared when they drift, 0 when they
+# agree. Stdlib only: no Bundler, no Rails, no network.
+
+require 'json'
+require 'open3'
+require 'rbconfig'
+
+ROOT = File.expand_path('..', __dir__)
+ADVERTISED_FILES = %w[README.md llms.txt].freeze
+ADVERTISED_FLOOR = /Rails (\d+(?:\.\d+)*)\+/
+
+def app_floor
+  out, status = Open3.capture2e(RbConfig.ruby, File.join(ROOT, 'bin', 'rails-versions'), '--floor')
+  abort "bin/rails-versions --floor failed:\n#{out}" unless status.success?
+
+  out.strip
+end
+
+def advertised_floors(file)
+  source = File.read(File.join(ROOT, file))
+  source.scan(ADVERTISED_FLOOR).flatten.uniq
+end
+
+def matrix_floor(json)
+  lines = JSON.parse(json)
+  unless lines.is_a?(Array) && !lines.empty? && lines.all?(String)
+    abort "Rails matrix must be a non-empty array of versions, got: #{json}"
+  end
+
+  lines.min_by { |line| Gem::Version.new(line) }
+rescue JSON::ParserError, ArgumentError => e
+  abort "Could not read the Rails matrix #{json.inspect}: #{e.message}"
+end
+
+def same_version?(one, other)
+  Gem::Version.new(one) == Gem::Version.new(other)
+rescue ArgumentError
+  one == other
+end
+
+floor = app_floor
+reported = [['app floor (config/application.rb)', floor]]
+problems = []
+
+ADVERTISED_FILES.each do |file|
+  versions = advertised_floors(file)
+  reported << [file, versions.empty? ? 'no "Rails X.Y+" advertised' : versions.join(', ')]
+  problems << file unless versions.size == 1 && same_version?(versions.first, floor)
+end
+
+matrix = ARGV[0]
+if matrix
+  oldest = matrix_floor(matrix)
+  reported << ['CI matrix (oldest entry)', oldest]
+  problems << 'CI matrix' unless same_version?(oldest, floor)
+end
+
+if problems.empty?
+  puts "Rails floor #{floor}: #{reported.map(&:first).join(', ')} agree."
+  exit 0
+end
+
+warn 'Rails floor mismatch:'
+reported.each { |label, version| warn "  #{label}: #{version}" }
+warn "Align #{problems.join(', ')} with config/application.rb: bin/rails-versions derives the CI matrix from it."
+exit 1

@@ -17,7 +17,7 @@ Writing ruby2html templates/components (here or in a user app)? Load [`llms.txt`
 | Demo Rails app | `app/`, `config/`, `db/` | Not packaged; loads the gem via `require_relative '../lib/gem/ruby2html'` |
 | Specs | `spec/gem/` (renderer, attributes, escaping, `render_parity_spec.rb`; `render_spec_helper.rb` runs each group against Native **and** PureRuby in one process), `spec/gem/rails/` (handler, compiler, components, middleware), `spec/features/`, `spec/benchmarks/` | Rails-booting via `spec/rails_helper.rb`; `rake spec:standalone` runs `spec/gem` minus `rails/` without Rails |
 | Benchmarks | `bench/*.rb` (standalone), `spec/benchmarks/requests_spec.rb` (request-level vs ERB/Slim/Phlex) | |
-| Scripts | `bin/gem-smoke`, `bin/changelog-notes`, `bin/build-ext` | Packaging smoke test; print a CHANGELOG section; CI-style extension builds (`--werror`, `--cc=clang`, `--sanitize`) |
+| Scripts | `bin/gem-smoke`, `bin/changelog-notes`, `bin/build-ext`, `bin/rails-versions`, `bin/rails-defaults-check` | Packaging smoke test; print a CHANGELOG section; CI-style extension builds (`--werror`, `--cc=clang`, `--sanitize`); the demo app's Rails floor (`bin/rails-versions --floor`) and the CI guard that keeps the app, the advertised floor and the matrix in sync (`bin/rails-defaults-check`) |
 
 - Supported: all maintained CRuby versions (>= 3.1, gemspec floor; CI tracks the official list — currently 3.3, 3.4, 4.0), JRuby (pure Ruby + the Java escaper), TruffleRuby (pure Ruby), Rails 7.2+.
 - Dev Ruby: `.ruby-version` (latest stable). The CRuby CI matrix is generated automatically from the maintained-versions list, so a new release (e.g. a new 4.x) joins CI with no edit.
@@ -113,6 +113,7 @@ Writing ruby2html templates/components (here or in a user app)? Load [`llms.txt`
 11. Public API used downstream — `Render.new(ctx, &blk)`, `#render`, `#plain`, `#component`, tag methods, `Ruby2html.escape_html`, `Ruby2html.native?`, `Ruby2html::Component`, `RailsHelper#html`, `ComponentHelper#html` / `#__ruby2html_renderer__`, the `.rb` handler, `HtmlBeautifierMiddleware` — breaking changes need a CHANGELOG entry ("Upgrading to 2.0") and a major bump.
 12. Style: rubocop-rails_config, single quotes, `# frozen_string_literal: true`, nested modules, Rails-style indented `private` methods. C: gnu99, no warnings under `-Wall -Wextra`.
 13. Never commit `lib/ruby2html/*.so`, `*.jar`, `*.class`, `tmp/`, `pkg/`, `*.gem`, `log/`.
+14. **The demo app's Rails floor is derived, not hardcoded.** `config.load_defaults` in `config/application.rb` is the single source of truth: `bin/rails-versions` parses it (`--floor` prints it, no network) and derives the CI matrix from it. The matrix's oldest entry and the floor the gem advertises (`Rails X.Y+` in README.md and llms.txt) must equal the app's floor — `bin/rails-defaults-check` fails CI, naming every version compared, when they drift. A matrix entry older than the app's `load_defaults` cannot boot the demo app (`RuntimeError: Unknown version`); Rails edge is not a matrix entry (it runs monthly in `canary.yml`).
 
 ## Maintenance model
 

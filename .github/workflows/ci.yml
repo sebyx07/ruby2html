@@ -212,8 +212,15 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - id: versions
-        # Every stable Rails MAJOR.MINOR >= 7.2 (the demo app's floor), from rubygems.org.
-        run: echo "versions=$(ruby bin/rails-versions 7.2)" >> "$GITHUB_OUTPUT"
+        name: Resolve the Rails matrix and guard the floor
+        # Every stable Rails MAJOR.MINOR >= the demo app's floor (config/application.rb), from rubygems.org.
+        # The floor guard runs in this same step (no extra step): the app's floor, the floor the gem
+        # advertises (README.md, llms.txt) and the matrix's oldest entry must agree, or this job -
+        # and with it CI OK - fails.
+        run: |
+          versions=$(ruby bin/rails-versions)
+          echo "versions=$versions" >> "$GITHUB_OUTPUT"
+          ruby bin/rails-defaults-check "$versions"
 
   rails:
     name: Rails ${{ matrix.rails }}
@@ -265,7 +272,7 @@ jobs:
     if: always()
     # Every job here must pass; nothing is allowed to fail. Ruby head and Rails edge run monthly in
     # canary.yml, where the developerz.ai `improve` checkup picks up what they find.
-    needs: [lint, audit, test, gem-specs, native, strict-ext, sanitizers, fallback, engines, rails, package]
+    needs: [lint, audit, test, gem-specs, native, strict-ext, sanitizers, fallback, engines, rails-versions, rails, package]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

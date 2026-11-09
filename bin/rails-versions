@@ -5,17 +5,75 @@
 # rubygems.org: every MAJOR.MINOR >= MIN that has a stable release, e.g.
 #   bin/rails-versions 7.2   # => ["7.2","8.0","8.1"]
 # Used by CI so new Rails releases join the matrix without editing anything.
+#
+# The floor is the demo app's Rails floor (config/application.rb), the single
+# source of truth: the matrix always starts at the Rails the app boots on, so
+# the app and the matrix cannot drift apart. An explicit MIN still overrides
+# the listing.
+#
+#   bin/rails-versions           # => ["7.2","8.0","8.1"]
+#   bin/rails-versions 8.0       # => ["8.0","8.1"]
+#   bin/rails-versions --floor   # => 7.2 (no network)
 
 require 'json'
 require 'net/http'
 
-min = Gem::Version.new(ARGV.fetch(0, '7.2'))
+ROOT = File.expand_path('..', __dir__)
+APP_CONFIG = File.join(ROOT, 'config', 'application.rb')
+LOAD_DEFAULTS = /^\s*config\.load_defaults\s+(?:"([^"]+)"|'([^']+)'|([0-9]+(?:\.[0-9]+)*))/
+USAGE = <<~TEXT
+  Usage: bin/rails-versions [--floor] [MIN]
+
+    --floor   print the demo app's Rails floor (config/application.rb) and exit
+    MIN       list only Rails lines >= MIN (default: the demo app's floor)
+TEXT
+
+def app_floor
+  source = File.read(APP_CONFIG)
+  match = source.match(LOAD_DEFAULTS)
+  version = match && (match[1] || match[2] || match[3])
+  abort "Could not parse `config.load_defaults` from #{APP_CONFIG}" if version.nil? || version.empty?
+
+  version
+end
+
+def parse_version(version)
+  Gem::Version.new(version)
+rescue ArgumentError
+  abort "Invalid Rails version: #{version.inspect}"
+end
+
+floor = app_floor
+min_arg = nil
+floor_only = false
+
+ARGV.each do |arg|
+  case arg
+  when '--floor'
+    floor_only = true
+  when /\A-/
+    abort "Unknown option #{arg.inspect}\n#{USAGE}"
+  else
+    abort "Only one MIN argument is allowed\n#{USAGE}" unless min_arg.nil?
+
+    min_arg = arg
+  end
+end
+
+if floor_only
+  abort "--floor does not take a MIN argument\n#{USAGE}" unless min_arg.nil?
+
+  puts floor
+  exit 0
+end
+
+min = parse_version(min_arg || floor)
 body = Net::HTTP.get(URI('https://rubygems.org/api/v1/versions/rails.json'))
 lines = JSON.parse(body)
-            .reject { |v| v['prerelease'] }
-            .map { |v| Gem::Version.new(v['number']).segments.first(2).join('.') }
-            .uniq
-            .select { |line| Gem::Version.new(line) >= min }
-            .sort_by { |line| Gem::Version.new(line) }
+        .reject { |v| v['prerelease'] }
+        .map { |v| Gem::Version.new(v['number']).segments.first(2).join('.') }
+        .uniq
+        .select { |line| Gem::Version.new(line) >= min }
+        .sort_by { |line| Gem::Version.new(line) }
 abort 'No Rails versions found' if lines.empty?
 puts JSON.generate(lines)
