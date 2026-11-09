@@ -138,10 +138,15 @@ jobs:
         with:
           ruby-version: .ruby-version
 
+      # `defaults.run.working-directory` applies to `run` steps only, never to
+      # an action step, so `path` is spelled out absolutely here: the artifact
+      # lands next to the CRuby gem built below (apps/ruby2html), and every
+      # push/asset glob in this job is relative to that directory.
       - name: Download the JRuby-built -java gem
         uses: actions/download-artifact@v8
         with:
           name: java-gem
+          path: ${{ github.workspace }}/apps/ruby2html
 
       - name: Exchange the OIDC token for RubyGems credentials
         uses: rubygems/configure-rubygems-credentials@v2.1.0
@@ -152,7 +157,7 @@ jobs:
       - name: Build + publish both gems
         run: |
           gem build ruby2html.gemspec
-          gem push ../../ruby2html-*-java.gem
+          gem push ruby2html-*-java.gem
           gem push "$(ls ruby2html-*.gem | grep -v -- -java)"
 
       - name: Tag + GitHub release from CHANGELOG
@@ -161,4 +166,4 @@ jobs:
           TAG: ${{ needs.version.outputs.tag }}
         run: |
           ../../bin/changelog-notes "$TAG" > release-notes.md
-          gh release create "$TAG" ruby2html-*.gem ../../ruby2html-*-java.gem --title "$TAG" --target "$GITHUB_SHA" --notes-file release-notes.md
+          gh release create "$TAG" ruby2html-*.gem --title "$TAG" --target "$GITHUB_SHA" --notes-file release-notes.md
