@@ -103,6 +103,57 @@ RSpec.describe Ruby2html::ComponentHelper do
     expect(answers).to eq([true, false])
   end
 
+  it 'claims only the public renderer methods while a render is active' do
+    component = component_class.new
+    claimed = {}
+    component.build do
+      claimed[:div] = component.respond_to?(:div)
+      claimed[:plain] = component.respond_to?(:plain)
+      claimed[:escape_html] = component.respond_to?(:escape_html)
+      claimed[:copy_instance_variables] = component.respond_to?(:copy_instance_variables)
+      claimed[:link_to] = component.respond_to?(:link_to)
+    end
+
+    expect(claimed[:div]).to be(true)
+    expect(claimed[:plain]).to be(true)
+    # Render keeps its own helpers private, so the renderer cannot serve them
+    # either: the component must not claim them.
+    expect(claimed[:escape_html]).to be(false)
+    expect(claimed[:copy_instance_variables]).to be(false)
+    # The Rails wrappers are private on Render too (they only exist when
+    # ActionView was already loaded), so they are never claimed.
+    expect(claimed[:link_to]).to be(false)
+  end
+
+  context 'when the renderer defines a protected method' do
+    before do
+      Ruby2html::Render.class_eval { protected def r2h_protected_probe; end }
+    end
+
+    after do
+      Ruby2html::Render.send(:remove_method, :r2h_protected_probe) if Ruby2html::Render.method_defined?(:r2h_protected_probe)
+    end
+
+    it 'does not claim it and refuses to serve it' do
+      component = component_class.new
+      claimed = []
+      component.build { claimed << component.respond_to?(:r2h_protected_probe) }
+
+      # method_defined? matches public AND protected, public_method_defined?
+      # matches public only - exactly what respond_to? reports.
+      expect(Ruby2html::Render.method_defined?(:r2h_protected_probe)).to be(true)
+      expect(Ruby2html::Render.public_method_defined?(:r2h_protected_probe)).to be(false)
+      expect(claimed).to eq([false])
+      expect { component.build { component.r2h_protected_probe } }.to raise_error(NoMethodError)
+    end
+  end
+
+  it 'raises NoMethodError for the private renderer helpers' do
+    component = component_class.new
+    expect { component.build { component.escape_html('<b>') } }.to raise_error(NoMethodError)
+    expect { component.build { component.link_to('/') { 'x' } } }.to raise_error(NoMethodError)
+  end
+
   it 'raises NoMethodError for unknown methods, with or without a renderer' do
     component = component_class.new
     expect { component.no_such_method }.to raise_error(NoMethodError)
@@ -120,5 +171,18 @@ RSpec.describe Ruby2html::RailsHelper do
 
   it 'can be included in classes without helper_method' do
     expect { Module.new { include Ruby2html::RailsHelper } }.not_to raise_error
+  end
+
+  it 'claims nothing on the helper, while the renderer keeps its private helpers' do
+    helper = Class.new { include Ruby2html::RailsHelper }.new
+    expect(helper.respond_to?(:div)).to be(false)
+    expect(helper.respond_to?(:plain)).to be(false)
+    expect(helper.respond_to?(:escape_html)).to be(false)
+
+    # The block runs on the renderer, where escape_html is a private method:
+    # an implicit receiver call still reaches it.
+    escaped = nil
+    helper.html(nil) { escaped = escape_html('<b>') }
+    expect(escaped).to eq('&lt;b&gt;')
   end
 end
