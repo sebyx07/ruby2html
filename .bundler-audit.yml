@@ -1,0 +1,60 @@
+# bundler-audit configuration, read by every `bundle-audit check` run: the root
+# `Gemfile.lock` audit and the matrix audits of `gemfiles/*.gemfile.lock`.
+#
+# Every advisory below is one that upstream patched only in Rails 8.0.5.2 and
+# 8.1.4.1 - there is no patched release for the older lines the CI matrix
+# deliberately tests:
+#
+#   * Rails 7.2, the demo app's floor (`gemfiles/rails.gemfile`);
+#   * Active Support 7.2.x, the newest release that runs on Ruby 3.1, the
+#     gem's Ruby floor (`gemfiles/standalone.gemfile`).
+#
+# Without this list those matrix entries can never be green: the audit would
+# keep failing on advisories nobody can fix on the line under test, and a
+# permanently red gate is a gate nobody reads. Every maintained line (the root
+# lock on Rails 8.1.4.1, Rails 8.0, Rails 8.1, Ruby >= 3.3, JRuby, TruffleRuby)
+# is patched, so nothing here hides a fixable vulnerability there.
+#
+# Rules for this list:
+#   * only advisories that have no patched release for a line CI tests;
+#   * drop an entry as soon as upstream ships a patch for that line - re-run
+#     `bundle-audit check --update` after every Rails or Ruby bump;
+#   * an entry must never hide a fixable vulnerability: keep the lockfile and
+#     the matrix resolutions on patched releases.
+ignore:
+  # Action Mailbox: signature replay in the Mailgun ingress.
+  - GHSA-5957-c7qm-m469
+  # Action Pack: restoration of destroyed sessions in the CacheStore.
+  - GHSA-2586-8ghr-69fj
+  # Action Pack: missing SameSite attribute on session cookies.
+  - GHSA-gmj8-hvj3-49mw
+  # Action Pack: cache poisoning through content negotiation.
+  - GHSA-r9jg-fmfx-2gv6
+  # Action Pack: DoS in Action Controller live streaming.
+  - GHSA-rwvh-fw6r-pwvp
+  # Action Pack: strong parameters bypass in Parameters#each_key.
+  - GHSA-wm3x-v3qw-4jh3
+  # Action Pack: session information leak through the Active Storage proxy.
+  - GHSA-x6mj-8jx9-qhqv
+  # Action View: XSS in the text helpers.
+  - GHSA-2p2f-4rq4-gjwc
+  # Action View: XSS in the tag helpers.
+  - GHSA-68p9-83h6-5wpj
+  # Action View: XSS in strip_tags.
+  - GHSA-rq8q-p985-fjq7
+  # Action View: XSS in the highlight helper.
+  - GHSA-v6rj-xm57-3p59
+  # Active Storage: local file disclosure in video previews and analysis.
+  - GHSA-3f4q-8x5m-76v8
+  # Active Storage: unsigned Content-Type in GCS direct uploads.
+  - GHSA-3w93-6hmw-whh4
+  # Active Storage: arbitrary file write and read in image analysis.
+  - GHSA-f3w6-w445-fwh9
+  # Active Storage: circumvention of the file size limits.
+  - GHSA-hfr4-8rjc-97m2
+  # Active Storage: DoS in filename handling.
+  - GHSA-p2pm-g2h6-7j5j
+  # Active Storage: arbitrary file read and remote code execution.
+  - GHSA-v924-7rp8-4mxh
+  # Active Support: DoS in safe_constantize.
+  - GHSA-8474-xrp6-wh69

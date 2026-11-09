@@ -19,5 +19,10 @@ else
 end
 # Rails < 7.2 only accepts sqlite3 1.x at runtime.
 gem 'sqlite3', rails_version != 'edge' && Gem::Version.new(rails_version) < Gem::Version.new('7.2') ? '~> 1.4' : '>= 2.1'
+# Rails 7.2.4 (the newest 7.2 patch) requires minitest < 6, but rails-dom-testing
+# asks for minitest without an upper bound: without this pin Bundler keeps
+# minitest 6 and falls back to Rails 7.2.3, which still carries advisories that
+# 7.2.4 already fixes. Rails 8.0+ works with minitest 6, so it stays unpinned.
+gem 'minitest', '< 6' if rails_version != 'edge' && Gem::Version.new(rails_version) < Gem::Version.new('8.0')
 
 eval_gemfile 'rails_common.rb'
