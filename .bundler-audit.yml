@@ -5,56 +5,95 @@
 # 8.1.4.1 - there is no patched release for the older lines the CI matrix
 # deliberately tests:
 #
-#   * Rails 7.2, the demo app's floor (`gemfiles/rails.gemfile`);
-#   * Active Support 7.2.x, the newest release that runs on Ruby 3.1, the
-#     gem's Ruby floor (`gemfiles/standalone.gemfile`).
+#   * Rails 7.2, the demo app's floor (`gemfiles/rails.gemfile`): every
+#     component resolves to 7.2.4, which carries all the advisories below;
+#   * Active Support 7.2.4, the newest release that runs on Ruby 3.1, the
+#     gem's Ruby floor (`gemfiles/standalone.gemfile`): only
+#     GHSA-8474-xrp6-wh69 (safe_constantize DoS) applies there.
 #
-# Without this list those matrix entries can never be green: the audit would
-# keep failing on advisories nobody can fix on the line under test, and a
-# permanently red gate is a gate nobody reads. Every maintained line (the root
-# lock on Rails 8.1.4.1, Rails 8.0, Rails 8.1, Ruby >= 3.3, JRuby, TruffleRuby)
-# is patched, so nothing here hides a fixable vulnerability there.
+# Every entry below names the line it covers and what retires it, so a stale
+# entry is visible in the file. The other audited resolutions carry none of
+# these advisories (the root lock on Rails 8.1.4.1, the Rails 8.0 line on
+# 8.0.5.2, the Rails 8.1 line on 8.1.4.1, Active Support 8.1.4.1 on Ruby >=
+# 3.3 and on JRuby and TruffleRuby), so the list hides nothing there: auditing
+# the root lock with this list switched off reports nothing.
 #
 # Rules for this list:
 #   * only advisories that have no patched release for a line CI tests;
-#   * drop an entry as soon as upstream ships a patch for that line - re-run
-#     `bundle-audit check --update` after every Rails or Ruby bump;
+#   * drop an entry as soon as upstream ships a patch for the line it covers;
 #   * an entry must never hide a fixable vulnerability: keep the lockfile and
 #     the matrix resolutions on patched releases.
+#
+# `bundle-audit` has no conditional ignore entries - the format is a flat
+# list of advisory IDs, read by every run - so this list is global: a Rails
+# line that joins the generated matrix unpatched inherits these mutes. That is
+# a decision to take per line, not a default: audit the new line's resolution
+# with the list switched off before it joins the matrix.
+#
+# How to re-derive the list after a Rails or Ruby bump. `bundle-audit`
+# reports an advisory only for a version it is not patched in, so with the
+# ignore list switched off the output is exactly the list still needed:
+#
+#   printf 'ignore: []\n' > /tmp/no-ignore.yml
+#   bundle-audit check --update --gemfile-lock gemfiles/rails.gemfile.lock --config /tmp/no-ignore.yml
+#   bundle-audit check --update --gemfile-lock gemfiles/standalone.gemfile.lock --config /tmp/no-ignore.yml
+#
+# Every advisory those two commands report still needs an entry here; every
+# advisory missing from their output is stale and its entry must go. The
+# same command on the root lock must report nothing.
 ignore:
   # Action Mailbox: signature replay in the Mailgun ingress.
+  # Rails 7.2 line: drop when that line resolves a patched release.
   - GHSA-5957-c7qm-m469
   # Action Pack: restoration of destroyed sessions in the CacheStore.
+  # Rails 7.2 line: drop when that line resolves a patched release.
   - GHSA-2586-8ghr-69fj
   # Action Pack: missing SameSite attribute on session cookies.
+  # Rails 7.2 line: drop when that line resolves a patched release.
   - GHSA-gmj8-hvj3-49mw
   # Action Pack: cache poisoning through content negotiation.
+  # Rails 7.2 line: drop when that line resolves a patched release.
   - GHSA-r9jg-fmfx-2gv6
   # Action Pack: DoS in Action Controller live streaming.
+  # Rails 7.2 line: drop when that line resolves a patched release.
   - GHSA-rwvh-fw6r-pwvp
   # Action Pack: strong parameters bypass in Parameters#each_key.
+  # Rails 7.2 line: drop when that line resolves a patched release.
   - GHSA-wm3x-v3qw-4jh3
   # Action Pack: session information leak through the Active Storage proxy.
+  # Rails 7.2 line: drop when that line resolves a patched release.
   - GHSA-x6mj-8jx9-qhqv
   # Action View: XSS in the text helpers.
+  # Rails 7.2 line: drop when that line resolves a patched release.
   - GHSA-2p2f-4rq4-gjwc
   # Action View: XSS in the tag helpers.
+  # Rails 7.2 line: drop when that line resolves a patched release.
   - GHSA-68p9-83h6-5wpj
   # Action View: XSS in strip_tags.
+  # Rails 7.2 line: drop when that line resolves a patched release.
   - GHSA-rq8q-p985-fjq7
   # Action View: XSS in the highlight helper.
+  # Rails 7.2 line: drop when that line resolves a patched release.
   - GHSA-v6rj-xm57-3p59
   # Active Storage: local file disclosure in video previews and analysis.
+  # Rails 7.2 line: drop when that line resolves a patched release.
   - GHSA-3f4q-8x5m-76v8
   # Active Storage: unsigned Content-Type in GCS direct uploads.
+  # Rails 7.2 line: drop when that line resolves a patched release.
   - GHSA-3w93-6hmw-whh4
   # Active Storage: arbitrary file write and read in image analysis.
+  # Rails 7.2 line: drop when that line resolves a patched release.
   - GHSA-f3w6-w445-fwh9
   # Active Storage: circumvention of the file size limits.
+  # Rails 7.2 line: drop when that line resolves a patched release.
   - GHSA-hfr4-8rjc-97m2
   # Active Storage: DoS in filename handling.
+  # Rails 7.2 line: drop when that line resolves a patched release.
   - GHSA-p2pm-g2h6-7j5j
   # Active Storage: arbitrary file read and remote code execution.
+  # Rails 7.2 line: drop when that line resolves a patched release.
   - GHSA-v924-7rp8-4mxh
   # Active Support: DoS in safe_constantize.
+  # Rails 7.2 line and Active Support 7.2.4 on Ruby 3.1: drop when both
+  # resolve a patched release.
   - GHSA-8474-xrp6-wh69
