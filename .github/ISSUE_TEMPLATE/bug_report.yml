@@ -41,7 +41,12 @@ body:
     attributes:
       label: Versions
       description: "ruby2html, ruby -v (with/without YJIT), Rails, ViewComponent, OS/arch"
-      placeholder: "ruby2html 2.0.0, ruby 3.4.7 +YJIT, Rails 8.1.4, x86_64-linux"
+      # GitHub issue forms cannot derive values at fill time (static label/description/
+      # placeholder/value only), so this placeholder is refreshed by hand: on every
+      # release, take the gem version from apps/ruby2html/lib/gem/ruby2html/version.rb,
+      # the Ruby version from apps/ruby2html/.ruby-version and the Rails version from
+      # apps/ruby2html/Gemfile.lock (see docs/release.md).
+      placeholder: "ruby2html 2.1.0, ruby 4.0.9 +YJIT, Rails 8.1.4.1, x86_64-linux"
     validations:
       required: true
   - type: checkboxes

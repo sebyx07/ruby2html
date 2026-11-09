@@ -90,7 +90,7 @@ So the template runs with `self` = the view or component: ivars, locals, private
 
 ### ViewComponent (`ComponentHelper`)
 
-`html(&block)`: save `@__r2h`, set it to `Render.new(self, &block)`, render, restore in `ensure`. The renderer lives on the component (fiber-safe; no global state). Private `method_missing` forwards to `@__r2h` so component methods called during a render can emit tags; `respond_to_missing?` only claims `Render` methods (avoids recursion). The block runs on the renderer, so tag names shadow component methods/slots of the same name. Sidecar `.html.rb` templates use the template handler with `self` = component.
+`html(&block)`: save `@__r2h`, set it to `Render.new(self, &block)`, render, restore in `ensure`. The renderer lives on the component (fiber-safe; no global state). Private `method_missing` forwards to `@__r2h` so component methods called during a render can emit tags; `respond_to_missing?` only claims the renderer's **public** methods (`public_method_defined?`, avoids recursion): `method_defined?` would also match protected ones, which `respond_to?` does not report and `method_missing` cannot call. The block runs on the renderer, so tag names shadow component methods/slots of the same name. Sidecar `.html.rb` templates use the template handler with `self` = component.
 
 ### `Ruby2html::Component`
 

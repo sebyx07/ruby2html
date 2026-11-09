@@ -139,7 +139,7 @@ jobs:
           ruby-version: .ruby-version
 
       - name: Download the JRuby-built -java gem
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: java-gem
 
