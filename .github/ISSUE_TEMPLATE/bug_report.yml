@@ -45,7 +45,7 @@ body:
       # placeholder/value only), so this placeholder is refreshed by hand: on every
       # release, take the gem version from lib/gem/ruby2html/version.rb, the Ruby version
       # from .ruby-version and the Rails version from Gemfile.lock (see docs/release.md).
-      placeholder: "ruby2html 2.1.0, ruby 4.0.9 +YJIT, Rails 8.1.4.1, x86_64-linux"
+      placeholder: "ruby2html 2.1.0, ruby 4.0.9 +YJIT, Rails 8.1.4, x86_64-linux"
     validations:
       required: true
   - type: checkboxes
