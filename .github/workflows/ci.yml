@@ -92,8 +92,16 @@ jobs:
         with:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
-      - name: Compile + RSpec (spec/gem without Rails)
-        run: bundle exec rake spec:standalone
+      # The matrix gemfiles have no lockfile of their own: setup-ruby's bundle
+      # install resolved this entry and wrote one next to the gemfile. Audit
+      # that resolution, not just the root Gemfile.lock. The audit shares the
+      # specs step (no extra job or step): it runs first, so an advisory fails
+      # this entry even when the specs fail.
+      - name: Audit the resolved gems, then Compile + RSpec (spec/gem without Rails)
+        run: |
+          gem install --no-document --conservative bundler-audit
+          bundle-audit check --update --gemfile-lock gemfiles/standalone.gemfile.lock
+          bundle exec rake spec:standalone
 
   native:
     # x86_64 = SSE2 path, aarch64/arm64 = NEON path.
@@ -194,10 +202,18 @@ jobs:
         with:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
+      # The matrix gemfiles have no lockfile of their own: setup-ruby's bundle
+      # install resolved this entry and wrote one next to the gemfile. Audit
+      # that resolution, not just the root Gemfile.lock. The audit shares the
+      # specs step (no extra job or step): it runs first, so an advisory fails
+      # this entry even when the specs fail.
       # spec:standalone compiles first: on JRuby that builds the Java escaper
       # jar (ext/java), on TruffleRuby extconf.rb no-ops (pure Ruby is faster).
-      - name: RSpec (spec/gem without Rails)
-        run: bundle exec rake spec:standalone
+      - name: Audit the resolved gems, then RSpec (spec/gem without Rails)
+        run: |
+          gem install --no-document --conservative bundler-audit
+          bundle-audit check --update --gemfile-lock gemfiles/standalone.gemfile.lock
+          bundle exec rake spec:standalone
       # On JRuby this builds and renders from the -java gem (jar inside); on
       # TruffleRuby the pure-Ruby gem.
       - name: Packaged gem installs and renders
@@ -233,7 +249,15 @@ jobs:
         with:
           ruby-version: .ruby-version
           bundler-cache: true
-      - run: bundle exec rake compile
+      # The matrix gemfiles have no lockfile of their own: setup-ruby's bundle
+      # install resolved this entry and wrote one next to the gemfile. Audit
+      # that resolution, not just the root Gemfile.lock. The audit shares the
+      # compile step (no extra job or step): it runs first, before the specs.
+      - name: Audit the resolved gems, then compile
+        run: |
+          gem install --no-document --conservative bundler-audit
+          bundle-audit check --update --gemfile-lock gemfiles/rails.gemfile.lock
+          bundle exec rake compile
       - name: Resolved versions
         run: bundle list | grep -E ' (rails|view_component|phlex-rails|rspec-rails|sqlite3) '
       - name: RSpec (integration specs)
