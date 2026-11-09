@@ -26,8 +26,8 @@ module Ruby2html
     # The demo app's Rails floor, and the single source of truth for it:
     # bin/rails-versions derives the CI matrix's oldest entry from this value,
     # and bin/rails-defaults-check fails CI when the floor the gem advertises
-    # (README.md:26, llms.txt:5) drifts from it. AGENTS.md:22 states the same
-    # floor. Raising this raises the app's floor: the owner's call, not CI's.
+    # (README.md:26, llms.txt:5, AGENTS.md:22) drifts from it. Raising this
+    # raises the app's floor: the owner's call, not CI's.
     config.load_defaults 7.2
 
     # Please, add to the `ignore` list any other `lib` subdirectories that do

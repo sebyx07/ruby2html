@@ -4,7 +4,7 @@
 # Guard: the demo app's Rails floor, the floor the gem advertises and the
 # oldest Rails line of the CI matrix must be the same version.
 #
-#   ruby bin/rails-defaults-check                  # app floor vs README.md + llms.txt
+#   ruby bin/rails-defaults-check                  # app floor vs README.md, llms.txt, AGENTS.md
 #   ruby bin/rails-defaults-check '["7.2","8.0"]'  # ... and vs the matrix's oldest entry
 #
 # Exits 1 and names every version compared when they drift, 0 when they
@@ -15,7 +15,7 @@ require 'open3'
 require 'rbconfig'
 
 ROOT = File.expand_path('..', __dir__)
-ADVERTISED_FILES = %w[README.md llms.txt].freeze
+ADVERTISED_FILES = %w[README.md llms.txt AGENTS.md].freeze
 ADVERTISED_FLOOR = /Rails (\d+(?:\.\d+)*)\+/
 
 def app_floor
@@ -65,7 +65,8 @@ if matrix
 end
 
 if problems.empty?
-  puts "Rails floor #{floor}: #{reported.map(&:first).join(', ')} agree."
+  summary = reported.map { |label, version| "#{label}: #{version}" }.join(', ')
+  puts "Rails floor #{floor}: #{summary} agree."
   exit 0
 end
 
