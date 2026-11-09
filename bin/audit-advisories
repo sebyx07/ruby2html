@@ -1,0 +1,93 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'pathname'
+
+# Audits one resolved lockfile against the Ruby advisory database.
+#
+#   bin/audit-advisories                       # the lockfile of BUNDLE_GEMFILE, else Gemfile.lock
+#   bin/audit-advisories path/to/Gemfile.lock  # an explicit lockfile
+#
+# The matrix jobs install an unlocked gemfile: ruby/setup-ruby resolves it
+# during the job and writes the lockfile next to it (gemfiles/*.lock,
+# gitignored, never committed). That resolved set is what the job installs, so
+# it is what has to be audited; the committed root Gemfile.lock has its own CI
+# job (bundle-audit check --update).
+#
+# bundle-audit exits 1 when it finds an advisory: this script exits with
+# bundle-audit's status, so an advisory fails the CI job.
+#
+# bundle-audit resolves --gemfile-lock against its own working directory, so
+# the audit runs in the project root and gets the lockfile as a path relative
+# to it.
+
+ROOT = File.expand_path('..', __dir__)
+
+# The child processes must not see the caller's Bundler environment: they read
+# the lockfile they are given, not the bundle the caller resolved. GEM_HOME and
+# GEM_PATH stay: bundler-audit is installed in and looked up there.
+def clean_env
+  ENV.to_h.reject { |key, _value| key.match?(/\A(BUNDLE|BUNDLER|RUBYOPT|RUBYLIB)/) }
+end
+
+# The lockfile to audit: ARGV[0], else the one Bundler writes next to
+# BUNDLE_GEMFILE, else the committed root Gemfile.lock.
+def lockfile
+  argument = ARGV[0].to_s
+  return File.expand_path(argument) unless argument.empty?
+
+  gemfile = ENV['BUNDLE_GEMFILE'].to_s
+  return File.expand_path("#{gemfile}.lock") unless gemfile.empty?
+
+  File.join(ROOT, 'Gemfile.lock')
+end
+
+# The path bundle-audit gets for the lockfile: it resolves --gemfile-lock
+# against its own working directory (File.join(File.expand_path(Dir.pwd),
+# value)), so an absolute path never resolves. The audit runs in the project
+# root and hands over a path relative to it.
+def lockfile_argument(lock)
+  Pathname.new(lock).relative_path_from(Pathname.new(ROOT)).to_s
+end
+
+# The first executable named cmd on PATH.
+def which(cmd, env)
+  env.fetch('PATH', '').split(File::PATH_SEPARATOR).each do |dir|
+    next if dir.empty?
+
+    path = File.join(dir, cmd)
+    return path if File.file?(path) && File.executable?(path)
+  end
+  nil
+end
+
+# Where RubyGems installs executables: that directory is not always on PATH.
+def gem_executable(name)
+  dirs = %i[default_bindir user_bindir bindir].filter_map do |dir|
+    Gem.public_send(dir) if Gem.respond_to?(dir)
+  end
+  dirs.uniq.map { |dir| File.join(dir, name) }
+      .find { |path| File.file?(path) && File.executable?(path) }
+end
+
+env = clean_env
+lock = lockfile
+
+abort "audit: no such lockfile: #{lock}" unless File.file?(lock)
+
+exe = which('bundle-audit', env)
+
+unless exe
+  puts '== Installing bundler-audit'
+  abort 'audit: could not install bundler-audit' unless system(env, 'gem', 'install', '--no-document', 'bundler-audit', unsetenv_others: true)
+
+  exe = which('bundle-audit', env) || gem_executable('bundle-audit')
+end
+
+abort 'audit: bundle-audit is not available' if exe.nil?
+
+puts "== Auditing #{lock}"
+pid = Process.spawn(env, exe, 'check', '--update', '--gemfile-lock', lockfile_argument(lock),
+                    chdir: ROOT, unsetenv_others: true)
+_, status = Process.wait2(pid)
+exit(status.exitstatus || 1)

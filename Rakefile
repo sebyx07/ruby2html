@@ -13,7 +13,7 @@
 
 require 'rake/clean'
 
-GEM_TASK = /\A(default|compile(:.*)?|clean|clobber|spec(:gem|:standalone)?|bench|smoke|build(:.*)?|install(:.*)?|release(:.*)?)\z/
+GEM_TASK = /\A(default|compile(:.*)?|clean|clobber|spec(:gem|:standalone)?|bench|smoke|build(:.*)?|install(:.*)?|release(:.*)?|audit(:.*)?)\z/
 
 requested = Rake.application.top_level_tasks.map { |t| t.split('[').first }
 listing = Rake.application.options.show_tasks || Rake.application.options.show_prereqs # rake -T / -D / -W / -P
@@ -68,6 +68,27 @@ else
     task(:compile) { abort 'rake-compiler is not installed: bundle install' }
   end
 end
+
+# --- Dependency audit ----------------------------------------------------------
+# The matrix jobs install an unlocked gemfile (gemfiles/standalone.gemfile,
+# gemfiles/rails.gemfile): ruby/setup-ruby resolves it during the job and writes
+# the lockfile next to it (gemfiles/*.lock, gitignored, never committed). That
+# resolved set is what the job installs, so it is what has to be audited against
+# the Ruby advisory database; the committed root Gemfile.lock has its own CI job.
+#
+# The audit rides on compile, the one task every matrix entry runs (spec:gem and
+# spec:standalone depend on it), so it needs no extra step in the workflow.
+desc 'Audit the resolved lockfile against the Ruby advisory database (CI only)'
+task 'audit:advisories' do
+  gemfile = ENV['BUNDLE_GEMFILE'].to_s
+  if ENV['CI'] && File.basename(gemfile).end_with?('.gemfile')
+    ruby File.expand_path('bin/audit-advisories', __dir__)
+  else
+    puts 'audit:advisories skipped (CI only, and only for the unlocked matrix gemfiles)'
+  end
+end
+
+Rake::Task[:compile].enhance(['audit:advisories'])
 
 # --- Packaging (build / install / release into pkg/) ----------------------------
 # Building a source gem does not need a compiled extension or a Rails boot.

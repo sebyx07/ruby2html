@@ -6,6 +6,10 @@ Entries before 1.6.6 were reconstructed from `git log` and RubyGems release date
 
 ## [Unreleased]
 
+### Changed
+
+- CI now audits every matrix entry's resolved dependency set against the Ruby advisory database — the `audit` job only checked the committed root `Gemfile.lock`, which keeps its own `bundle-audit` job. The matrix jobs install an unlocked gemfile, so Bundler resolves it during the job and writes the lockfile next to it (`gemfiles/standalone.gemfile.lock`, `gemfiles/rails.gemfile.lock`); the audit of that resolved lockfile rides on `rake compile` (`audit:advisories` → `bin/audit-advisories`), the task every matrix entry already runs, so each entry audits the set it actually installed, in the job that installed it. An advisory now fails the matrix entry and, with it, the aggregate `CI OK` job.
+
 ### Fixed
 
 - Appending a renderer's own output buffer to itself (`plain(current_output)`, `component(current_output)`) could read freed memory with the C extension: growing the buffer while its own bytes were still being read moved them out from under the read, which aborted under ASAN in the sanitizer CI job and could crash or corrupt output anywhere. Escaped and raw appends (`r2h_append_escaped`, `r2h_append_raw`) now duplicate the string first when it is the buffer; the pure-Ruby renderer was never affected, and output stays byte-identical (pinned by the new "can append the output buffer to itself" example, which runs against both implementations).
