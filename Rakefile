@@ -78,6 +78,11 @@ end
 #
 # The audit rides on compile, the one task every matrix entry runs (spec:gem and
 # spec:standalone depend on it), so it needs no extra step in the workflow.
+#
+# bin/audit-advisories accepts the reviewed advisories of the floor lines the
+# matrix resolves on purpose (Rails 7.2.x, Active Support 7.2.x on Ruby 3.1),
+# listed by advisory id in the script and scoped to the resolved version. Every
+# other advisory fails the entry, and with it the aggregate CI OK job.
 desc 'Audit the resolved lockfile against the Ruby advisory database (CI only)'
 task 'audit:advisories' do
   gemfile = ENV['BUNDLE_GEMFILE'].to_s

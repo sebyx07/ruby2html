@@ -36,6 +36,52 @@ RSpec.describe 'CI dependency audits' do
     Dir[File.join(root, 'gemfiles', '*.gemfile')].map { |path| File.basename(path) }.sort
   end
 
+  # A stub bundle-audit: it records how it was called and exits with a given
+  # status. The real one needs the advisory database and the network.
+  def with_stub_audit(status:)
+    Dir.mktmpdir('audit-advisories') do |dir|
+      record = File.join(dir, 'record')
+      stub = File.join(dir, 'bundle-audit')
+      File.write(stub, <<~RUBY)
+        #!#{RbConfig.ruby}
+        call = [ARGV.join(' '), Dir.pwd, ENV['BUNDLE_GEMFILE'].to_s]
+        File.write(#{record.dump}, call.join("\\n") + "\\n")
+        exit #{status}
+      RUBY
+      File.chmod(0o755, stub)
+
+      yield dir, record
+    end
+  end
+
+  # What the stub recorded: the arguments it got, the working directory it
+  # ran in and the BUNDLE_GEMFILE it saw.
+  def recorded_call(record)
+    argv, cwd, bundle_gemfile = File.read(record).lines.map(&:chomp)
+
+    { argv: argv, cwd: cwd, bundle_gemfile: bundle_gemfile }
+  end
+
+  # The advisory ids the stub was told to ignore.
+  def ignored_advisories(record)
+    recorded_call(record)[:argv].split('--ignore').last.to_s.split
+  end
+
+  def run_audit(env, *args)
+    # The script is standalone: it must not run inside the caller's bundle.
+    standalone = { 'RUBYOPT' => nil, 'RUBYGEMS_GEMDEPS' => nil, 'BUNDLER_SETUP' => nil }
+    Open3.capture3(standalone.merge(env), RbConfig.ruby, script_path, *args)
+  end
+
+  # A lockfile that resolves the given gems to the given versions.
+  def lockfile_with(dir, gems)
+    specs = gems.map { |gem, version| "    #{gem} (#{version})" }.join("\n")
+
+    File.join(dir, 'Gemfile.lock').tap do |lock|
+      File.write(lock, "GEM\n  remote: https://rubygems.org/\n  specs:\n#{specs}\n")
+    end
+  end
+
   def steps_of(job)
     job['steps'].is_a?(Array) ? job['steps'] : []
   end
@@ -122,42 +168,10 @@ RSpec.describe 'CI dependency audits' do
   end
 
   describe 'bin/audit-advisories' do
-    # A stub bundle-audit: it records how it was called and exits with a given
-    # status. The real one needs the advisory database and the network.
-    def with_stub_audit(status:)
-      Dir.mktmpdir('audit-advisories') do |dir|
-        record = File.join(dir, 'record')
-        stub = File.join(dir, 'bundle-audit')
-        File.write(stub, <<~RUBY)
-          #!#{RbConfig.ruby}
-          call = [ARGV.join(' '), Dir.pwd, ENV['BUNDLE_GEMFILE'].to_s]
-          File.write(#{record.dump}, call.join("\\n") + "\\n")
-          exit #{status}
-        RUBY
-        File.chmod(0o755, stub)
-
-        yield dir, record
-      end
-    end
-
-    # What the stub recorded: the arguments it got, the working directory it
-    # ran in and the BUNDLE_GEMFILE it saw.
-    def recorded_call(record)
-      argv, cwd, bundle_gemfile = File.read(record).lines.map(&:chomp)
-
-      { argv: argv, cwd: cwd, bundle_gemfile: bundle_gemfile }
-    end
-
     # bundle-audit resolves --gemfile-lock against its own working directory,
     # so the script hands it a path relative to the project root.
     def relative_to_root(path)
       Pathname.new(path).relative_path_from(Pathname.new(root)).to_s
-    end
-
-    def run_audit(env, *args)
-      # The script is standalone: it must not run inside the caller's bundle.
-      standalone = { 'RUBYOPT' => nil, 'RUBYGEMS_GEMDEPS' => nil, 'BUNDLER_SETUP' => nil }
-      Open3.capture3(standalone.merge(env), RbConfig.ruby, script_path, *args)
     end
 
     it 'is an executable script' do
@@ -271,6 +285,116 @@ RSpec.describe 'CI dependency audits' do
 
         expect(status.exitstatus).not_to eq(0)
         expect(err).to include('missing.lock')
+      end
+    end
+  end
+
+  describe 'the accepted advisories' do
+    # The advisories the script accepts, read from the script itself: the list
+    # is the policy, the spec pins how the script applies it.
+    def accepted_advisories
+      block = script[/ACCEPTED_ADVISORIES = \{(.*?)\n\}\.freeze/m, 1]
+      raise 'bin/audit-advisories declares no ACCEPTED_ADVISORIES' if block.nil?
+
+      block.scan(/'([\w-]+)' => \{ '([^']+)' => %w\[(.*?)\] \}/m).to_h do |gem, requirement, ids|
+        [gem, { requirement => ids.split }]
+      end
+    end
+
+    it 'declares every accepted advisory by its id, scoped to one release line' do
+      accepted = accepted_advisories
+
+      expect(accepted).not_to be_empty, 'the script accepts no advisory at all'
+
+      accepted.each_value do |ranges|
+        ranges.each do |requirement, ids|
+          expect(requirement).to start_with('~> '),
+                                     "an accepted advisory must be scoped to one release line: #{requirement}"
+          expect(ids).not_to be_empty, "no advisory id listed for #{requirement}"
+
+          ids.each do |id|
+            expect(id).to match(/\A(?:GHSA|CVE)-[A-Za-z0-9-]+\z/), "#{id} is not an advisory id"
+          end
+        end
+      end
+    end
+
+    it 'accepts the advisories of the floor line the lockfile resolves' do
+      with_stub_audit(status: 0) do |dir, record|
+        lock = lockfile_with(dir, 'activesupport' => '7.2.4')
+
+        _out, _err, status = run_audit({ 'PATH' => dir }, lock)
+
+        expect(status.exitstatus).to eq(0)
+        expect(ignored_advisories(record)).to match_array(accepted_advisories.fetch('activesupport')
+                                                            .fetch('~> 7.2.0'))
+      end
+    end
+
+    it 'names the accepted advisories in the job log' do
+      with_stub_audit(status: 0) do |dir, _record|
+        lock = lockfile_with(dir, 'activesupport' => '7.2.4')
+
+        out, _err, status = run_audit({ 'PATH' => dir }, lock)
+
+        expect(status.exitstatus).to eq(0)
+        expect(out).to include('GHSA-8474-xrp6-wh69'),
+                       'the job log must name the advisories the audit accepts'
+      end
+    end
+
+    it 'audits a newer line without any exception' do
+      with_stub_audit(status: 0) do |dir, record|
+        lock = lockfile_with(dir, 'activesupport' => '8.1.4.1')
+
+        _out, _err, status = run_audit({ 'PATH' => dir }, lock)
+
+        expect(status.exitstatus).to eq(0)
+        expect(recorded_call(record)[:argv]).not_to include('--ignore'),
+                                                      'a line outside the accepted ranges must be audited without exceptions'
+      end
+    end
+
+    it 'accepts advisories of the resolved gem only' do
+      with_stub_audit(status: 0) do |dir, record|
+        lock = lockfile_with(dir, 'activesupport' => '7.2.4')
+
+        _out, _err, status = run_audit({ 'PATH' => dir }, lock)
+
+        expect(status.exitstatus).to eq(0)
+        accepted = accepted_advisories
+        ignored = ignored_advisories(record)
+
+        accepted.each do |gem, ranges|
+          next if gem == 'activesupport'
+
+          ranges.each_value do |ids|
+            ids.each do |id|
+              expect(ignored).not_to include(id),
+                                     "the audit accepted #{id}, an advisory of #{gem}, which it does not resolve"
+            end
+          end
+        end
+      end
+    end
+
+    it 'keeps the root lockfile free of exceptions' do
+      with_stub_audit(status: 0) do |dir, record|
+        _out, _err, status = run_audit({ 'PATH' => dir })
+
+        expect(status.exitstatus).to eq(0)
+        expect(recorded_call(record)[:argv]).not_to include('--ignore'),
+                                                      'the committed root Gemfile.lock must be audited without exceptions'
+      end
+    end
+
+    it 'still fails the job on an advisory it does not accept' do
+      with_stub_audit(status: 1) do |dir, _record|
+        lock = lockfile_with(dir, 'activesupport' => '7.2.4')
+
+        _out, _err, status = run_audit({ 'PATH' => dir }, lock)
+
+        expect(status.exitstatus).to eq(1), 'an advisory the audit does not accept must fail the CI job'
       end
     end
   end

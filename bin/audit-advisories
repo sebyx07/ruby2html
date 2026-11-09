@@ -15,13 +15,72 @@ require 'pathname'
 # job (bundle-audit check --update).
 #
 # bundle-audit exits 1 when it finds an advisory: this script exits with
-# bundle-audit's status, so an advisory fails the CI job.
+# bundle-audit's status, so an advisory fails the CI job. The advisories of the
+# floor lines the matrix resolves on purpose are accepted by id (see
+# ACCEPTED_ADVISORIES below); every other advisory still fails the job.
 #
 # bundle-audit resolves --gemfile-lock against its own working directory, so
 # the audit runs in the project root and gets the lockfile as a path relative
 # to it.
 
 ROOT = File.expand_path('..', __dir__)
+
+# The advisories the audit accepts, per gem and per version range.
+#
+# The matrix resolves the oldest supported dependency lines on purpose: Rails
+# 7.2.x, and Active Support 7.2.x on Ruby 3.1, where Active Support 8 does not
+# install. Upstream does not patch those lines any more: every advisory below
+# is fixed in a newer line only (8.0.5.2, 8.1.4.1), or in a patch release the
+# matrix cannot resolve, because the Rails 7.2 line pins its components to the
+# version of the rails release it ships with. The gem itself has no runtime
+# dependencies and the demo app that pulls Rails is not part of the package
+# (SECURITY.md), so the accepted risk belongs to the demo app, not to the gem.
+#
+# The exception is scoped to the resolved version: it applies only when the
+# lockfile resolves the gem inside the accepted range. Every other line (Rails
+# 8.0, 8.1, Active Support 8) is audited without any exception, and an
+# advisory that is not listed here still fails the job.
+#
+# Reviewed 2026-11-09. Drop an entry as soon as the matrix resolves a patched
+# version of that line.
+ACCEPTED_ADVISORIES = {
+  'actionmailbox' => { '~> 7.2.0' => %w[GHSA-5957-c7qm-m469] },
+  'actionpack' => { '~> 7.2.0' => %w[
+    GHSA-2586-8ghr-69fj
+    GHSA-gmj8-hvj3-49mw
+    GHSA-r9jg-fmfx-2gv6
+    GHSA-rwvh-fw6r-pwvp
+    GHSA-wm3x-v3qw-4jh3
+    GHSA-x6mj-8jx9-qhqv
+  ] },
+  'actionview' => { '~> 7.2.0' => %w[
+    GHSA-2p2f-4rq4-gjwc
+    GHSA-68p9-83h6-5wpj
+    GHSA-rq8q-p985-fjq7
+    GHSA-v55j-83pf-r9cq
+    GHSA-v6rj-xm57-3p59
+  ] },
+  'activestorage' => { '~> 7.2.0' => %w[
+    GHSA-3f4q-8x5m-76v8
+    GHSA-3w93-6hmw-whh4
+    GHSA-73f9-jhhh-hr5m
+    GHSA-9xrj-h377-fr87
+    GHSA-f3w6-w445-fwh9
+    GHSA-hfr4-8rjc-97m2
+    GHSA-p2pm-g2h6-7j5j
+    GHSA-p9fm-f462-ggrg
+    GHSA-qcfx-2mfw-w4cg
+    GHSA-r46p-8f7g-vvvg
+    GHSA-v924-7rp8-4mxh
+    GHSA-xr9x-r78c-5hrm
+  ] },
+  'activesupport' => { '~> 7.2.0' => %w[
+    GHSA-2j26-frm8-cmj9
+    GHSA-8474-xrp6-wh69
+    GHSA-89vf-4333-qx8v
+    GHSA-cg4j-q9v8-6v38
+  ] }
+}.freeze
 
 # The child processes must not see the caller's Bundler environment: they read
 # the lockfile they are given, not the bundle the caller resolved. GEM_HOME and
@@ -48,6 +107,32 @@ end
 # root and hands over a path relative to it.
 def lockfile_argument(lock)
   Pathname.new(lock).relative_path_from(Pathname.new(ROOT)).to_s
+end
+
+# The versions the lockfile resolves: "    gemname (1.2.3)" in its spec list.
+def resolved_versions(lock)
+  File.foreach(lock).each_with_object({}) do |line, versions|
+    match = line.match(/\A {4}(\S+) \(([^)]+)\)\s*\z/)
+    versions[match[1]] = match[2] if match
+  end
+end
+
+# The advisories accepted for this lockfile: an accepted advisory counts only
+# when the lockfile resolves its gem inside the accepted range, so an accepted
+# id can never hide an advisory in a newer line.
+def accepted_advisories(lock)
+  versions = resolved_versions(lock)
+
+  ACCEPTED_ADVISORIES.flat_map do |gem, ranges|
+    version = versions[gem]
+    next [] if version.nil? || !Gem::Version.correct?(version)
+
+    matching = ranges.select do |requirement, _advisories|
+      Gem::Requirement.new(requirement).satisfied_by?(Gem::Version.new(version))
+    end
+
+    matching.values.flatten
+  end.uniq
 end
 
 # The first executable named cmd on PATH.
@@ -87,7 +172,16 @@ end
 abort 'audit: bundle-audit is not available' if exe.nil?
 
 puts "== Auditing #{lock}"
-pid = Process.spawn(env, exe, 'check', '--update', '--gemfile-lock', lockfile_argument(lock),
-                    chdir: ROOT, unsetenv_others: true)
+
+args = ['check', '--update', '--gemfile-lock', lockfile_argument(lock)]
+accepted = accepted_advisories(lock)
+
+unless accepted.empty?
+  puts "== Accepting #{accepted.size} reviewed advisories (see bin/audit-advisories):"
+  accepted.sort.each { |advisory| puts "   #{advisory}" }
+  args += ['--ignore', *accepted]
+end
+
+pid = Process.spawn(env, exe, *args, chdir: ROOT, unsetenv_others: true)
 _, status = Process.wait2(pid)
 exit(status.exitstatus || 1)
