@@ -6,22 +6,27 @@ require 'tmpdir'
 
 RSpec.describe 'bin/brakeman' do
   let(:script_path) { File.expand_path('../../bin/brakeman', __dir__) }
-  let(:locked_version) { '8.1.0' }
+  # The version the bundle actually locks (Gemfile.lock), not a literal: this
+  # spec cannot silently drift from the brakeman CI scans with.
+  let(:locked_version) { Gem.loaded_specs['brakeman'].version.to_s }
   let(:upstream_version) { '99.0.0' }
 
   # bin/brakeman runs as a subprocess in a hermetic gem environment:
   # bundler/setup is stubbed out, the locked brakeman spec points at a fake
-  # executable and Gem.latest_spec_for is stubbed, so nothing hits the network.
+  # executable and Gem.latest_spec_for is stubbed, so nothing hits the network
+  # (an unstubbed lookup raises the way rubygems.org-unreachable does, and is
+  # logged so the specs can tell whether the script consulted it at all).
   # The fake executable records the arguments it was called with and exits
   # with the requested status, which keeps the script's own decisions
   # observable: which executable ran, what it was told and how the script
   # exited.
-  def run_brakeman(args: [], latest: 'same', mode: 'normal', exit_code: 0)
+  def run_brakeman(args: [], latest: 'same', mode: 'normal', exit_code: 0, check_latest: false)
     Dir.mktmpdir do |dir|
       bin_dir = File.join(dir, 'locked', 'bin')
       empty_bin_dir = File.join(dir, 'locked', 'empty-bin')
       stub_dir = File.join(dir, 'stub')
       log = File.join(dir, 'brakeman.log')
+      lookup_log = File.join(dir, 'lookup.log')
       decoy_log = File.join(dir, 'decoy.log')
       decoy = File.join(dir, 'decoy', 'brakeman')
       prelude = File.join(dir, 'prelude.rb')
@@ -42,9 +47,11 @@ RSpec.describe 'bin/brakeman' do
         'R2H_EXIT' => exit_code.to_s,
         'R2H_LATEST' => latest,
         'R2H_LOG' => log,
+        'R2H_LOOKUP_LOG' => lookup_log,
         'R2H_MODE' => mode,
         'R2H_UPSTREAM' => upstream_version,
-        'R2H_VERSION' => locked_version
+        'R2H_VERSION' => locked_version,
+        'RUBY2HTML_CHECK_LATEST' => check_latest ? '1' : nil
       }
 
       stdout, stderr, status = Open3.capture3(env, RbConfig.ruby, '-r', prelude, script_path, *args)
@@ -54,7 +61,8 @@ RSpec.describe 'bin/brakeman' do
         stderr,
         status,
         File.exist?(log) ? File.read(log) : nil,
-        File.exist?(decoy_log) ? File.read(decoy_log) : nil
+        File.exist?(decoy_log) ? File.read(decoy_log) : nil,
+        File.exist?(lookup_log) ? File.read(lookup_log) : nil
       ]
     end
   end
@@ -67,7 +75,8 @@ RSpec.describe 'bin/brakeman' do
   end
 
   # The fake gem environment: the locked brakeman spec, a stubbed
-  # Gem.latest_spec_for (newer, same or unreachable) and a stubbed
+  # Gem.latest_spec_for (newer, same or unreachable; unstubbed calls raise
+  # instead of reaching rubygems.org) and a stubbed
   # Gem.bin_path that points at a decoy executable, so the script cannot
   # silently fall back to whatever brakeman happens to be installed.
   def prelude_source
@@ -89,12 +98,15 @@ RSpec.describe 'bin/brakeman' do
         end
       end
 
-      # Replaces the two RubyGems lookups the script relies on.
+      # Replaces the two RubyGems lookups the script relies on. Every
+      # latest_spec_for call is logged, so a spec can tell whether the script
+      # consulted rubygems.org at all; an unstubbed call raises, keeping the
+      # subprocess off the network.
       module FakeGemEnvironment
         def latest_spec_for(name, *args, **kwargs, &block)
+          File.open(ENV.fetch('R2H_LOOKUP_LOG'), 'a') { |file| file.puts(name.to_s) }
           mode = ENV.fetch('R2H_LATEST', '')
-          return super if mode.empty?
-          if mode == 'offline'
+          if mode.empty? || mode == 'offline'
             raise Gem::RemoteFetcher::FetchError.new('rubygems.org is unreachable', 'https://rubygems.org')
           end
 
@@ -154,16 +166,29 @@ RSpec.describe 'bin/brakeman' do
   end
 
   it 'runs the executable of the locked brakeman gem spec' do
-    stdout, _stderr, status, log, decoy_log = run_brakeman(args: ['--no-pager'])
+    stdout, _stderr, status, log, decoy_log, lookup_log = run_brakeman(args: ['--no-pager'])
 
     expect(status).to be_success
     expect(stdout).to include('fake brakeman: scan complete')
     expect(log).to include('--no-pager')
     expect(decoy_log).to be_nil
+    # Opt-in upstream check: the scan starts without a rubygems.org round trip.
+    expect(lookup_log).to be_nil
+  end
+
+  it 'consults rubygems.org only when RUBY2HTML_CHECK_LATEST is set' do
+    stdout, stderr, status, log, _decoy_log, lookup_log = run_brakeman(args: ['--no-pager'], check_latest: true)
+
+    expect(status).to be_success
+    expect(lookup_log).to include('brakeman')
+    # Same version upstream: nothing to warn about, exit status untouched.
+    expect(stderr).to be_empty
+    expect(stdout).to include('fake brakeman: scan complete')
+    expect(log).to include('--no-pager')
   end
 
   it 'reports a newer upstream brakeman on stderr without changing the exit status' do
-    stdout, stderr, status, log = run_brakeman(args: ['--no-pager'], latest: 'newer')
+    stdout, stderr, status, log = run_brakeman(args: ['--no-pager'], latest: 'newer', check_latest: true)
 
     expect(status).to be_success
     expect(status.exitstatus).not_to eq(5)
@@ -175,7 +200,7 @@ RSpec.describe 'bin/brakeman' do
   end
 
   it 'never passes brakeman the ensure-latest option' do
-    _stdout, stderr, status, log = run_brakeman(args: ['--no-pager'], latest: 'newer')
+    _stdout, stderr, status, log = run_brakeman(args: ['--no-pager'], latest: 'newer', check_latest: true)
 
     expect(status).to be_success
     expect(log).not_to include('ensure-latest')
@@ -192,7 +217,7 @@ RSpec.describe 'bin/brakeman' do
   end
 
   it 'runs the scan when rubygems.org cannot be reached' do
-    stdout, stderr, status, log = run_brakeman(args: ['--no-pager'], latest: 'offline')
+    stdout, stderr, status, log = run_brakeman(args: ['--no-pager'], latest: 'offline', check_latest: true)
 
     expect(status).to be_success
     expect(stdout).to include('fake brakeman: scan complete')

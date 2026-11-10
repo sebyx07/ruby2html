@@ -12,6 +12,14 @@ rescue StandardError
   nil
 end
 
+# The upstream-version check is opt-in (RUBY2HTML_CHECK_LATEST=1): it is a
+# live rubygems.org round trip, and the scan must start without one - a CI
+# job or an offline machine must not block (or hang until the fetcher
+# timeout) before the scan.
+def latest_check_requested?
+  !ENV.fetch('RUBY2HTML_CHECK_LATEST', '').empty?
+end
+
 # Scan with the brakeman locked in Gemfile.lock.
 #
 # Gemfile.lock lists brakeman as a bare dependency (no version requirement), so
@@ -35,12 +43,17 @@ abort("brakeman executable missing: #{brakeman_executable}") unless File.exist?(
 # valid lock must never turn CI red, and version skew must never mask a red
 # scan.
 #
-# A newer upstream brakeman is reported on stderr only, below. The exit status
-# stays brakeman's own: no warning flag is passed, so brakeman's default
-# applies and findings still fail the build (Warnings_Found_Exit_Code).
-latest_version = latest_brakeman_version
-if latest_version && latest_version > brakeman_spec.version
-  warn "brakeman #{brakeman_spec.version} is behind the latest release #{latest_version} - the scan ran against the locked version."
+# A newer upstream brakeman is reported on stderr only, below - and only when
+# the check is requested (RUBY2HTML_CHECK_LATEST=1), because the lookup is a
+# live rubygems.org round trip the scan must not wait on (see
+# latest_check_requested?). The exit status stays brakeman's own: no warning
+# flag is passed, so brakeman's default applies and findings still fail the
+# build (Warnings_Found_Exit_Code).
+if latest_check_requested?
+  latest_version = latest_brakeman_version
+  if latest_version && latest_version > brakeman_spec.version
+    warn "brakeman #{brakeman_spec.version} is behind the latest release #{latest_version} - the scan ran against the locked version."
+  end
 end
 
 load brakeman_executable
