@@ -8,6 +8,11 @@ version: 2
 #
 # cooldown: a release must be 14 days old before it is proposed, so broken or
 # compromised releases are usually yanked first. Security updates skip it.
+# The dev-tools group (linters, scanners, test tooling) is exempt from the
+# bundler cooldown via cooldown.exclude: Dependabot has no per-group cooldown
+# key, so exclude is the only lever. A stale linter or scanner is itself a CI
+# risk, so those bumps are proposed within days instead of two weeks. The
+# exclude list mirrors the dev-tools group patterns below - keep both in sync.
 updates:
   - package-ecosystem: bundler
     directory: /apps/ruby2html
@@ -16,6 +21,15 @@ updates:
       day: monday
     cooldown:
       default-days: 14
+      exclude:
+        - 'rubocop*'
+        - 'brakeman'
+        - 'lefthook'
+        - 'rake*'
+        - 'benchmark-ips'
+        - 'capybara'
+        - 'faker'
+        - 'pry*'
     open-pull-requests-limit: 10
     groups:
       rails:
