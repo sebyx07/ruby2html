@@ -16,6 +16,17 @@ permissions:
 env:
   CI: '1'
 
+# Audited dependency sets: the committed root Gemfile.lock (job "audit") plus
+# the sets the matrix jobs resolve from the unlocked gemfiles/standalone.gemfile
+# and gemfiles/rails.gemfile. ruby/setup-ruby resolves those gemfiles during the
+# job and writes the lockfile next to the gemfile (gemfiles/*.lock, gitignored,
+# never committed); the audit of that lockfile rides on rake compile (rake
+# audit:advisories -> bin/audit-advisories), the task every matrix entry
+# already runs, so each entry audits the set it actually resolved, in the job
+# that installed it.
+# bundle-audit exits 1 on an advisory, so a finding fails the matrix entry and
+# with it the aggregate "CI OK" job.
+#
 # Branch protection only needs to require the final "CI OK" check.
 # Gems are cached by ruby/setup-ruby (bundler-cache), keyed on the lockfile or
 # gemfile, Ruby version and OS.
