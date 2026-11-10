@@ -25,7 +25,7 @@ require 'pathname'
 
 ROOT = File.expand_path('..', __dir__)
 
-# The advisories the audit accepts, per gem and per version range.
+# The advisories the audit accepts, per gem and per reviewed version.
 #
 # The matrix resolves the oldest supported dependency lines on purpose: Rails
 # 7.2.x, and Active Support 7.2.x on Ruby 3.1, where Active Support 8 does not
@@ -36,16 +36,18 @@ ROOT = File.expand_path('..', __dir__)
 # dependencies and the demo app that pulls Rails is not part of the package
 # (SECURITY.md), so the accepted risk belongs to the demo app, not to the gem.
 #
-# The exception is scoped to the resolved version: it applies only when the
-# lockfile resolves the gem inside the accepted range. Every other line (Rails
-# 8.0, 8.1, Active Support 8) is audited without any exception, and an
-# advisory that is not listed here still fails the job.
+# The exception is scoped to the exact reviewed version: it applies only when
+# the lockfile resolves that very version. A moved resolution — a new patch
+# release of the line, patched or not — drops every exception and fails the
+# audit until the list is reviewed again, so an exception can never outlive
+# the version it was reviewed for, and an id that does not apply to the
+# resolved version can never be ignored at all.
 #
-# Reviewed 2026-11-09. Drop an entry as soon as the matrix resolves a patched
-# version of that line.
+# Reviewed 2026-11-09 (all five components resolve 7.2.3 on the 7.2 line).
+# Drop an entry as soon as the matrix resolves a patched version of that line.
 ACCEPTED_ADVISORIES = {
-  'actionmailbox' => { '~> 7.2.0' => %w[GHSA-5957-c7qm-m469] },
-  'actionpack' => { '~> 7.2.0' => %w[
+  'actionmailbox' => { '7.2.3' => %w[GHSA-5957-c7qm-m469] },
+  'actionpack' => { '7.2.3' => %w[
     GHSA-2586-8ghr-69fj
     GHSA-gmj8-hvj3-49mw
     GHSA-r9jg-fmfx-2gv6
@@ -53,14 +55,14 @@ ACCEPTED_ADVISORIES = {
     GHSA-wm3x-v3qw-4jh3
     GHSA-x6mj-8jx9-qhqv
   ] },
-  'actionview' => { '~> 7.2.0' => %w[
+  'actionview' => { '7.2.3' => %w[
     GHSA-2p2f-4rq4-gjwc
     GHSA-68p9-83h6-5wpj
     GHSA-rq8q-p985-fjq7
     GHSA-v55j-83pf-r9cq
     GHSA-v6rj-xm57-3p59
   ] },
-  'activestorage' => { '~> 7.2.0' => %w[
+  'activestorage' => { '7.2.3' => %w[
     GHSA-3f4q-8x5m-76v8
     GHSA-3w93-6hmw-whh4
     GHSA-73f9-jhhh-hr5m
@@ -74,7 +76,7 @@ ACCEPTED_ADVISORIES = {
     GHSA-v924-7rp8-4mxh
     GHSA-xr9x-r78c-5hrm
   ] },
-  'activesupport' => { '~> 7.2.0' => %w[
+  'activesupport' => { '7.2.3' => %w[
     GHSA-2j26-frm8-cmj9
     GHSA-8474-xrp6-wh69
     GHSA-89vf-4333-qx8v
@@ -118,21 +120,14 @@ def resolved_versions(lock)
 end
 
 # The advisories accepted for this lockfile: an accepted advisory counts only
-# when the lockfile resolves its gem inside the accepted range, so an accepted
-# id can never hide an advisory in a newer line.
+# when the lockfile resolves its gem at exactly the reviewed version, so an
+# accepted id can never hide an advisory in another version of the same line.
 def accepted_advisories(lock)
   versions = resolved_versions(lock)
 
-  ACCEPTED_ADVISORIES.flat_map do |gem, ranges|
-    version = versions[gem]
-    next [] if version.nil? || !Gem::Version.correct?(version)
-
-    matching = ranges.select do |requirement, _advisories|
-      Gem::Requirement.new(requirement).satisfied_by?(Gem::Version.new(version))
-    end
-
-    matching.values.flatten
-  end.uniq
+  ACCEPTED_ADVISORIES.filter_map do |gem, reviewed|
+    reviewed[versions[gem].to_s]
+  end.flatten.uniq
 end
 
 # The first executable named cmd on PATH.
@@ -155,6 +150,13 @@ def gem_executable(name)
       .find { |path| File.file?(path) && File.executable?(path) }
 end
 
+# The gem executable: on PATH when RubyGems' bin dir is, else in the bindir of
+# the running Ruby — which is exactly the setup where bundle-audit is missing
+# too (installed into a bindir that PATH does not have).
+def gem_installer(env)
+  which('gem', env) || gem_executable('gem')
+end
+
 env = clean_env
 lock = lockfile
 
@@ -164,7 +166,10 @@ exe = which('bundle-audit', env)
 
 unless exe
   puts '== Installing bundler-audit'
-  abort 'audit: could not install bundler-audit' unless system(env, 'gem', 'install', '--no-document', 'bundler-audit', unsetenv_others: true)
+  installer = gem_installer(env)
+  abort 'audit: no gem executable found to install bundler-audit' unless installer
+
+  abort 'audit: could not install bundler-audit' unless system(env, installer, 'install', '--no-document', 'bundler-audit', unsetenv_others: true)
 
   exe = which('bundle-audit', env) || gem_executable('bundle-audit')
 end
@@ -184,4 +189,12 @@ end
 
 pid = Process.spawn(env, exe, *args, chdir: ROOT, unsetenv_others: true)
 _, status = Process.wait2(pid)
+
+if status.signaled?
+  # A killed audit is a broken job, not a finding: say so instead of letting a
+  # generic exit status pass for an advisory result.
+  warn "audit: bundle-audit was terminated by signal #{status.termsig}"
+  exit 1
+end
+
 exit(status.exitstatus || 1)

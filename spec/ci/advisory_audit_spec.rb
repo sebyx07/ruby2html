@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'json'
 require 'open3'
 require 'pathname'
 require 'rbconfig'
@@ -14,20 +15,21 @@ require 'yaml'
 # installs, so it is what has to be audited against the Ruby advisory
 # database, not only the committed root Gemfile.lock.
 #
-# The audit rides on the rake task every matrix entry already runs (rake
-# compile -> audit:advisories -> bin/audit-advisories): the platform merge
+# The audit rides on the rake tasks every matrix entry already runs (rake
+# compile, and the spec tasks when compile is skipped): the platform merge
 # gate refuses new steps in a workflow, so the workflow file stays as it is
 # and the audit runs from the Rakefile.
 #
 # The claim lives in the workflow file, the Rakefile and the script, so
 # without this spec the audit could be dropped or neutered (a skipped
-# prerequisite, a swallowed exit status) without anything going red.
+# prerequisite, a swallowed exit status) without anything going red. The
+# wiring itself is pinned by RUNNING it (see the rake wiring group below):
+# matching the Rakefile's source text passes on prose alone.
 RSpec.describe 'CI dependency audits' do
   let(:root) { File.expand_path('../..', __dir__) }
   let(:workflow_file) { File.join(root, '.github/workflows/ci.yml') }
   let(:workflow) { YAML.safe_load_file(workflow_file, aliases: true) }
   let(:jobs) { workflow.fetch('jobs') }
-  let(:rakefile) { File.read(File.join(root, 'Rakefile')) }
   let(:script_path) { File.join(root, 'bin/audit-advisories') }
   let(:script) { File.read(script_path) }
 
@@ -71,6 +73,12 @@ RSpec.describe 'CI dependency audits' do
     # The script is standalone: it must not run inside the caller's bundle.
     standalone = { 'RUBYOPT' => nil, 'RUBYGEMS_GEMDEPS' => nil, 'BUNDLER_SETUP' => nil }
     Open3.capture3(standalone.merge(env), RbConfig.ruby, script_path, *args)
+  end
+
+  # bundle-audit resolves --gemfile-lock against its own working directory, so
+  # the paths the script hands over are asserted relative to the repo root.
+  def relative_to_root(path)
+    Pathname.new(path).relative_path_from(Pathname.new(root)).to_s
   end
 
   # A lockfile that resolves the given gems to the given versions.
@@ -148,35 +156,132 @@ RSpec.describe 'CI dependency audits' do
   end
 
   describe 'the rake wiring' do
-    it 'defines the audit:advisories task' do
-      expect(rakefile).to match(/task\s+['"]audit:advisories['"]/)
+    # Loading the Rakefile in a real rake run and invoking the tasks is the
+    # only proof that survives a refactor: matching the Rakefile's source text
+    # passes on prose alone — a dropped prerequisite, a body that never runs
+    # the script. The driver (spec/ci/support/rake_wiring_driver.rb) runs
+    # under `bundle exec` the way the CI jobs run rake, loads the Rakefile at
+    # the top level the way rake does, and invokes audit:advisories against a
+    # stub bundle-audit.
+    let(:driver) { File.join(root, 'spec/ci/support/rake_wiring_driver.rb') }
+
+    # Returns [report, fake_gemfile]: the driver's JSON report, and the
+    # unlocked matrix gemfile (outside the repo) the Rakefile was loaded with.
+    def run_rake_driver(extra = {})
+      Dir.mktmpdir('rake-wiring') do |dir|
+        gemfile = File.join(dir, 'standalone.gemfile')
+        File.write(gemfile, "source 'https://rubygems.org'\n")
+        File.write("#{gemfile}.lock", '')
+        record = File.join(dir, 'record')
+        report = File.join(dir, 'report.json')
+        stub = File.join(dir, 'bundle-audit')
+
+        File.write(stub, <<~RUBY)
+          #!#{RbConfig.ruby}
+          call = [ARGV.join(' '), Dir.pwd, ENV['BUNDLE_GEMFILE'].to_s]
+          File.write(#{record.dump}, call.join("\\n") + "\\n")
+          exit Integer(ENV.fetch('RUBY2HTML_STUB_STATUS', '0'))
+        RUBY
+        File.chmod(0o755, stub)
+
+        env = {
+          'RUBYOPT' => nil,
+          'RUBYGEMS_GEMDEPS' => nil,
+          'BUNDLER_SETUP' => nil,
+          'PATH' => dir,
+          'RUBY2HTML_SPEC_GEMFILE' => gemfile,
+          'RUBY2HTML_SPEC_RECORD' => record,
+          'RUBY2HTML_SPEC_REPORT' => report
+        }.merge(extra)
+        bundler = Gem.bin_path('bundler', 'bundle')
+
+        out, err, status = Open3.capture3(env, RbConfig.ruby, bundler, 'exec', RbConfig.ruby, driver, chdir: root)
+        raise "the rake wiring driver failed (#{status.exitstatus}): #{err}#{out}" unless status.success?
+
+        [JSON.parse(File.read(report)), gemfile]
+      end
     end
 
-    it 'makes compile depend on audit:advisories' do
-      expect(rakefile).to match(/Rake::Task\[:compile\].*enhance.*audit:advisories/m)
+    it 'wires the audit into compile, ahead of the spec tasks' do
+      report, = run_rake_driver
+
+      expect(report.fetch('prerequisites').fetch('compile')).to include('audit:advisories')
+      expect(report.fetch('prerequisites').fetch('spec')).to eq(%w[compile audit:advisories])
+      expect(report.fetch('prerequisites').fetch('spec:gem')).to eq(%w[compile audit:advisories])
+      expect(report.fetch('prerequisites').fetch('spec:standalone')).to eq(%w[compile audit:advisories])
     end
 
-    it 'runs the audit only in CI and only for the unlocked matrix gemfiles' do
-      body = rakefile[/task\s+['"]audit:advisories['"]\s+do\n(.*?)\nend/m, 1]
+    it 'keeps the audit wired when compile is skipped (SKIP_COMPILE=1)' do
+      report, = run_rake_driver('SKIP_COMPILE' => '1')
 
-      expect(body).not_to be_nil, 'the audit:advisories task has no body'
-      expect(body).to include("ENV['CI']"), 'the audit must not run outside CI'
-      expect(body).to include('BUNDLE_GEMFILE'), 'the audit must only run for the unlocked matrix gemfiles'
-      expect(body).to include('.gemfile'), 'the audit must only run for the unlocked matrix gemfiles'
-      expect(body).to include('bin/audit-advisories'), 'the task must run bin/audit-advisories'
+      expect(report.fetch('prerequisites').fetch('compile')).to include('audit:advisories')
+      expect(report.fetch('prerequisites').fetch('spec:gem')).to eq(%w[audit:advisories]),
+                                                                     'the audit must not depend on the compile step it does not need'
+      expect(report.fetch('prerequisites').fetch('spec:standalone')).to eq(%w[audit:advisories])
+    end
+
+    it 'runs bin/audit-advisories when audit:advisories is invoked in CI for a matrix gemfile' do
+      report, gemfile = run_rake_driver
+
+      outcome = report.fetch('in_ci_with_matrix_gemfile')
+      expect(outcome.fetch('ran')).to be(true), 'invoking audit:advisories in CI must run the audit'
+
+      argv, cwd, bundle_gemfile = outcome.fetch('call')
+      expect(argv).to eq("check --update --gemfile-lock #{relative_to_root("#{gemfile}.lock")}")
+      expect(cwd).to eq(root), 'the audit runs in the project root, where the lockfile path it hands over resolves'
+      expect(bundle_gemfile).to be_empty, 'the audit must run outside the caller Bundler environment'
+    end
+
+    it 'runs nothing outside CI' do
+      report, = run_rake_driver
+
+      expect(report.fetch('without_ci')).to include('ran' => false), 'the audit must not run outside CI'
+    end
+
+    it 'runs nothing for the committed root Gemfile' do
+      report, = run_rake_driver
+
+      expect(report.fetch('with_root_gemfile')).to include('ran' => false),
+                                                    'the audit is for the unlocked matrix gemfiles; the root lockfile has its own job'
+    end
+
+    it 'fails the rake task when the audit finds an advisory' do
+      report, = run_rake_driver
+
+      outcome = report.fetch('failing_audit')
+      expect(outcome.fetch('ran')).to be(true)
+      expect(outcome.fetch('raised')).to eq('RuntimeError'), 'a failing audit must raise out of the rake task'
+      expect(outcome.fetch('message')).to include('status (1)'), 'the audit exit status must surface'
     end
   end
 
   describe 'bin/audit-advisories' do
-    # bundle-audit resolves --gemfile-lock against its own working directory,
-    # so the script hands it a path relative to the project root.
-    def relative_to_root(path)
-      Pathname.new(path).relative_path_from(Pathname.new(root)).to_s
-    end
-
     it 'is an executable script' do
       expect(script).to start_with("#!/usr/bin/env ruby\n# frozen_string_literal: true\n")
       expect(File.executable?(script_path)).to be(true), 'bin/audit-advisories must be executable'
+    end
+
+    it 'runs without Bundler: the rake task shells out without bundle exec' do
+      expect(script).not_to match(/require ['"]bundler|Bundler\./),
+                           'bin/audit-advisories must not depend on Bundler being loadable'
+    end
+
+    it 'reports a signal-killed audit instead of passing it off as an advisory' do
+      Dir.mktmpdir('audit-advisories') do |dir|
+        stub = File.join(dir, 'bundle-audit')
+        lock = File.join(dir, 'Gemfile.lock')
+        File.write(lock, '')
+        File.write(stub, <<~RUBY)
+          #!#{RbConfig.ruby}
+          Process.kill('TERM', Process.pid)
+        RUBY
+        File.chmod(0o755, stub)
+
+        _out, err, status = run_audit({ 'PATH' => dir }, lock)
+
+        expect(status.exitstatus).to eq(1), 'a killed audit must still fail the job'
+        expect(err).to include('signal'), 'a killed audit must be reported as killed, not look like an advisory result'
+      end
     end
 
     it 'audits the lockfile Bundler wrote next to BUNDLE_GEMFILE' do
@@ -242,7 +347,7 @@ RSpec.describe 'CI dependency audits' do
         File.write(installer, <<~RUBY)
           #!#{RbConfig.ruby}
           File.write(#{install_log.dump}, ARGV.join(' '))
-          File.write(#{bin.dump}, "#!#{RbConfig.ruby}\nFile.write('#{record}', ARGV.join(' '))\nexit 0\n")
+          File.write(#{bin.dump}, "#!#{RbConfig.ruby}\\nFile.write('#{record}', ARGV.join(' '))\\nexit 0\\n")
           File.chmod(0o755, #{bin.dump})
         RUBY
         File.chmod(0o755, installer)
@@ -256,6 +361,11 @@ RSpec.describe 'CI dependency audits' do
         expect(File.read(install_log)).to include('install', 'bundler-audit')
         expect(File.read(record)).to include("check --update --gemfile-lock #{relative_to_root(lock)}")
       end
+    end
+
+    it 'can find the gem executable beyond PATH when it installs bundler-audit' do
+      expect(script).to include("gem_executable('gem')"),
+                     'the gem executable may be missing from PATH too: the installer must look in the RubyGems bindir'
     end
 
     it 'refuses to continue when bundler-audit cannot be installed' do
@@ -290,85 +400,150 @@ RSpec.describe 'CI dependency audits' do
   end
 
   describe 'the accepted advisories' do
-    # The advisories the script accepts, read from the script itself: the list
-    # is the policy, the spec pins how the script applies it.
-    def accepted_advisories
+    # The advisories the script accepts, read from the script itself.
+    def script_accept_list
       block = script[/ACCEPTED_ADVISORIES = \{(.*?)\n\}\.freeze/m, 1]
       raise 'bin/audit-advisories declares no ACCEPTED_ADVISORIES' if block.nil?
 
-      block.scan(/'([\w-]+)' => \{ '([^']+)' => %w\[(.*?)\] \}/m).to_h do |gem, requirement, ids|
-        [gem, { requirement => ids.split }]
+      block.scan(/'([\w-]+)' => \{ '([^']+)' => %w\[(.*?)\] \}/m).to_h do |gem, version, ids|
+        [gem, { version => ids.split }]
       end
     end
 
-    it 'declares every accepted advisory by its id, scoped to one release line' do
-      accepted = accepted_advisories
+    # The reviewed policy, pinned here INDEPENDENTLY of the script: an edit to
+    # the script's table (an id typo'd, an entry added, dropped or moved to
+    # another version) fails this spec and forces a conscious re-review. The
+    # versions are what the matrix resolves on the floor lines today (see
+    # bin/audit-advisories); once a resolution moves, the audit drops every
+    # exception and fails the entry, so this snapshot can only change in step
+    # with a real re-review.
+    let(:expected_accepted) do
+      {
+        'actionmailbox' => { '7.2.3' => %w[GHSA-5957-c7qm-m469] },
+        'actionpack' => { '7.2.3' => %w[
+          GHSA-2586-8ghr-69fj
+          GHSA-gmj8-hvj3-49mw
+          GHSA-r9jg-fmfx-2gv6
+          GHSA-rwvh-fw6r-pwvp
+          GHSA-wm3x-v3qw-4jh3
+          GHSA-x6mj-8jx9-qhqv
+        ] },
+        'actionview' => { '7.2.3' => %w[
+          GHSA-2p2f-4rq4-gjwc
+          GHSA-68p9-83h6-5wpj
+          GHSA-rq8q-p985-fjq7
+          GHSA-v55j-83pf-r9cq
+          GHSA-v6rj-xm57-3p59
+        ] },
+        'activestorage' => { '7.2.3' => %w[
+          GHSA-3f4q-8x5m-76v8
+          GHSA-3w93-6hmw-whh4
+          GHSA-73f9-jhhh-hr5m
+          GHSA-9xrj-h377-fr87
+          GHSA-f3w6-w445-fwh9
+          GHSA-hfr4-8rjc-97m2
+          GHSA-p2pm-g2h6-7j5j
+          GHSA-p9fm-f462-ggrg
+          GHSA-qcfx-2mfw-w4cg
+          GHSA-r46p-8f7g-vvvg
+          GHSA-v924-7rp8-4mxh
+          GHSA-xr9x-r78c-5hrm
+        ] },
+        'activesupport' => { '7.2.3' => %w[
+          GHSA-2j26-frm8-cmj9
+          GHSA-8474-xrp6-wh69
+          GHSA-89vf-4333-qx8v
+          GHSA-cg4j-q9v8-6v38
+        ] }
+      }
+    end
 
-      expect(accepted).not_to be_empty, 'the script accepts no advisory at all'
+    let(:pinned_activesupport) { expected_accepted.fetch('activesupport').keys.first }
 
-      accepted.each_value do |ranges|
-        ranges.each do |requirement, ids|
-          expect(requirement).to start_with('~> '),
-                                     "an accepted advisory must be scoped to one release line: #{requirement}"
-          expect(ids).not_to be_empty, "no advisory id listed for #{requirement}"
+    it 'accepts exactly the reviewed list, scoped to the exact reviewed version' do
+      expect(script_accept_list).to eq(expected_accepted), 'the accept list changed: re-review it, then update this snapshot'
+    end
 
-          ids.each do |id|
-            expect(id).to match(/\A(?:GHSA|CVE)-[A-Za-z0-9-]+\z/), "#{id} is not an advisory id"
-          end
+    it 'declares one reviewed version per gem, on the documented 7.2 floor line' do
+      script_accept_list.each do |gem, versions|
+        expect(versions.size).to eq(1), "one reviewed version per gem: #{gem} lists #{versions.size}"
+
+        versions.each_key do |version|
+          expect(version).to match(/\A7\.2\.\d+(?:\.\d+)*\z/), "the reviewed version must sit on the Rails 7.2 floor line: #{gem} #{version}"
         end
       end
     end
 
-    it 'accepts the advisories of the floor line the lockfile resolves' do
+    it 'lists well-formed advisory ids, none twice' do
+      ids = script_accept_list.flat_map { |_gem, versions| versions.values.flatten }
+
+      expect(ids).not_to be_empty, 'the script accepts no advisory at all'
+      ids.each do |id|
+        expect(id).to match(/\A(?:GHSA|CVE)-[A-Za-z0-9-]+\z/), "#{id} is not an advisory id"
+      end
+      expect(ids.uniq.size).to eq(ids.size), 'an id listed under two gems would be ignored while auditing either — review the pair'
+    end
+
+    it 'accepts the advisories of the reviewed version the lockfile resolves' do
       with_stub_audit(status: 0) do |dir, record|
-        lock = lockfile_with(dir, 'activesupport' => '7.2.4')
+        lock = lockfile_with(dir, 'activesupport' => pinned_activesupport)
 
         _out, _err, status = run_audit({ 'PATH' => dir }, lock)
 
         expect(status.exitstatus).to eq(0)
-        expect(ignored_advisories(record)).to match_array(accepted_advisories.fetch('activesupport')
-                                                            .fetch('~> 7.2.0'))
+        expect(ignored_advisories(record)).to match_array(expected_accepted.fetch('activesupport').values.flatten)
       end
     end
 
     it 'names the accepted advisories in the job log' do
       with_stub_audit(status: 0) do |dir, _record|
-        lock = lockfile_with(dir, 'activesupport' => '7.2.4')
+        lock = lockfile_with(dir, 'activesupport' => pinned_activesupport)
 
         out, _err, status = run_audit({ 'PATH' => dir }, lock)
 
         expect(status.exitstatus).to eq(0)
-        expect(out).to include('GHSA-8474-xrp6-wh69'),
+        expect(out).to include(expected_accepted.fetch('activesupport').values.flatten.first),
                        'the job log must name the advisories the audit accepts'
       end
     end
 
-    it 'audits a newer line without any exception' do
-      with_stub_audit(status: 0) do |dir, record|
+    it 'drops every exception for an unreviewed patch of the same line' do
+      with_stub_audit(status: 1) do |dir, record|
+        lock = lockfile_with(dir, 'activesupport' => pinned_activesupport.succ) # the next 7.2.x patch
+
+        _out, _err, status = run_audit({ 'PATH' => dir }, lock)
+
+        expect(recorded_call(record)[:argv]).not_to include('--ignore'),
+                                                      'a version that was not reviewed must be audited without exceptions'
+        expect(status.exitstatus).to eq(1), 'its advisories must fail the job until the new version is reviewed'
+      end
+    end
+
+    it 'audits a newer line without any exception and fails the job on its advisories' do
+      with_stub_audit(status: 1) do |dir, record|
         lock = lockfile_with(dir, 'activesupport' => '8.1.4.1')
 
         _out, _err, status = run_audit({ 'PATH' => dir }, lock)
 
-        expect(status.exitstatus).to eq(0)
         expect(recorded_call(record)[:argv]).not_to include('--ignore'),
-                                                      'a line outside the accepted ranges must be audited without exceptions'
+                                                      'a line outside the accepted versions must be audited without exceptions'
+        expect(status.exitstatus).to eq(1), 'the advisory bundle-audit reported must fail the script, and with it the CI job'
       end
     end
 
     it 'accepts advisories of the resolved gem only' do
       with_stub_audit(status: 0) do |dir, record|
-        lock = lockfile_with(dir, 'activesupport' => '7.2.4')
+        lock = lockfile_with(dir, 'activesupport' => pinned_activesupport)
 
         _out, _err, status = run_audit({ 'PATH' => dir }, lock)
 
         expect(status.exitstatus).to eq(0)
-        accepted = accepted_advisories
         ignored = ignored_advisories(record)
 
-        accepted.each do |gem, ranges|
+        script_accept_list.each do |gem, versions|
           next if gem == 'activesupport'
 
-          ranges.each_value do |ids|
+          versions.each_value do |ids|
             ids.each do |id|
               expect(ignored).not_to include(id),
                                      "the audit accepted #{id}, an advisory of #{gem}, which it does not resolve"
@@ -385,16 +560,6 @@ RSpec.describe 'CI dependency audits' do
         expect(status.exitstatus).to eq(0)
         expect(recorded_call(record)[:argv]).not_to include('--ignore'),
                                                       'the committed root Gemfile.lock must be audited without exceptions'
-      end
-    end
-
-    it 'still fails the job on an advisory it does not accept' do
-      with_stub_audit(status: 1) do |dir, _record|
-        lock = lockfile_with(dir, 'activesupport' => '7.2.4')
-
-        _out, _err, status = run_audit({ 'PATH' => dir }, lock)
-
-        expect(status.exitstatus).to eq(1), 'an advisory the audit does not accept must fail the CI job'
       end
     end
   end
@@ -419,7 +584,7 @@ RSpec.describe 'CI dependency audits' do
                         .reject { |_name, step| step['run'].to_s.include?('--gemfile-lock') }
 
       expect(root_audits).not_to be_empty,
-                                   'no job runs bundle-audit check without --gemfile-lock (the default Gemfile.lock)'
+                                 'no job runs bundle-audit check without --gemfile-lock (the default Gemfile.lock)'
     end
 
     it 'keeps the root audit job required by the CI OK job' do

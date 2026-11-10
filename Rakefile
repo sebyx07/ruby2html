@@ -77,7 +77,10 @@ end
 # the Ruby advisory database; the committed root Gemfile.lock has its own CI job.
 #
 # The audit rides on compile, the one task every matrix entry runs (spec:gem and
-# spec:standalone depend on it), so it needs no extra step in the workflow.
+# spec:standalone depend on it), so it needs no extra step in the workflow. The
+# spec tasks carry it too, so SKIP_COMPILE=1 (strict extension builds, the
+# pure-Ruby fallback) cannot drop the audit of the set the entry resolved; rake
+# invokes a task once per run, so it still runs exactly once per entry.
 #
 # bin/audit-advisories accepts the reviewed advisories of the floor lines the
 # matrix resolves on purpose (Rails 7.2.x, Active Support 7.2.x on Ruby 3.1),
@@ -135,6 +138,15 @@ if defined?(RSpec::Core::RakeTask)
     end
   end
   %w[spec:gem spec:standalone].each { |t| Rake::Task[t].enhance([:compile]) } unless ENV['SKIP_COMPILE'] == '1'
+end
+
+# The audit does not depend on the extension: it must also run when compile is
+# skipped (SKIP_COMPILE=1, and any entry that skips it in the future). rake
+# invokes a task once per run, so entries that reach it through compile do not
+# audit twice; outside CI, or outside the unlocked matrix gemfiles, the task
+# body skips itself.
+%w[spec spec:gem spec:standalone].each do |name|
+  Rake::Task[name].enhance(['audit:advisories']) if Rake::Task.task_defined?(name)
 end
 
 # --- Benchmarks ----------------------------------------------------------------
