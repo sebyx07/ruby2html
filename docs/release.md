@@ -18,8 +18,9 @@ agent never opens one.
 1. Pick the version (SemVer): patch for fixes; minor for new tags/helpers/options, perf work or intentional output changes; major for removed or renamed public API, or a raised Ruby/Rails floor.
 2. `lib/gem/ruby2html/version.rb` → `VERSION = 'X.Y.Z'` (the gemspec reads it).
 3. `CHANGELOG.md`: move `## [Unreleased]` into `## [X.Y.Z] - YYYY-MM-DD` (with "Upgrading to X.0" for a major), leave an empty `## [Unreleased]`, add the `[X.Y.Z]` link at the bottom. `bin/changelog-notes X.Y.Z` must print the section.
-4. Verify: `bundle exec rake compile && CI=1 bundle exec rspec && bundle exec rubocop && bundle exec rake smoke`.
-5. One PR titled `release: X.Y.Z`, containing nothing else. Merge on green.
+4. Refresh the issue-template versions placeholder in `.github/ISSUE_TEMPLATE/bug_report.yml`: gem version from `lib/gem/ruby2html/version.rb`, Ruby version from `.ruby-version`, Rails version from `Gemfile.lock`. GitHub issue forms cannot derive the value at fill time, so it is updated here.
+5. Verify: `bundle exec rake compile && CI=1 bundle exec rspec && bundle exec rubocop && bundle exec rake smoke`.
+6. One PR titled `release: X.Y.Z`, containing nothing else (apart from the issue-template placeholder refresh in step 4). Merge on green.
 
 ## After
 
