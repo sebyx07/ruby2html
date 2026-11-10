@@ -31,10 +31,13 @@ ROOT = File.expand_path('..', __dir__)
 # 7.2.x, and Active Support 7.2.x on Ruby 3.1, where Active Support 8 does not
 # install. Upstream does not patch those lines any more: every advisory below
 # is fixed in a newer line only (8.0.5.2, 8.1.4.1), or in a patch release the
-# matrix cannot resolve, because the Rails 7.2 line pins its components to the
-# version of the rails release it ships with. The gem itself has no runtime
-# dependencies and the demo app that pulls Rails is not part of the package
-# (SECURITY.md), so the accepted risk belongs to the demo app, not to the gem.
+# Rails line cannot resolve, because the rails gem pins its components to the
+# version of the rails release it ships with — the standalone gemfile resolves
+# Active Support unlocked, so a newer 7.2.x patch can land there alone, and
+# its reviewed version carries only the advisories that still fire there. The
+# gem itself has no runtime dependencies and the demo app that pulls Rails is
+# not part of the package (SECURITY.md), so the accepted risk belongs to the
+# demo app, not to the gem.
 #
 # The exception is scoped to the exact reviewed version: it applies only when
 # the lockfile resolves that very version. A moved resolution — a new patch
@@ -43,7 +46,11 @@ ROOT = File.expand_path('..', __dir__)
 # the version it was reviewed for, and an id that does not apply to the
 # resolved version can never be ignored at all.
 #
-# Reviewed 2026-11-09 (all five components resolve 7.2.3 on the 7.2 line).
+# Reviewed 2026-11-09 (the five Rails-line components at 7.2.3, pinned by the
+# rails 7.2 gem) and 2026-11-10 (activesupport 7.2.4, which the standalone
+# gemfile on Ruby 3.1 resolves unlocked: bundler-audit flags only
+# GHSA-8474-xrp6-wh69 there — 7.2.4 patches the other three, and the
+# safe_constantize DoS is fixed in the 8.x lines only).
 # Drop an entry as soon as the matrix resolves a patched version of that line.
 ACCEPTED_ADVISORIES = {
   'actionmailbox' => { '7.2.3' => %w[GHSA-5957-c7qm-m469] },
@@ -81,7 +88,7 @@ ACCEPTED_ADVISORIES = {
     GHSA-8474-xrp6-wh69
     GHSA-89vf-4333-qx8v
     GHSA-cg4j-q9v8-6v38
-  ] }
+  ], '7.2.4' => %w[GHSA-8474-xrp6-wh69] }
 }.freeze
 
 # The child processes must not see the caller's Bundler environment: they read

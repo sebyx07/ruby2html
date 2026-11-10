@@ -405,8 +405,12 @@ RSpec.describe 'CI dependency audits' do
       block = script[/ACCEPTED_ADVISORIES = \{(.*?)\n\}\.freeze/m, 1]
       raise 'bin/audit-advisories declares no ACCEPTED_ADVISORIES' if block.nil?
 
-      block.scan(/'([\w-]+)' => \{ '([^']+)' => %w\[(.*?)\] \}/m).to_h do |gem, version, ids|
-        [gem, { version => ids.split }]
+      block.scan(/'([\w-]+)' => \{(.*?)\}/m).to_h do |gem, body|
+        versions = {}
+        body.scan(/'([^']+)' => %w\[(.*?)\]/m) do |version, ids|
+          versions[version] = ids.split
+        end
+        [gem, versions]
       end
     end
 
@@ -416,7 +420,10 @@ RSpec.describe 'CI dependency audits' do
     # versions are what the matrix resolves on the floor lines today (see
     # bin/audit-advisories); once a resolution moves, the audit drops every
     # exception and fails the entry, so this snapshot can only change in step
-    # with a real re-review.
+    # with a real re-review. A gem can pin several versions when the matrix
+    # resolves its line more than once: the rails gem pins Active Support
+    # 7.2.3 for the Rails entries, while the standalone gemfile on Ruby 3.1
+    # resolves the line unlocked and sits on the newest 7.2.x patch.
     let(:expected_accepted) do
       {
         'actionmailbox' => { '7.2.3' => %w[GHSA-5957-c7qm-m469] },
@@ -454,7 +461,7 @@ RSpec.describe 'CI dependency audits' do
           GHSA-8474-xrp6-wh69
           GHSA-89vf-4333-qx8v
           GHSA-cg4j-q9v8-6v38
-        ] }
+        ], '7.2.4' => %w[GHSA-8474-xrp6-wh69] }
       }
     end
 
@@ -464,9 +471,9 @@ RSpec.describe 'CI dependency audits' do
       expect(script_accept_list).to eq(expected_accepted), 'the accept list changed: re-review it, then update this snapshot'
     end
 
-    it 'declares one reviewed version per gem, on the documented 7.2 floor line' do
+    it 'declares every reviewed version on the documented 7.2 floor line' do
       script_accept_list.each do |gem, versions|
-        expect(versions.size).to eq(1), "one reviewed version per gem: #{gem} lists #{versions.size}"
+        expect(versions).not_to be_empty, "no reviewed version for #{gem}"
 
         versions.each_key do |version|
           expect(version).to match(/\A7\.2\.\d+(?:\.\d+)*\z/), "the reviewed version must sit on the Rails 7.2 floor line: #{gem} #{version}"
@@ -474,24 +481,38 @@ RSpec.describe 'CI dependency audits' do
       end
     end
 
-    it 'lists well-formed advisory ids, none twice' do
+    it 'lists well-formed advisory ids, never under two gems' do
       ids = script_accept_list.flat_map { |_gem, versions| versions.values.flatten }
 
       expect(ids).not_to be_empty, 'the script accepts no advisory at all'
       ids.each do |id|
         expect(id).to match(/\A(?:GHSA|CVE)-[A-Za-z0-9-]+\z/), "#{id} is not an advisory id"
       end
-      expect(ids.uniq.size).to eq(ids.size), 'an id listed under two gems would be ignored while auditing either — review the pair'
+
+      # bundle-audit --ignore is global per run: an id parked under two gems
+      # would be ignored while auditing either. The same id on two reviewed
+      # versions of ONE gem is fine — only one of them resolves per run, and
+      # the ids are scoped to the resolved version (proven below).
+      gems_of = Hash.new { |hash, key| hash[key] = [] }
+      script_accept_list.each do |gem, versions|
+        versions.each_value { |gem_ids| gem_ids.each { |id| gems_of[id] |= [gem] } }
+      end
+
+      expect(gems_of.select { |_id, gems| gems.size > 1 }).to be_empty,
+                                                             'an id listed under two gems would be ignored while auditing either — review the pair'
     end
 
-    it 'accepts the advisories of the reviewed version the lockfile resolves' do
-      with_stub_audit(status: 0) do |dir, record|
-        lock = lockfile_with(dir, 'activesupport' => pinned_activesupport)
+    it 'accepts exactly the ids of the reviewed version the lockfile resolves' do
+      expected_accepted.fetch('activesupport').each do |version, ids|
+        with_stub_audit(status: 0) do |dir, record|
+          lock = lockfile_with(dir, 'activesupport' => version)
 
-        _out, _err, status = run_audit({ 'PATH' => dir }, lock)
+          _out, _err, status = run_audit({ 'PATH' => dir }, lock)
 
-        expect(status.exitstatus).to eq(0)
-        expect(ignored_advisories(record)).to match_array(expected_accepted.fetch('activesupport').values.flatten)
+          expect(status.exitstatus).to eq(0)
+          expect(ignored_advisories(record)).to match_array(ids),
+                                                 "a lockfile resolving #{version} must carry exactly its own exceptions"
+        end
       end
     end
 
@@ -502,14 +523,15 @@ RSpec.describe 'CI dependency audits' do
         out, _err, status = run_audit({ 'PATH' => dir }, lock)
 
         expect(status.exitstatus).to eq(0)
-        expect(out).to include(expected_accepted.fetch('activesupport').values.flatten.first),
+        expect(out).to include(expected_accepted.fetch('activesupport').fetch(pinned_activesupport).first),
                        'the job log must name the advisories the audit accepts'
       end
     end
 
     it 'drops every exception for an unreviewed patch of the same line' do
       with_stub_audit(status: 1) do |dir, record|
-        lock = lockfile_with(dir, 'activesupport' => pinned_activesupport.succ) # the next 7.2.x patch
+        unreviewed_patch = expected_accepted.fetch('activesupport').keys.max.succ # the next 7.2.x patch
+        lock = lockfile_with(dir, 'activesupport' => unreviewed_patch)
 
         _out, _err, status = run_audit({ 'PATH' => dir }, lock)
 
