@@ -20,8 +20,8 @@ end
 
 ## Why ruby2html
 
-- **Fastest Ruby HTML renderer we've measured.** The page benchmark renders 1.35x faster than Erubi (Rails' ERB engine) and 2.4–16x faster than Phlex 2, with 40–90% fewer allocations; in a full Rails request it leads ERB, Slim and Phlex ([numbers](#performance)).
-- **Light.** No runtime dependencies, a 32 KB gem, and `require 'ruby2html'` costs about 0.4 MB and 19 ms. Prism, the Rails glue and the optional beautifier load only when used, or at boot in eager-loading production apps.
+- **Fastest Ruby HTML renderer we've measured.** Page-render, per-tag, escaping and full-Rails-request benchmarks run in CI on every push and pull request; the current numbers are in [Performance](#performance).
+- **Light.** No runtime dependencies and a 32 KB gem. Prism, the Rails glue and the optional beautifier load only when used, or at boot in eager-loading production apps.
 - **Plain Ruby views.** `.html.rb` templates, ERB interop, ViewComponent, or the built-in `Ruby2html::Component`. Escaped by default.
 - **Runs everywhere.** CRuby ≥ 3.1 with a C extension (SIMD escaping on x86_64 and arm64), JRuby with a Java escaper over the pure-Ruby implementation, and TruffleRuby on pure Ruby (faster there than the C extension) — all byte-identical. Rails 7.2+.
 - **AI-ready.** One-file reference for coding agents: [`llms.txt`](apps/ruby2html/llms.txt).
@@ -198,7 +198,12 @@ config.middleware.use Ruby2html::HtmlBeautifierMiddleware
 
 Benchmarks run in CI on every push to `main` and every pull request ([`.github/workflows/benchmark.yml`](.github/workflows/benchmark.yml)): the latest run's summary page has the current table, and PRs get a sticky comment with the delta against `main`. Run them locally with `bundle exec rake bench` (standalone scripts in `apps/ruby2html/bench/`) or `bundle exec rspec spec/benchmarks/` (request-level through the demo app, vs ERB, Slim, Phlex and ViewComponent).
 
-### Snapshot at 2.0.0 release (2026-10-31)
+### What is measured
+
+- [`apps/ruby2html/bench/render_bench.rb`](apps/ruby2html/bench/render_bench.rb): a full page render (no Rails), ruby2html vs Erubi and Phlex, with per-render allocation counts. `RUBY2HTML_DISABLE_EXT=1` runs the pure-Ruby fallback.
+- [`apps/ruby2html/bench/tag_bench.rb`](apps/ruby2html/bench/tag_bench.rb): per-tag cost for the common call shapes.
+- [`apps/ruby2html/bench/escape_bench.rb`](apps/ruby2html/bench/escape_bench.rb): escaping throughput on short/medium/long, clean and dirty strings. Rebuild with `RUBY2HTML_NO_SIMD=1` to compare the scalar path.
+- [`apps/ruby2html/spec/benchmarks/requests_spec.rb`](apps/ruby2html/spec/benchmarks/requests_spec.rb): full Rails requests through the demo app — `.html.rb` templates, ViewComponent and `Ruby2html::Component` vs ERB, Slim and Phlex.
 
 This is a dated snapshot. CI has the live numbers. Measured on Ruby 3.4.7 x86_64 on a busy machine (load average about 7), so read the ratios rather than the absolute figures.
 
