@@ -4,7 +4,7 @@ name: Release
 # changes on main and no tag v<VERSION> exists yet, this verifies, publishes the
 # gem, then creates the tag and the GitHub release from CHANGELOG.md. Never tag
 # or `gem push` by hand. (The developerz.ai agent opens the release PR: see
-# .dz/briefs/release-due.md.)
+# .dz/schedules/release-due.md.)
 #
 # One-time setup on rubygems.org (Trusted Publishing, no API key secret):
 #   gem "ruby2html" -> Trusted publishers -> GitHub Actions

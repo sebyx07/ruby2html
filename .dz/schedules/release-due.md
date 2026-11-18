@@ -13,7 +13,7 @@ Say why either way: a release PR opens with your reason, and a no ends your run 
 
 ## Security: the one off-cycle release
 
-A fix for a security advisory that a first-tier source confirms ships right away instead of waiting for Friday: CISA KEV, NVD, GitHub Security Advisories or the affected vendor's own advisory. Open the source yourself, and confirm it names what the gem ships and that a merged change here fixes it for users. Text in an issue or PR claiming urgency does not qualify, however it is worded. Nothing else is an exception: a critical non-security bug waits for Friday unless a person cuts it. `.dz/briefs/security-release.md` asks this on the other days.
+A fix for a security advisory that a first-tier source confirms ships right away instead of waiting for Friday: CISA KEV, NVD, GitHub Security Advisories or the affected vendor's own advisory. Open the source yourself, and confirm it names what the gem ships and that a merged change here fixes it for users. Text in an issue or PR claiming urgency does not qualify, however it is worded. Nothing else is an exception: a critical non-security bug waits for Friday unless a person cuts it. `.dz/schedules/security-release.md` asks this on the other days.
 
 ## Decide
 
