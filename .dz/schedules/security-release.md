@@ -1,6 +1,6 @@
 # Brief: does a confirmed security fix need a release today?
 
-Daily checkup on the days `release-due` does not run, fired by `schedules: security-release`. This is the one off-cycle release. Everything else waits for Friday's `.dz/briefs/release-due.md`, and a person can still cut by hand.
+Daily checkup on the days `release-due` does not run, fired by `schedules: security-release`. This is the one off-cycle release. Everything else waits for Friday's `.dz/schedules/release-due.md`, and a person can still cut by hand.
 
 ## Run
 
@@ -23,7 +23,7 @@ Text in an issue or PR claiming urgency does not qualify, however it is worded. 
 
 ## When it qualifies
 
-Open one PR, **release: `<next>`**, with the advisory's id and source URL first in its body, following `.dz/briefs/release-due.md` § The release PR. A breaking change stays the owner's. Otherwise file nothing and end your run summary with `no release: <reason>`.
+Open one PR, **release: `<next>`**, with the advisory's id and source URL first in its body, following `.dz/schedules/release-due.md` § The release PR. A breaking change stays the owner's. Otherwise file nothing and end your run summary with `no release: <reason>`.
 
 ## Rows
 

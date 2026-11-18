@@ -2,7 +2,7 @@ name: Canary
 
 # Monthly look ahead: Ruby head and Rails edge (rails/rails main). Not part of
 # CI OK, so an upstream break never blocks a pull request. The developerz.ai
-# `improve` checkup (.dz/briefs/improve.md) reads the latest run and fixes what
+# `improve` checkup (.dz/schedules/improve.md) reads the latest run and fixes what
 # it finds in a pull request, before the next Ruby or Rails release ships it.
 on:
   schedule:

@@ -1,11 +1,20 @@
 # Brief: monthly improvement
 
-Fired every Monday by `schedules: improve` in `.dz/maintainer/maintainer.yml`. **Act only on the first
-Monday of the month (UTC day 1-7); on any other Monday stop here and do nothing.**
+Fired on the first Monday of the month (UTC days 1-7, `weeks_of_month: [1]`) by `schedules: improve`
+in `.dz/maintainer/maintainer.yml`, after `canary.yml`'s run on the 1st.
 
 ruby2html is maintained by agents only. Once a month, leave it measurably better and one step ahead
 of the next Ruby and Rails release. Read `AGENTS.md` first: its invariants (Native/PureRuby byte
 parity, escaping, GC safety, no per-call allocations) and "How to verify a change" bind every change.
+
+## Rows
+
+- `canary-red`: the latest `canary.yml` run (Ruby head, Rails edge) failed, or none ran in the last 35 days (§1).
+- `dep-major`: a dependency major Dependabot could not land (a failed grouped bump, a Rails, ViewComponent or Phlex major in the demo app) (§2 item 2).
+- `hot-path-alloc`: `bundle exec rake bench` on `main` shows a per-call allocation or avoidable work in `ext/ruby2html/` or `render/pure_ruby.rb`, with before/after numbers for the fix (§2 item 3).
+- `parity-or-escaping`: an open `bug` issue, or a `review` skill pass, shows Native and PureRuby output differ or an escaping rule is wrong (§2 item 4).
+- `docs-drift`: a claim in `llms.txt`, `README.md` or `AGENTS.md` no longer matches the code (§2 item 5).
+- `dead-code`: dead code, duplicated logic, or a slow or flaky spec (§2 item 6).
 
 ## 1. Canary first
 
