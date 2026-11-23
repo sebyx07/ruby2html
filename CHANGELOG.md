@@ -6,6 +6,8 @@ Entries before 1.6.6 were reconstructed from `git log` and RubyGems release date
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-11-23
+
 ### Changed
 
 - Documentation: the performance claims now say what the CI benchmarks measure. The README, `llms.txt` and earlier release notes called ruby2html faster than ERB; on the standalone page render Erubi (compiled ERB) is about 1.3x to 1.5x faster than ruby2html, in a full Rails request ERB, Slim and ruby2html are within runner noise of each other, and ruby2html is ahead of Phlex in both. The README also gains an "Escaping and security" section and a CI-backed compatibility table (CRuby 3.1 and later, not only 3.3+; JRuby and TruffleRuby run the renderer specs, not the Rails ones), and `llms.txt` follows the llmstxt.org layout and no longer shows `Render.new(ctx) { h1 title }`, where `title` is the `<title>` tag rather than the context method.
@@ -200,7 +202,8 @@ Published to RubyGems; no separate commits in the repository history.
 ### Added
 - Initial release: `Ruby2html::Render` DSL, `Ruby2html::RailsHelper#html` for ERB.
 
-[Unreleased]: https://github.com/sebyx07/ruby2html/compare/v2.1.0...HEAD
+[Unreleased]: https://github.com/sebyx07/ruby2html/compare/v2.1.1...HEAD
+[2.1.1]: https://github.com/sebyx07/ruby2html/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/sebyx07/ruby2html/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/sebyx07/ruby2html/releases/tag/v2.0.0
 [1.6.6]: https://rubygems.org/gems/ruby2html/versions/1.6.6
