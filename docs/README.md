@@ -1,7 +1,8 @@
 # sebyx07/ruby2html — docs
 
-The index of this directory. Add a line when you add a page. The agent brain is the root
-[`CLAUDE.md`](../CLAUDE.md); the commands are `bin/setup`, `bin/dev`, `bin/check` and `bin/stop`.
+The index of this directory, maintained by hand: no tool generates or rewrites it. Add a line
+when you add a page. The agent brain is the root [`CLAUDE.md`](../CLAUDE.md); the commands are
+`bin/setup`, `bin/dev`, `bin/check` and `bin/stop`.
 
 | Page | What it holds |
 |---|---|
