@@ -145,7 +145,13 @@ RenderSpecHelper.describe_each 'Ruby2html::Render robustness' do
     end
   end
 
-  it 'renders inside a non-main Ractor', if: defined?(Ractor) && RUBY_ENGINE == 'ruby' do
+  # The pure-Ruby renderer escapes through stdlib ERB::Escape, which CRuby
+  # only marks Ractor-safe from 4.0; the C extension is Ractor-safe on every
+  # supported CRuby.
+  ractor_ready = defined?(Ractor) && RUBY_ENGINE == 'ruby' &&
+                 (!description.end_with?('(pure Ruby)') || RUBY_VERSION >= '4.0')
+
+  it 'renders inside a non-main Ractor', if: ractor_ready do
     renderer_class = self.renderer_class
     previous = Warning[:experimental]
     Warning[:experimental] = false
