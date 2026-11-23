@@ -32,7 +32,7 @@ RSpec.describe 'bin/setup' do
   let(:script_path) { File.expand_path('../../bin/setup', __dir__) }
 
   it 'runs mise install when the version check succeeds, before the first bundle call' do
-    _stdout, status, calls = run_setup('bundle', 'mise')
+    _stdout, status, calls = run_setup('bundle', 'bundle-audit', 'mise')
 
     expect(status).to be_success
     expect(calls.take(2)).to eq(['mise --version', 'mise install'])
@@ -41,10 +41,25 @@ RSpec.describe 'bin/setup' do
   end
 
   it 'prints a skip note and continues when mise is absent' do
-    stdout, status, calls = run_setup('bundle')
+    stdout, status, calls = run_setup('bundle', 'bundle-audit')
 
     expect(status).to be_success
     expect(stdout).to include('mise not found: skipped (using the active Ruby)')
     expect(calls.first).to eq('bundle check')
+  end
+
+  it 'leaves an installed bundler-audit alone' do
+    _stdout, status, calls = run_setup('bundle', 'bundle-audit', 'gem')
+
+    expect(status).to be_success
+    expect(calls).to include('bundle-audit version')
+    expect(calls.grep(/\Agem /)).to be_empty
+  end
+
+  it 'installs bundler-audit when it is missing, since bin/check audits Gemfile.lock with it' do
+    _stdout, status, calls = run_setup('bundle', 'gem')
+
+    expect(status).to be_success
+    expect(calls).to include('gem install --no-document bundler-audit')
   end
 end
