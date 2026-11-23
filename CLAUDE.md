@@ -9,7 +9,7 @@ For agents working **on** this repository. **Budget: under 12,000 chars** (the d
 | `spec/` | [`spec/CLAUDE.md`](spec/CLAUDE.md): spec layout, both-implementation groups, guard specs |
 | `.github/`, `docs/release.md`, `lib/gem/ruby2html/version.rb` | [`.github/CLAUDE.md`](.github/CLAUDE.md): CI jobs, canary, benchmarks, Dependabot, release lane |
 
-`AGENTS.md` is a symlink to this file; there are no other per-tool instruction files. Writing ruby2html templates or components (here or in a user app): load [`llms.txt`](llms.txt), the complete user reference. Internals: [`docs/architecture.md`](docs/architecture.md).
+`AGENTS.md` is a symlink to this file; there are no other per-tool instruction files. Writing ruby2html templates or components (here or in a user app): load [`llms.txt`](llms.txt), the complete user reference. Internals: [`docs/architecture.md`](docs/architecture.md). Intent and direction (draft): [`docs/idea/`](docs/idea/); index: [`docs/README.md`](docs/README.md).
 
 ## ruby2html
 
@@ -115,7 +115,7 @@ Hand maintenance is limited to owner decisions: breaking changes, major releases
 |---|---|
 | Skills (`.claude/skills/`) | `release`, `benchmark`, `add-html-tag`, `review` (checklist for `ext/` and renderer diffs), `debug-render` (C against Ruby output, sanitizer builds), `upgrade-deps` |
 | Agents (`.claude/agents/`) | `perf-reviewer`, `xss-auditor`: fresh-context review of hot-path or escaping changes; they report, they do not edit |
-| Commands (`.claude/commands/`) | `/planx` (a plan under `docs/plans/`; not for a one-file fix), `/feature` (one change to merged) |
+| Commands (`.claude/commands/`) | `/planx` (a plan under `docs/plans/`; not for a one-file fix), `/feature` (one change to merged), `/bug-sweep` (one area, a failing spec per defect) |
 | `.claude/settings.json` | `bypassPermissions` and nothing else |
 | `.mcp.json` | `codegraph`, `sentry-mcp`, `developerz`; secrets come from the environment (`.env.example`), stdio packages are pinned to an exact version |
 | `bin/repo-guards` | Fails on CI and `bin/check` drift, invisible characters or HTML comments in agent-read files, a rerouted API or auto-started MCP servers in settings, this file reaching 12,000 chars, `AGENTS.md` not being a symlink |

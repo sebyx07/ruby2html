@@ -106,8 +106,8 @@ escalate:
 
 # `mode: devops` runs the brief as one task with a shell and delivers a pull request (it needs
 # `handoff.mode: fleet`, set above). A scout is read-only and files asks, and it cannot propose a
-# change to CI, release or policy files. The three briefs that run commands and open a pull request
-# are devops; `health` only reports, so it stays a scout.
+# change to CI, release or policy files. The briefs that run commands and open a pull request are
+# devops; `health`, `repo-census` and `repo-score` only read and report, so they stay scouts.
 schedules:
   # Weekly and judged, so a merge never cuts a release (owner, 2026-11-01: "no auto, not dependabot,
   # us developerz.ai AI decides if needed"). One weekday per repo, so the fleet is not hit at once.
@@ -133,3 +133,33 @@ schedules:
     hours_utc: [8]
     brief_file: .dz/schedules/improve.md
     mode: devops
+  # The developerz.ai platform's standard checkups. Hours follow the platform's per-repo spread
+  # (sha256 of the repo name: hour 12 here), so the fleet is not hit at once; none shares a day and
+  # hour with an entry above.
+  # The repository census reports and files nothing: on for every repo.
+  - name: repo-census
+    days: [mon]
+    hours_utc: [12]
+    brief_file: .dz/schedules/repo-census.md
+  # Ten checks of whether this repo can be worked on unattended (gate, green main, tests in CI,
+  # agent file, direction page, nothing secret or built committed, aged work, deploy verdict);
+  # one ask per failing check.
+  - name: repo-score
+    days: [tue]
+    hours_utc: [6]
+    brief_file: .dz/schedules/repo-score.md
+  # Offered, off: each makes work, and health + improve already cover most of it. Drop the
+  # leading `# ` on each line of an entry to run it; its brief is committed beside the others.
+  # - name: hygiene
+  #   days: [sun]
+  #   hours_utc: [12]
+  #   brief_file: .dz/schedules/hygiene.md
+  # - name: devops
+  #   days: [sat]
+  #   hours_utc: [0]
+  #   brief_file: .dz/schedules/devops.md
+  # - name: fix-sweep
+  #   days: [thu]
+  #   hours_utc: [18]
+  #   brief_file: .dz/schedules/fix-sweep.md
+  #   mode: devops
