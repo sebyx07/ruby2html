@@ -62,7 +62,7 @@ module Ruby2html
 
       # Like Native.escape_html: never hands back the caller's mutable string.
       def escape_html(obj)
-        str = obj.to_s
+        str = as_string(obj)
         escaped = escape(str)
         escaped.equal?(str) && !str.frozen? ? str.dup : escaped
       end
@@ -70,10 +70,33 @@ module Ruby2html
       # See r2h_utf8_compatible in html_escape.c.
       def utf8_compatible(str)
         case str.encoding
-        when Encoding::UTF_8, Encoding::US_ASCII then str
+        when Encoding::UTF_8 then str
+        when Encoding::US_ASCII then str.ascii_only? ? str : str.dup.force_encoding(Encoding::UTF_8)
         when Encoding::BINARY then str.dup.force_encoding(Encoding::UTF_8)
         else str.ascii_only? ? str : str.encode(Encoding::UTF_8)
         end
+      end
+
+      # rb_obj_as_string, as the C extension uses: a String as is, else #to_s
+      # (even a private one), else Kernel#to_s when #to_s returns no String.
+      def as_string(obj)
+        return obj if String === obj
+
+        str = obj.__send__(:to_s)
+        String === str ? str : Kernel.instance_method(:to_s).bind_call(obj)
+      end
+
+      # See r2h_current_buffer in content.c.
+      def output_buffer(buffer)
+        raise TypeError, 'ruby2html: @current_output must be a String' unless String === buffer
+
+        encoding = buffer.encoding
+        return buffer if encoding == Encoding::UTF_8
+        unless encoding == Encoding::BINARY || encoding == Encoding::US_ASCII
+          raise Encoding::CompatibilityError, "ruby2html: output buffer must be UTF-8, not #{encoding}"
+        end
+
+        buffer.force_encoding(Encoding::UTF_8)
       end
 
       def define_tag(method_name, tag, void)
@@ -87,7 +110,15 @@ module Ruby2html
           <<~RUBY
             def #{method_name}(content = nil, **attributes)
               buffer = @current_output
+              buffer = __r2h_output(buffer) unless buffer && buffer.equal?(@__r2h_output)
               if attributes.empty?
+                # `li "text"` (Native's fast path): escaping may raise (an
+                # untranscodable string), so do it before writing anything.
+                if !block_given? && String === content && content.instance_of?(String)
+                  text = PureRuby.escape(content)
+                  buffer << '<#{tag}>' << text << '</#{tag}>'
+                  return
+                end
                 buffer << '<#{tag}>'
               else
                 __r2h_open_tag(buffer, '<#{tag}', attributes)
@@ -97,8 +128,6 @@ module Ruby2html
                 size = buffer.bytesize
                 result = yield
                 __r2h_block_result(buffer, result) if buffer.bytesize == size
-              elsif content.instance_of?(String)
-                buffer << PureRuby.escape(content)
               else
                 __r2h_text(buffer, content)
               end
@@ -111,10 +140,11 @@ module Ruby2html
         def void_tag_source(method_name, tag)
           <<~RUBY
             def #{method_name}(_content = nil, **attributes)
+              buffer = @current_output
+              buffer = __r2h_output(buffer) unless buffer && buffer.equal?(@__r2h_output)
               if attributes.empty?
-                @current_output << '<#{tag} />'
+                buffer << '<#{tag} />'
               else
-                buffer = @current_output
                 __r2h_open_tag(buffer, '<#{tag}', attributes)
                 buffer << ' />'
               end
@@ -125,16 +155,29 @@ module Ruby2html
     end
 
     def plain(text)
-      __r2h_text(@current_output, text)
+      buffer = @current_output
+      buffer = __r2h_output(buffer) unless buffer && buffer.equal?(@__r2h_output)
+      __r2h_text(buffer, text)
       nil
     end
 
     def component(html)
-      @current_output << PureRuby.utf8_compatible(html.to_s) unless html.nil?
+      return if html.equal?(nil)
+
+      buffer = @current_output
+      buffer = __r2h_output(buffer) unless buffer && buffer.equal?(@__r2h_output)
+      buffer << PureRuby.utf8_compatible(PureRuby.as_string(html))
       nil
     end
 
     private
+      # Validates (and relabels) a newly swapped-in @current_output once, then
+      # remembers it: checking its class and encoding on every call costs the
+      # pure-Ruby renderer a few percent. (`buffer &&`: the memo starts as nil.)
+      def __r2h_output(buffer)
+        @__r2h_output = PureRuby.output_buffer(buffer)
+      end
+
       def __r2h_text(buffer, obj)
         case obj
         when nil then nil
@@ -143,16 +186,23 @@ module Ruby2html
           buffer << (safe ? PureRuby.utf8_compatible(obj) : PureRuby.escape(obj))
         when Symbol, Integer then buffer << PureRuby.escape(obj.to_s)
         else
-          buffer << (__r2h_html_safe?(obj) ? PureRuby.utf8_compatible(obj.to_s) : PureRuby.escape(obj.to_s))
+          safe = __r2h_html_safe?(obj)
+          str = PureRuby.as_string(obj)
+          buffer << (safe ? PureRuby.utf8_compatible(str) : PureRuby.escape(str))
         end
       end
 
+      # Module#===, not is_a?: the result may be a BasicObject.
       def __r2h_block_result(buffer, result)
-        __r2h_text(buffer, result) if result.is_a?(String) || result.is_a?(Symbol) || result.is_a?(Numeric)
+        case result
+        when String, Symbol, Numeric then __r2h_text(buffer, result)
+        end
       end
 
+      # rb_respond_to also answers for a BasicObject, which has no respond_to?.
       def __r2h_html_safe?(obj)
-        obj.respond_to?(:html_safe?) && obj.html_safe?
+        responds = Kernel === obj ? obj.respond_to?(:html_safe?) : Kernel.instance_method(:respond_to?).bind_call(obj, :html_safe?)
+        responds && obj.html_safe?
       end
 
       # Writes `<tag attr="..."`. If an attribute raises and the caller rescues,
@@ -171,26 +221,32 @@ module Ruby2html
         raise ArgumentError, "attributes nested more than #{MAX_NESTING} levels deep" if depth > MAX_NESTING
 
         attributes.each do |key, value|
-          next if value.nil?
+          next if value.equal?(nil) # not nil?: the value may be a BasicObject
 
-          name = key.is_a?(Symbol) ? key.name : key.to_s
+          name = Symbol === key ? key.name : PureRuby.as_string(key)
           raise ArgumentError, "attribute name can't be empty" if name.empty?
 
           name = PureRuby.utf8_compatible(name)
           name = "#{prefix}-#{__r2h_dasherize(name)}" if prefix
           # Match bytes when the name isn't valid UTF-8 (a UTF-8 regex would raise).
           checked = name.valid_encoding? ? name : name.b
-          raise ArgumentError, "invalid attribute name: #{name.inspect}" if INVALID_ATTRIBUTE_NAME.match?(checked)
+          __r2h_invalid_name(name) if INVALID_ATTRIBUTE_NAME.match?(checked)
 
           case value
           when String then buffer << ' ' << name << '="' << PureRuby.escape(value) << '"'
-          when true then buffer << ' ' << name << (STRING_BOOLEAN.match?(name) ? '="true"' : '')
-          when false then buffer << ' ' << name << '="false"' if STRING_BOOLEAN.match?(name)
+          when true then buffer << ' ' << name << (STRING_BOOLEAN.match?(checked) ? '="true"' : '')
+          when false then buffer << ' ' << name << '="false"' if STRING_BOOLEAN.match?(checked)
           when Hash then __r2h_attributes(buffer, value, name, depth + 1)
           when Array then buffer << ' ' << name << '="' << __r2h_tokens(value) << '"'
-          else buffer << ' ' << name << '="' << PureRuby.escape(value.to_s) << '"'
+          else buffer << ' ' << name << '="' << PureRuby.escape(PureRuby.as_string(value)) << '"'
           end
         end
+      end
+
+      # Shows the name's bytes as UTF-8, whatever encoding interpolation gave it
+      # (see raise_invalid_name in attributes.c).
+      def __r2h_invalid_name(name)
+        raise ArgumentError, "invalid attribute name: #{name.dup.force_encoding(Encoding::UTF_8).inspect}"
       end
 
       def __r2h_dasherize(name)
@@ -207,10 +263,10 @@ module Ruby2html
         raise ArgumentError, "attributes nested more than #{MAX_NESTING} levels deep" if depth > MAX_NESTING
 
         tokens.each do |token|
-          if token.is_a?(Array)
+          if Array === token
             __r2h_collect_tokens(token, collected, depth + 1)
           elsif token
-            collected << PureRuby.escape(token.to_s)
+            collected << PureRuby.escape(PureRuby.as_string(token))
           end
         end
         collected

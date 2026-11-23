@@ -105,7 +105,11 @@ static VALUE native_plain(VALUE self, VALUE text)
 /* component(html): already-rendered markup, appended as is. */
 static VALUE native_component(VALUE self, VALUE html)
 {
-    if (!NIL_P(html)) r2h_append_raw(r2h_current_buffer(self), rb_obj_as_string(html));
+    if (NIL_P(html)) return Qnil;
+
+    /* Buffer first, then to_s: the order PureRuby checks them in. */
+    VALUE buf = r2h_current_buffer(self);
+    r2h_append_raw(buf, rb_obj_as_string(html));
     return Qnil;
 }
 

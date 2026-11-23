@@ -49,15 +49,30 @@ static VALUE key_to_str(VALUE key)
  * Writes ` name` (or ` prefix-name` with _ turned into -) and returns the
  * offset of the name within buf so callers can inspect or roll it back.
  */
-/* Error path only: report the full name as written (`data-x onclick`), like PureRuby. */
+/*
+ * Error path only: report the full name as written (`data-x onclick`), like
+ * PureRuby. Built from the raw bytes, labelled UTF-8 like the output: the
+ * name may hold invalid bytes, which String#tr would raise on.
+ */
 NORETURN(static void raise_invalid_name(const attr_ctx *ctx, VALUE name));
 static void raise_invalid_name(const attr_ctx *ctx, VALUE name)
 {
-    VALUE full = name;
-    if (!NIL_P(ctx->prefix)) {
-        VALUE dashed = rb_funcall(name, rb_intern("tr"), 2, rb_str_new_cstr("_"), rb_str_new_cstr("-"));
-        full = rb_sprintf("%" PRIsVALUE "-%" PRIsVALUE, ctx->prefix, dashed);
+    const int nested = !NIL_P(ctx->prefix);
+    VALUE full = rb_utf8_str_new(NULL, 0);
+
+    if (nested) {
+        rb_str_cat(full, RSTRING_PTR(ctx->prefix), RSTRING_LEN(ctx->prefix));
+        R2H_BUF_CAT_LIT(full, "-");
     }
+    const long offset = RSTRING_LEN(full);
+    rb_str_cat(full, RSTRING_PTR(name), RSTRING_LEN(name));
+    if (nested) {
+        char *p = RSTRING_PTR(full);
+        for (long i = offset; i < RSTRING_LEN(full); i++) {
+            if (p[i] == '_') p[i] = '-';
+        }
+    }
+    RB_GC_GUARD(name);
     rb_raise(rb_eArgError, "invalid attribute name: %+" PRIsVALUE, full);
 }
 

@@ -61,6 +61,18 @@ module Ruby2html
           Result.new(apply(source, collector.edits), collector.uses_helpers)
         end
 
+        # Local names declared by a parameter list such as a strict-locals
+        # signature (`title:, label: 'x', **rest`); [] without Prism or when
+        # it doesn't parse (ActionView then reports the bad signature).
+        def parameter_names(signature)
+          return [] unless available?
+
+          parsed = Prism.parse("def __r2h_locals(#{signature}); end")
+          return [] unless parsed.success?
+
+          parsed.value.statements.body.first.locals
+        end
+
         # Ruby2html methods a template may call without a receiver: every
         # tag method plus plain/component. Resolved lazily (and memoized) so
         # it reflects Render after it has been fully loaded.

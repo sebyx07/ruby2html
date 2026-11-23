@@ -119,6 +119,6 @@ RSpec.describe 'Ruby2html::Native.define_tag' do
     expect(Ruby2html::Render.new { __send__(name) }.render).to eq("<#{name} />")
   ensure
     # Keep the Native/PureRuby method sets identical for the parity spec.
-    Ruby2html::Native.send(:remove_method, name) if Ruby2html::Native.method_defined?(name)
+    Ruby2html::Native.send(:remove_method, name) if name && Ruby2html::Native.method_defined?(name)
   end
 end
