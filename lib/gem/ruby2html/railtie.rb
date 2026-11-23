@@ -58,8 +58,14 @@ module Ruby2html
       end
 
       private
+        # Strict-locals templates (`# locals: (title:)`) report nil locals:
+        # their names come from the magic comment's parameter list instead.
         def template_locals(template)
-          template.respond_to?(:locals) ? Array(template.locals) : []
+          if template.respond_to?(:strict_locals?) && template.strict_locals?
+            RailsComponents::TemplateCompiler.parameter_names(template.strict_locals!)
+          else
+            template.respond_to?(:locals) ? Array(template.locals) : []
+          end
         end
 
         def compiled_code(template, compiled)
@@ -108,6 +114,18 @@ module Ruby2html
         # *.html.rb files are templates, not constants: keep Zeitwerk from
         # trying to autoload/eager-load them anywhere under app/.
         Rails.autoloaders.main.ignore(Rails.root.join('app/**/*.html.rb'))
+      end
+
+      # Cache digests: find the partials a template renders. RubyTracker parses
+      # the handler's compiled output, where they are `__r2h_helpers.render`
+      # calls. Not in the :action_view hook: that hook can fire while
+      # action_view/dependency_tracker is still loading (its requires load
+      # ActionView::Base), and the file then resets the tracker table after us.
+      config.after_initialize do
+        require 'action_view/dependency_tracker'
+        ActiveSupport.on_load(:action_view) do
+          ActionView::DependencyTracker.register_tracker :rb, ActionView::DependencyTracker::RubyTracker
+        end
       end
     end
   end

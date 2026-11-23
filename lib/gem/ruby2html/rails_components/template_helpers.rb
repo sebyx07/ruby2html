@@ -40,7 +40,7 @@ module Ruby2html
       def render(*args, **options, &block)
         first = args.first
         if args.size == 1 && options.empty? && first.is_a?(Ruby2html::Component)
-          first.render_into(@render.current_output, @context, block)
+          first.render_into(@render.current_output, @context, block && first.__r2h_block_content(@render, block))
         else
           @render.plain(@context.render(*args, **options, &capturing(block)))
         end

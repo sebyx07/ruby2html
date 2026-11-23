@@ -76,11 +76,13 @@ module Ruby2html
 
     # Without arguments renders the root block and returns the HTML (a
     # SafeBuffer under ActiveSupport). With arguments it is the context's
-    # render (partials, components), appended to the output.
+    # render (partials, components), appended to the output; a block is
+    # captured from this renderer's buffer (see TemplateHelpers#render).
     def render(*args, **options, &block)
       copy_instance_variables if @context && !@__vars_copied
 
-      return plain @context.render(*args, **options, &block) if !args.empty? || !options.empty? || block
+      return RailsComponents::TemplateHelpers.new(self, @context).render(*args, **options, &block) if block
+      return plain @context.render(*args, **options) if !args.empty? || !options.empty?
 
       instance_exec(&@root)
       defined?(ActiveSupport::SafeBuffer) ? ActiveSupport::SafeBuffer.new(@output) : @output

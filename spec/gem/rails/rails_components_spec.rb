@@ -44,7 +44,9 @@ RSpec.describe Ruby2html::RailsComponents do
     it 'renders a button form with the block content inside the button' do
       html = render_source("button_to '/x' do\n  strong 'Go'\nend")
       expect(html).to include('<button type="submit"><strong>Go</strong></button>')
-      expect(html).to start_with('<form class="button_to" method="post" action="/x">')
+      # Attribute order differs between Rails versions (edge adds accept-charset). HTML4: JRuby has no HTML5 parser.
+      form = Nokogiri::HTML.fragment(html).at_css('form.button_to')
+      expect(form.to_h).to include('method' => 'post', 'action' => '/x')
     end
   end
 

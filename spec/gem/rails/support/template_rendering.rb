@@ -12,9 +12,12 @@ module TemplateRendering
   end
 
   def render_template(templates, template: 'spec/show', assigns: {}, locals: {}, layout: false)
-    controller = Class.new(SpecController)
-    controller.view_paths = [ActionView::FixtureResolver.new(templates)]
-    controller.render(template:, assigns:, locals:, layout:)
+    template_controller(templates).render(template:, assigns:, locals:, layout:)
+  end
+
+  # A controller class whose views are +templates+ (path => source).
+  def template_controller(templates)
+    Class.new(SpecController).tap { |controller| controller.view_paths = [ActionView::FixtureResolver.new(templates)] }
   end
 
   # Shortcut for a single template at spec/show.html.rb.

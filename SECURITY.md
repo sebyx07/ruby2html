@@ -28,3 +28,4 @@ There is no fixed response time. Reports are read and fixed as maintainer time a
 - The demo Rails app in `app/` and `config/`: it is not packaged in the gem
 - Output a template explicitly marked as safe, such as `html_safe` strings
 - Vulnerabilities in your own application's templates
+- Documented behavior that is the application's job to handle (README, "Escaping and security"): URL schemes such as `javascript:` in attribute values are not checked, user-controlled attribute names are not filtered beyond syntax, and `component(html)` appends its argument unescaped

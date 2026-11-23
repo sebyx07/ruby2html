@@ -1,10 +1,14 @@
 # ruby2html
 
-> Ruby gem that renders HTML from a pure-Ruby block DSL (`div class: 'card' do h2 @title end`). Tag methods are C (with an output-identical pure-Ruby fallback used on JRuby and TruffleRuby or when the extension can't load; JRuby adds a Java escaper for the hot path). Works standalone, as Rails `.html.rb` templates, inside ERB, in ViewComponent, and as lightweight `Ruby2html::Component` classes. Text and attribute values are escaped by default. No runtime dependencies. Performance: benchmarks run in CI on every push and pull request, and README "Performance" holds the current numbers; run them locally with `bundle exec rake bench`.
+> Ruby gem that renders HTML from a pure-Ruby block DSL (`div class: 'card' do h2 @title end`). Every HTML5 tag is a method. Text and attribute values are escaped by default. Works standalone, as Rails `.html.rb` templates, inside ERB, in ViewComponent, and as lightweight `Ruby2html::Component` classes. No runtime dependencies.
 
-Install: `gem 'ruby2html'`. CRuby >= 3.1 (builds a C extension), JRuby (pure Ruby + a prebuilt Java escaper, shipped as the `-java` platform gem), TruffleRuby (pure Ruby, faster than the C extension there), Rails 7.2+ (optional). MIT. Source: https://github.com/sebyx07/ruby2html. Upgrading from 1.x: CHANGELOG "Upgrading to 2.0". Maintained by developerz.ai (AI maintainer agent: triage, review, merges, releases).
+Install: `gem 'ruby2html'`. Ruby >= 3.1; Rails >= 7.2 for the Rails integration (optional). MIT. Source: https://github.com/sebyx07/ruby2html. Upgrading from 1.x: CHANGELOG "Upgrading to 2.0". Maintained by developerz.ai (AI maintainer agent: triage, review, merges, releases).
 
-## DSL rules
+Implementations, all producing the same output: on CRuby the tag methods, attribute serialization and escaping are a C extension (compiled on install; if it can't be built the gem installs anyway and uses the pure-Ruby implementation). JRuby runs the pure-Ruby implementation plus a prebuilt Java escaper, shipped as the `-java` platform gem. TruffleRuby runs the pure-Ruby implementation. CI runs the renderer specs on every CRuby from 3.1, on JRuby and on TruffleRuby; the Rails integration is tested on CRuby with every stable Rails minor from 7.2, and on JRuby with one Rails line.
+
+Performance, as the CI benchmark workflow measures it (every push and pull request; current tables in the latest run of https://github.com/sebyx07/ruby2html/actions/workflows/benchmark.yml): in a full Rails request ruby2html is on par with ERB and Slim, within runner noise, and ahead of Phlex. In a standalone page render it is roughly 10x faster than Phlex and behind Erubi (compiled ERB) by about 1.3x to 1.5x. Do not describe it as faster than ERB. Local run: `bundle exec rake bench`.
+
+**DSL rules**
 
 1. Every HTML5 tag is a method (`div`, `h1`..`h6`, `table`, `output`, `turbo_frame` → `<turbo-frame>`, ...; list: `Ruby2html::Render::HTML5_TAGS`). No SVG/MathML elements and no generic `tag(name)`: insert such markup with `plain trusted_svg.html_safe`.
 2. Signature `tag(content = nil, **attributes) { block } -> nil`. At most one positional argument (`div 'a', 'b'` raises `ArgumentError`). Tags append to the output; their return value is `nil`.
@@ -16,7 +20,7 @@ Install: `gem 'ruby2html'`. CRuby >= 3.1 (builds a C extension), JRuby (pure Rub
 8. Void tags (`area base br col embed hr img input link meta param source track wbr`) take attributes only: `img src: 'a.png'` → `<img src="a.png" />`.
 9. Logic is plain Ruby: `if`, `each`, locals, methods.
 
-## Attributes
+**Attributes**
 
 | You write | HTML |
 |---|---|
@@ -31,7 +35,7 @@ Install: `gem 'ruby2html'`. CRuby >= 3.1 (builds a C extension), JRuby (pure Rub
 
 `data-*`, `aria-*`, `draggable`, `spellcheck`, `contenteditable` keep literal `"true"`/`"false"`. Don't pass user-controlled attribute *names* (`div(**params)`), and validate URLs (`javascript:`) yourself.
 
-## Rails view (`app/views/posts/index.html.rb`)
+**Rails view (`app/views/posts/index.html.rb`)**
 
 ```ruby
 div class: 'posts' do
@@ -51,12 +55,12 @@ end
 ```
 
 - The template runs in the view (`self` = view: ivars, locals, helpers, routes). Write `div`, never `self.div`.
-- Write themselves: `link_to`, `button_to`, `image_tag`, `form_with`, `render`, `capture`/`content_for`/`provide` (blocks of tags are captured). Any other helper only returns a value: wrap it (`p t('.x')`, `plain content_tag(:em, 'e')`). A bare `t('.x')` line outputs nothing.
-- Partials can be `.html.rb`; layouts can stay ERB/Slim. Templates are rewritten at compile time with Prism (stdlib in Ruby >= 3.3, else the `prism` gem); without Prism they run on a renderer (1.x mode, public view methods only).
+- Write themselves: `link_to`, `button_to`, `image_tag`, `form_with`, `render`, `capture`/`content_for`/`provide` (blocks of tags are captured; `render(X.new) { ... }` puts the block inside X — ViewComponent, partial layout or `Ruby2html::Component` — and a String the block only returns is escaped content). Any other helper only returns a value: wrap it (`p t('.x')`, `plain content_tag(:em, 'e')`). A bare `t('.x')` line outputs nothing.
+- Partials can be `.html.rb` (strict locals work: `# locals: (title:)` on the first line); layouts can stay ERB/Slim (an `.html.rb` layout writes `plain yield`). Templates are rewritten at compile time with Prism (stdlib in Ruby >= 3.3, else the `prism` gem); without Prism they run on a renderer (1.x mode, public view methods only).
 
 ERB: `include Ruby2html::RailsHelper` in a controller, then `<%= html(self) { ul { @items.each { |i| li i } } } %>`.
 
-## Components
+**Components**
 
 `Ruby2html::Component` (fastest; no ViewComponent needed; `self` is the component, private methods work):
 
@@ -80,7 +84,7 @@ end
 
 ViewComponent: `include Ruby2html::ComponentHelper` in the base class, then `def call = html { div { h3 @user.name } }` (or a sidecar `*.html.rb` template). Inside `html { }` `self` is the renderer: component ivars are copied in, component methods must be public, and tag names win over same-named methods/slots, so use `component = self` before `html` and call `component.header`.
 
-## Forms
+**Forms**
 
 `form_with` wraps Rails' real `form_with`/`FormBuilder` (CSRF, `_method`, multipart, every builder method); builder calls write themselves:
 
@@ -92,26 +96,26 @@ form_with model: @user do |f|
 end
 ```
 
-## Without Rails
+**Without Rails**
 
 ```ruby
 require 'ruby2html'
 Ruby2html::Render.new { ul { %w[a b].each { |x| li x } } }.render  # => "<ul><li>a</li><li>b</li></ul>"
-Ruby2html::Render.new(ctx) { h1 title }.render                      # ctx's public methods + ivars available
+Ruby2html::Render.new(ctx) { h1 page_title }.render                 # ctx's public methods + ivars available
 Ruby2html.escape_html(%q(<'&">))                                     # => "&lt;&#39;&amp;&quot;&gt;"
 ```
 
-`render` returns a `SafeBuffer` when ActiveSupport is loaded, else a UTF-8 `String`; one `render` per instance. A nested `Ruby2html::Render.new { }.render` returns its own string.
+`render` returns a `SafeBuffer` when ActiveSupport is loaded, else a UTF-8 `String`; one `render` per instance. Tag methods win over context methods of the same name: a context method called `title`, `label` or `header` is unreachable by its bare name inside the block (`h1 title` renders an empty `<title>` and an empty `<h1>`), so give it another name. A nested `Ruby2html::Render.new { }.render` returns its own string.
 
-## API
+**API**
 
 - `Ruby2html.escape_html(obj)`, `Ruby2html.native?` (C extension loaded), `Ruby2html::IMPLEMENTATION` (`Native`/`PureRuby`), `Ruby2html::VERSION`, `Ruby2html::Error`.
-- `Render#current_output` / `#current_output=`: the buffer being written (swap to capture). `Component#render_in(view_context)`, `#render_into(buffer, view_context, content = nil)`.
+- `Render#current_output` / `#current_output=`: the buffer being written (swap to capture). Must be a `String`; a binary or US-ASCII one (`String.new`) is relabelled UTF-8, any other encoding raises `Encoding::CompatibilityError`. `Component#render_in(view_context)`, `#render_into(buffer, view_context, content = nil)`.
 - `ComponentHelper#__ruby2html_renderer__`: active renderer (stored on the object, fiber-safe; no `Thread.current`).
 - Dev only: `config.middleware.use Ruby2html::HtmlBeautifierMiddleware` plus `gem 'htmlbeautifier'`.
 - `RUBY2HTML_DISABLE_EXT=1` forces pure Ruby (install and runtime); `RUBY2HTML_NO_SIMD=1` builds scalar escaping.
 
-## Pitfalls
+**Pitfalls**
 
 | Wrong | Right |
 |---|---|
@@ -123,10 +127,21 @@ Ruby2html.escape_html(%q(<'&">))                                     # => "&lt;&
 | `div 'a', 'b'` | `div { plain 'a'; plain 'b' }` |
 | `self.div` in a template | `div` |
 | `component user_input` | `plain user_input` |
+| `script 'if (a < b) {}'` (escaped: `&lt;`) | `plain javascript_tag('if (a < b) {}')` |
+| `a 'x', href: user_url` (`javascript:` passes through) | validate the URL scheme first |
+| `Render.new(ctx) { h1 title }` (`title` is a tag) | rename the context method: `h1 page_title` |
 | slot `header` inside ViewComponent `html { }` | `component = self`; `component.header` |
 
-## Links
+## Docs
 
-- README: https://github.com/sebyx07/ruby2html/blob/main/README.md
-- CHANGELOG: https://github.com/sebyx07/ruby2html/blob/main/CHANGELOG.md
-- Maintaining the repo (agents): https://github.com/sebyx07/ruby2html/blob/main/AGENTS.md
+- [README](https://github.com/sebyx07/ruby2html/blob/main/README.md): install, quick start for each integration, escaping and security, performance, compatibility
+- [Architecture](https://github.com/sebyx07/ruby2html/blob/main/docs/architecture.md): how tags, attributes, escaping, the template handler and components work internally
+- [CHANGELOG](https://github.com/sebyx07/ruby2html/blob/main/CHANGELOG.md): release notes, and "Upgrading to 2.0" for 1.x apps
+- [Security policy](https://github.com/sebyx07/ruby2html/blob/main/SECURITY.md): how to report a vulnerability, what is in scope
+
+## Optional
+
+- [Contributing](https://github.com/sebyx07/ruby2html/blob/main/CONTRIBUTING.md): setup, checks and how pull requests get merged
+- [Maintaining the repo (agents)](https://github.com/sebyx07/ruby2html/blob/main/CLAUDE.md): commands, code map and invariants for work on the gem itself
+- [Release process](https://github.com/sebyx07/ruby2html/blob/main/docs/release.md): how a version bump becomes a published gem
+- [Benchmark workflow](https://github.com/sebyx07/ruby2html/actions/workflows/benchmark.yml): current benchmark tables for x86_64 and arm64

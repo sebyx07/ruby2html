@@ -14,6 +14,8 @@ RUBY2HTML_DISABLE_EXT=1 bundle exec rspec spec/gem   # pure-Ruby implementation
 bundle exec rubocop
 ```
 
+`bin/check` runs the whole pre-PR gate in one command (`bin/check fast` for the inner loop: compile, RuboCop, `spec/gem`); `bin/check --help` lists what each mode covers and what only CI runs.
+
 `lefthook` (installed via the bundle) autocorrects staged Ruby files with RuboCop on commit once enabled with `bundle exec lefthook install`.
 
 ## Where things are
@@ -21,14 +23,14 @@ bundle exec rubocop
 - Gem code: `lib/gem/ruby2html/` (renderer `render.rb`, pure-Ruby twin `render/pure_ruby.rb`), C extension: `ext/ruby2html/`.
 - Demo Rails app (not packaged): `app/`, `config/`.
 - Specs: `spec/gem/` (renderer units), `spec/features/` (Rails), `spec/benchmarks/`.
-- Full map, rules and known sharp edges: [AGENTS.md](AGENTS.md). Internals: [docs/architecture.md](docs/architecture.md).
+- Full map, rules and known sharp edges: [CLAUDE.md](CLAUDE.md) (`AGENTS.md` is a symlink to it) and its nested `CLAUDE.md` files. Internals: [docs/architecture.md](docs/architecture.md).
 
 ## Pull requests
 
 1. Branch from `main`; keep PRs focused.
 2. Add/adjust specs for any behavior change. Escaping changes need explicit specs.
 3. C changes: recompile, keep `render/pure_ruby.rb` producing byte-identical output (parity specs), no new compiler warnings.
-4. Performance claims: include before/after numbers (see `bench/` and `spec/benchmarks/`; `.claude/skills/benchmark/SKILL.md` has the procedure).
+4. Performance claims: include before/after numbers (see `bench/` and `spec/benchmarks/`; `.claude/skills/benchmark/SKILL.md` has the procedure). The benchmark workflow comments the change against `main` on the PR. Claims in the README and `llms.txt` must match what that workflow measures.
 5. Add a line under `## [Unreleased]` in [CHANGELOG.md](CHANGELOG.md) for user-visible changes.
 6. Update [llms.txt](llms.txt) if user-facing behavior changes.
 

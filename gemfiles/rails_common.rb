@@ -6,7 +6,8 @@ gem 'sprockets-rails'
 gem 'bootsnap', require: false
 gem 'tzinfo-data', platforms: %i[windows jruby]
 gem 'htmlbeautifier'
-gem 'view_component', '>= 3.13'
+# view_component 4.16+ calls Ractor.make_shareable at boot, and JRuby has no Ractor.
+gem 'view_component', '>= 3.13', *('< 4.16' if RUBY_ENGINE == 'jruby')
 gem 'phlex-rails', '>= 1.2'
 gem 'slim-rails', '>= 3.6'
 gem 'rake-compiler', '~> 1.2', require: false

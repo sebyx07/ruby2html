@@ -1,14 +1,86 @@
 #!/usr/bin/env bash
-# one-command check (audit + lint + test + smoke) — established by dz-runner setup mode.
-# Runs the gates that can execute locally without special setup (multiple Ruby versions,
-# alternative interpreters, platform-specific runners, or special compiler flags).
-# Gates that require special setup (C extension builds with -Werror/sanitizers, matrix
-# Ruby/Rails versions, ARM64 platforms, JRuby/TruffleRuby) run only in CI.
-set -euo pipefail
-cd "$(dirname "$0")/.."
-bundle-audit check --update && \
-  bundle exec rake compile && \
-  bin/rubocop --parallel && \
-  CI=1 bundle exec rspec && \
-  bin/brakeman --no-pager && \
-  bundle exec rake smoke
+# The gate. CI's `check` job runs this script (bin/repo-guards fails when it stops), so green
+# here is green there.
+#
+#   bin/check        pre-PR gate: repo guards, bundle-audit (Gemfile.lock), rake compile,
+#                    RuboCop, the full RSpec suite (CI=1: without the ~6 min request
+#                    benchmark), Brakeman, rake smoke (build + install + render the gem)
+#   bin/check fast   inner loop: repo guards, rake compile, RuboCop, spec/gem (seconds)
+#
+# Exit: 0 green · 75 environment missing (nothing was graded: run bin/setup) · 1 a check failed.
+# Every step runs even after a failure; the summary names each failing command to rerun.
+#
+# CI-only (special runners, compilers or interpreters; see .github/CLAUDE.md): the Ruby and
+# Rails matrices, arm64 and macOS builds, -Werror with gcc and clang, ASAN/UBSAN, the
+# RUBY2HTML_DISABLE_EXT=1 run, JRuby, TruffleRuby, actionlint and zizmor.
+# `fast` blind spots: spec/features, spec/ci, spec/bin, the audit, Brakeman and packaging.
+set -uo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 1
+
+EX_ENV=75
+
+usage() { sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'; }
+
+mode="${1:-full}"
+[ "$#" -le 1 ] || { usage >&2; exit 2; }
+case "$mode" in
+  full | fast) ;;
+  -h | --help) usage; exit 0 ;;
+  *) usage >&2; exit 2 ;;
+esac
+
+# env_missing <what is missing> <how to fix it> — exits 75.
+env_missing() {
+  printf '\nENVIRONMENT MISSING (exit %s): %s\n  fix: %s\n' "$EX_ENV" "$1" "$2" >&2
+  exit "$EX_ENV"
+}
+
+failed=()
+
+# run_step <name> <command…> — runs the command, records a failure, keeps going.
+run_step() {
+  local name="$1" status
+  shift
+  printf '\n▸ %s: %s\n' "$name" "$*"
+  "$@"
+  status=$?
+  if [ "$status" -eq 0 ]; then
+    printf '  ✔ %s\n' "$name"
+  else
+    printf '  ✗ %s (exit %s)\n' "$name" "$status"
+    failed+=("$name|$*")
+  fi
+}
+
+command -v bundle >/dev/null 2>&1 || env_missing "bundler is not on PATH" "bin/setup"
+bundle check >/dev/null 2>&1 || env_missing "the bundle is not installed" "bin/setup"
+if [ "$mode" = full ]; then
+  command -v bundle-audit >/dev/null 2>&1 ||
+    env_missing "bundle-audit is not on PATH" "bin/setup (or: gem install --no-document bundler-audit)"
+fi
+
+export CI=1
+
+run_step guards bin/repo-guards
+[ "$mode" = fast ] || run_step audit bundle-audit check --update
+run_step compile bundle exec rake compile
+run_step rubocop bin/rubocop --parallel
+if [ "$mode" = fast ]; then
+  run_step rspec bundle exec rspec spec/gem
+else
+  run_step rspec bundle exec rspec
+  run_step brakeman bin/brakeman --no-pager
+  run_step smoke bundle exec rake smoke
+fi
+
+if [ "${#failed[@]}" -eq 0 ]; then
+  printf '\nbin/check %s: GREEN\n' "$mode"
+  exit 0
+fi
+
+printf '\nbin/check %s: FAILED (%s step(s))\n' "$mode" "${#failed[@]}"
+for entry in "${failed[@]}"; do
+  printf '  ✗ %s\n      rerun: CI=1 %s\n' "${entry%%|*}" "${entry#*|}"
+done
+printf '  rubocop: "bundle exec rubocop -a <file>" applies the safe autocorrections.\n'
+exit 1

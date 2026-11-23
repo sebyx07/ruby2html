@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+# Repository guards that need no Ruby and no bundle. bin/check runs them, and so does the
+# `workflows` job of .github/workflows/ci.yml.
+#
+#   1. Parity: ci.yml still runs the full bin/check and this script, bin/check still runs this
+#      script, and the aggregate job is still named "CI OK" (the one check the ruleset
+#      requires). Otherwise "green locally" stops meaning "green in CI" without anyone noticing.
+#   2. Agent surface: the files an agent reads as instructions (CLAUDE.md, nested CLAUDE.md,
+#      AGENTS.md, .claude/, llms.txt, .mcp.json) carry no zero-width or bidi control characters
+#      and no HTML comments (both invisible in review, both read by the model); committed
+#      settings set neither ANTHROPIC_BASE_URL nor enableAllProjectMcpServers.
+#   3. Size: the root CLAUDE.md stays under 12,000 characters (the developerz.ai loader cuts
+#      the rest). Move detail into a nested CLAUDE.md; never raise the cap.
+#   4. One source: AGENTS.md is a symlink to CLAUDE.md, never a second copy.
+#
+# Exit: 0 clean · 1 a guard failed (each failure names the file and the fix).
+set -uo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 1
+export LC_ALL=C.UTF-8
+
+CLAUDE_MD_MAX_CHARS=12000
+ci=.github/workflows/ci.yml
+failures=0
+
+fail() {
+  printf '✗ %s\n' "$1"
+  [ "$#" -lt 2 ] || printf '%s\n' "$2" | sed 's/^/    /'
+  failures=$((failures + 1))
+}
+
+# uncommented <file> — the file without its comment-only lines.
+uncommented() { grep -vE '^[[:space:]]*#' "$1"; }
+
+# Reads all of its input (unlike grep -q), so the writer never dies of SIGPIPE
+# and trips pipefail: true when a line matches the extended regex $1.
+matches() { [ "$(grep -cE "$1")" -gt 0 ]; }
+
+# 1. Parity. `bin/check` must end the command: `bin/check fast` is not the gate.
+uncommented "$ci" | matches '(^|[[:space:]])bin/check[[:space:]]*$' ||
+  fail "$ci no longer runs the full bin/check" "CI must run the local gate: restore the 'bin/check' step of the 'check' job."
+uncommented "$ci" | matches '(^|[[:space:]])bin/repo-guards[[:space:]]*$' ||
+  fail "$ci no longer runs bin/repo-guards" "Restore the 'bin/repo-guards' step of the 'workflows' job."
+uncommented bin/check | matches '(^|[[:space:]])bin/repo-guards[[:space:]]*$' ||
+  fail "bin/check no longer runs bin/repo-guards" "Restore the 'run_step guards bin/repo-guards' lines."
+uncommented "$ci" | matches '^[[:space:]]+name:[[:space:]]+CI OK[[:space:]]*$' ||
+  fail "$ci has no job named 'CI OK'" "The main-protection ruleset requires exactly that check: keep 'name: CI OK' on the ci-ok job."
+
+# 2. Agent surface: tracked and untracked files, minus what .gitignore excludes.
+mapfile -t surface < <(git ls-files --cached --others --exclude-standard -- \
+  CLAUDE.md '*/CLAUDE.md' AGENTS.md '.claude/*' llms.txt 'llms-*.txt' .mcp.json | sort -u)
+existing=()
+for path in "${surface[@]}"; do [ -f "$path" ] && existing+=("$path"); done
+[ "${#existing[@]}" -gt 0 ] || fail "no agent-surface file found" "CLAUDE.md is missing, or this is not a git checkout."
+
+if [ "${#existing[@]}" -gt 0 ]; then
+  hits=$(grep -nP '[\x{200B}-\x{200D}\x{2060}\x{FEFF}\x{202A}-\x{202E}\x{2066}-\x{2069}]' "${existing[@]}" /dev/null | cut -c1-160)
+  [ -z "$hits" ] || fail "zero-width or bidi control character in a file agents read" "$hits"
+
+  hits=$(grep -nF '<!--' "${existing[@]}" /dev/null | cut -c1-160)
+  [ -z "$hits" ] || fail "HTML comment in a file agents read (write it as visible text, or delete it)" "$hits"
+
+  settings=()
+  for path in "${existing[@]}"; do case "$path" in *.json) settings+=("$path") ;; esac; done
+  if [ "${#settings[@]}" -gt 0 ]; then
+    hits=$(grep -nE 'ANTHROPIC_BASE_URL|enableAllProjectMcpServers' "${settings[@]}" /dev/null | cut -c1-160)
+    [ -z "$hits" ] || fail "committed settings reroute the API or auto-start every MCP server" "$hits"
+  fi
+fi
+
+# 3. Size.
+if [ -f CLAUDE.md ]; then
+  chars=$(wc -m < CLAUDE.md)
+  [ "$chars" -lt "$CLAUDE_MD_MAX_CHARS" ] ||
+    fail "CLAUDE.md is $chars characters; the limit is under $CLAUDE_MD_MAX_CHARS" "Move detail into ext/, lib/, spec/ or .github/CLAUDE.md."
+fi
+
+# 4. One source.
+if [ ! -f CLAUDE.md ] || [ -L CLAUDE.md ]; then
+  fail "CLAUDE.md must be the regular file" "Keep the content in CLAUDE.md; AGENTS.md is the symlink."
+fi
+if [ ! -L AGENTS.md ] || [ "$(readlink AGENTS.md)" != CLAUDE.md ]; then
+  fail "AGENTS.md is not a symlink to CLAUDE.md" "rm AGENTS.md && ln -s CLAUDE.md AGENTS.md (two copies drift)."
+fi
+
+if [ "$failures" -gt 0 ]; then
+  printf '\nbin/repo-guards: FAILED (%s)\n' "$failures"
+  exit 1
+fi
+printf 'bin/repo-guards: ok (%s agent-surface files, CLAUDE.md %s chars)\n' "${#existing[@]}" "${chars:-0}"

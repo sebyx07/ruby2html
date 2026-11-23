@@ -8,13 +8,12 @@ Gem::Specification.new do |spec|
   spec.authors = ['sebi']
   spec.email = ['gore.sebyx@yahoo.com']
 
-  spec.summary = 'Transform Ruby code into beautiful, structured HTML with C-optimized performance'
-  spec.description = 'Ruby2HTML empowers developers to write view logic in pure Ruby, ' \
-    'seamlessly converting it into clean, well-formatted HTML. ' \
-    'Enhance your templating workflow, improve readability, and ' \
-    'leverage the full power of Ruby in your views. ' \
-    'Features include Rails integration, custom component support, ' \
-    'automatic HTML beautification, and C-optimized rendering performance.'
+  spec.summary = 'HTML views in plain Ruby: a block DSL with escaping by default, Rails templates and components'
+  spec.description = 'ruby2html renders HTML from a pure-Ruby block DSL (div class: "card" do h2 @title end). ' \
+    'Text and attribute values are escaped by default. Works standalone, as Rails .html.rb ' \
+    'templates and partials, inside ERB, in ViewComponent, and as lightweight Ruby2html::Component ' \
+    'classes. Tag rendering is a C extension on CRuby, with an output-identical pure-Ruby fallback ' \
+    'for JRuby and TruffleRuby. No runtime dependencies.'
   spec.homepage = 'https://github.com/sebyx07/ruby2html'
   spec.license = 'MIT'
   spec.required_ruby_version = '>= 3.1.0'

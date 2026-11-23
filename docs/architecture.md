@@ -14,8 +14,8 @@ Ruby2html::Component#view_template   ──► self = component                 
 
 ## Load sequence
 
-1. `require 'ruby2html'` → `lib/gem/ruby2html.rb` requires every `ruby2html/**/*.rb`.
-2. `render.rb` requires `render/pure_ruby.rb`, then tries the extension: `require 'ruby2html/ruby2html'` (installed gem: built into `lib/gem/ruby2html/`), else `require_relative '../../ruby2html/ruby2html'` (checkout: `rake compile` output in `lib/ruby2html/`). `RUBY2HTML_DISABLE_EXT=1` skips it. Result: `Ruby2html::IMPLEMENTATION` = `Native` or `PureRuby`; `Ruby2html.native?`.
+1. `require 'ruby2html'` → `lib/gem/ruby2html.rb` requires only `version.rb` and `render.rb`. `Component`, `ComponentHelper`, `RailsHelper`, `HtmlBeautifierMiddleware` and everything in `RailsComponents` are `autoload`ed on first use; with Rails, the Railtie loads them all (and Prism) in `before_eager_load`, so eager-loading apps pay at boot.
+2. `render.rb` requires `render/pure_ruby.rb`, then tries the extension: `require 'ruby2html/ruby2html'` (installed gem: built into `lib/gem/ruby2html/`), else `require_relative '../../ruby2html/ruby2html'` (checkout: `rake compile` output in `lib/ruby2html/`). `RUBY2HTML_DISABLE_EXT=1` skips it, and so do JRuby (no C extensions; `pure_ruby.rb` loads the Java escaper `Ruby2html::JavaNative` from `ruby2html_jruby.jar` instead, built from `ext/java`) and TruffleRuby (pure Ruby by choice; `extconf.rb` does not build the extension there). On CRuby a `LoadError` prints one warning and falls back. Result: `Ruby2html::IMPLEMENTATION` = `Native` or `PureRuby`; `Ruby2html.native?`.
 3. `Init_ruby2html` defines module `Ruby2html::Native` with instance methods `plain`, `component` and singleton methods `define_tag`, `escape_html`.
 4. `Render` calls `define_tag(method, tag, void)` for every `HTML5_TAGS` entry on **both** PureRuby and the active implementation (so specs can compare them in one process), then `include IMPLEMENTATION`. `Ruby2html::Component` includes the same module.
 5. With ActiveSupport loaded, `railtie.rb` defines `TemplateHandler` and registers it for `.rb` in `on_load(:action_view)`; with Rails, the Railtie makes Zeitwerk ignore `app/**/*.html.rb`.
@@ -56,7 +56,7 @@ State: `@context`, `@root` block, `@output` (`String.new(capacity: 4096, encodin
 ```ruby
 div class: 'x' do      # => __r2h_renderer.div class: 'x' do
 link_to 'Home', '/'    # => __r2h_helpers.link_to 'Home', '/'
-render partial: 'nav'  # => __r2h_renderer.plain(render partial: 'nav')
+render partial: 'nav'  # => __r2h_helpers.render partial: 'nav'
 ```
 
 The generated method body (source starts on the first line):
@@ -69,7 +69,7 @@ ensure
 end
 ```
 
-So the template runs with `self` = the view or component: ivars, locals, private helpers are native, nothing is copied. `TemplateHelpers` routes the four Rails helpers through `RailsComponents`.
+So the template runs with `self` = the view or component: ivars, locals, private helpers are native, nothing is copied. The `__r2h_helpers` receiver is a `TemplateHelpers` (created only when the template uses one of its methods): it routes `link_to`, `button_to`, `image_tag` and `form_with` through `RailsComponents`, writes `render` output into the buffer (a `Ruby2html::Component` straight into it, anything else through the view's `render`), and makes `capture`, `content_for` and `provide` capture a block of tags from the ruby2html buffer.
 
 **Closure** (no Prism, or parse failure so Ruby reports the syntax error): the source becomes the block of `Ruby2html::Render.new(self) do ... end` (1.x semantics: `instance_exec` on the renderer, ivars copied, `method_missing` to the view).
 
@@ -80,7 +80,7 @@ So the template runs with `self` = the view or component: ivars, locals, private
 - `BaseComponent#render`: `@render.plain(@context.public_send(method, *args, **opts, &capturing(block)))`. `@render` is anything with `plain` and `current_output` (a `Render` or a `Ruby2html::Component`).
 - `OutputCapture#capturing`: wraps the block so it runs with `@render.current_output` swapped to a scratch buffer; returns the buffer as `html_safe` if anything was written, else the block's value (ActionView `capture` semantics). Nested tags therefore land inside the helper's markup.
 - `LinkTo`, `ButtonTo`, `ImageTag`: plain subclasses. `FormWith`: yields a `FormBuilderProxy` around Rails' `FormBuilder`; `html_safe` String results are appended and `nil` returned, other results returned as is; nested builders are wrapped too.
-- `content_for`/`capture` blocks are not bridged: ruby2html tags inside them write to the ruby2html buffer.
+- `capture`/`content_for`/`provide` blocks are bridged only in compiled `.html.rb` templates (`TemplateHelpers`, above). In a `Render` block or a `Ruby2html::Component` they go to the view unchanged, so ruby2html tags inside such a block are written to the ruby2html buffer instead of being captured.
 
 ### `RailsHelper#html(context, &block)`
 
@@ -109,13 +109,13 @@ Lazy-requires `htmlbeautifier` at construction (clear `LoadError` if absent). Be
 ## Demo app, specs, benchmarks
 
 - `config/application.rb` loads the gem with `require_relative '../lib/gem/ruby2html'`.
-- `BenchmarkController` renders `COMPLEX_DATA` via ERB, Slim, `.html.rb`, a ViewComponent (`BenchmarkComponent`) and Phlex; `spec/benchmarks/requests_spec.rb` compares them.
-- `bench/render_bench.rb` (page render vs Phlex/Erubi, allocations), `bench/tag_bench.rb` (per-tag call shapes), `bench/escape_bench.rb` (escaping throughput); `rake bench` runs all.
+- `BenchmarkController` renders `COMPLEX_DATA` via ERB, Slim, `.html.rb`, a ViewComponent (`BenchmarkComponent`), a `Ruby2html::Component` (`NativeBenchmarkComponent`) and Phlex; `spec/benchmarks/requests_spec.rb` compares them.
+- `bench/render_bench.rb` (page render vs Phlex/Erubi, allocations), `bench/tag_bench.rb` (per-tag call shapes), `bench/escape_bench.rb` (escaping throughput); `rake bench` runs all; `bin/bench-report` runs them plus the request comparison for the CI benchmark workflow.
 - `spec/gem/render_spec_helper.rb` defines groups once and runs them for Native and PureRuby; `render_parity_spec.rb` compares outputs directly.
 
 ## Design constraints
 
 - Speed over memory: one buffer per top-level render, direct writes from C, compile-time template rewriting, no per-call allocations on hot paths.
 - Secure by default: text and attribute values escaped; raw only for `html_safe?` and `component`; attribute/tag names validated.
-- Native and PureRuby are behaviorally identical; JRuby or failed builds still work.
+- Native and PureRuby are behaviorally identical; JRuby, TruffleRuby and failed builds run PureRuby.
 - No runtime dependencies.

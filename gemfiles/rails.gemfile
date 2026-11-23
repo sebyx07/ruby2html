@@ -17,7 +17,13 @@ if rails_version == 'edge'
 else
   gem 'rails', "~> #{rails_version}.0"
 end
-# Rails < 7.2 only accepts sqlite3 1.x at runtime.
-gem 'sqlite3', rails_version != 'edge' && Gem::Version.new(rails_version) < Gem::Version.new('7.2') ? '~> 1.4' : '>= 2.1'
+if RUBY_ENGINE == 'jruby'
+  # sqlite3 is a C extension. AR-JDBC numbers its releases after the Rails line
+  # (72.x = Rails 7.2) and only exists for some lines: the CI job picks one.
+  gem 'activerecord-jdbcsqlite3-adapter', "~> #{rails_version.delete('.')}.0"
+else
+  # Rails < 7.2 only accepts sqlite3 1.x at runtime.
+  gem 'sqlite3', rails_version != 'edge' && Gem::Version.new(rails_version) < Gem::Version.new('7.2') ? '~> 1.4' : '>= 2.1'
+end
 
 eval_gemfile 'rails_common.rb'

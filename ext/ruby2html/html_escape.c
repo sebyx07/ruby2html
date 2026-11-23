@@ -152,8 +152,9 @@ static char *escape_into(char *out, const char *p, long len)
 
 /*
  * The output buffer is UTF-8. UTF-8, US-ASCII and ASCII-only strings are
- * copied byte for byte. Binary strings are assumed to hold UTF-8 bytes
- * (what 1.x did). Anything else is transcoded, which raises if it can't be.
+ * copied byte for byte. Binary strings, and US-ASCII strings with non-ASCII
+ * bytes, are assumed to hold UTF-8 bytes (what 1.x did). Anything else is
+ * transcoded, which raises if it can't be.
  */
 VALUE r2h_utf8_compatible(VALUE str)
 {
@@ -206,6 +207,20 @@ void r2h_append_raw(VALUE buf, VALUE str)
 }
 
 /*
+ * Binary input, and US-ASCII input with non-ASCII bytes (a read under
+ * LANG=C), hold UTF-8 bytes (see r2h_utf8_compatible): escape_html labels
+ * the result UTF-8. Kept out of line: inlined (or called only for non-UTF-8
+ * input), gcc 16 compiled escape_html's scan of a clean 10KB string about
+ * 25% slower.
+ */
+NOINLINE(static int holds_utf8_bytes(VALUE str));
+static int holds_utf8_bytes(VALUE str)
+{
+    const int index = ENCODING_GET_INLINED(str);
+    return index == binary_index || (index == usascii_index && !rb_enc_str_asciionly_p(str));
+}
+
+/*
  * Ruby2html::Native.escape_html(obj) -> String
  *
  * Never returns the caller's own mutable string: callers may mutate the
@@ -217,9 +232,7 @@ static VALUE native_escape_html(VALUE mod, VALUE obj)
     const char *p = RSTRING_PTR(str);
     const long len = RSTRING_LEN(str);
     const long first = find_escapable(p, len);
-
-    /* Binary input holds UTF-8 bytes (see r2h_utf8_compatible): label the result UTF-8. */
-    const int binary = ENCODING_GET_INLINED(str) == binary_index;
+    const int binary = holds_utf8_bytes(str);
 
     if (first == len) {
         if (!binary) return OBJ_FROZEN(str) ? str : rb_str_dup(str);

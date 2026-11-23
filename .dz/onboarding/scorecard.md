@@ -11,6 +11,7 @@
 
 - .dz/maintainer/maintainer.yml already present, left alone
 - .dz/maintainer/reviewer.md established
+- platform-standard briefs: repo-census and repo-score scheduled; hygiene, devops and fix-sweep offered (entries commented)
 
 ## `brain` — ok
 
@@ -41,6 +42,7 @@
 
 - .claude/commands/planx.md established
 - .claude/commands/feature.md established
+- .claude/commands/bug-sweep.md established
 
 ## `access` — gap
 
@@ -73,6 +75,7 @@
 ## `docs_readme` — ok
 
 - docs/README.md established
+- docs/README.md indexes docs/idea/ (overview, principles, stack, data-model, deployment, direction draft), docs/standards/, architecture.md and release.md
 
 ## `gate_proved` — ok
 

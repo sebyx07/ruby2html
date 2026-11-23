@@ -106,15 +106,38 @@ module Ruby2html
     end
 
     # Renders another component into this buffer, or anything Rails can
-    # render (partials, ViewComponents) via the view context.
+    # render (partials, ViewComponents) via the view context. A block is
+    # captured from this component's buffer (see TemplateHelpers#render).
     def render(*args, **options, &block)
       first = args.first
       if args.size == 1 && options.empty? && first.is_a?(Component)
-        first.render_into(@current_output, helpers, block)
+        first.render_into(@current_output, helpers, block && first.__r2h_block_content(self, block))
+      elsif block
+        RailsComponents::TemplateHelpers.new(self, helpers).render(*args, **options, &block)
       else
-        plain(helpers.render(*args, **options, &block))
+        plain(helpers.render(*args, **options))
       end
       nil
+    end
+
+    # A #render_into content callable for a block written in Ruby2html code
+    # (`render(card) { em 'x' }`). The block writes through +parent+ (the
+    # renderer or component it appears in), so while it runs, parent writes
+    # into this component's current buffer, which may be a capture (e.g. a
+    # link_to block). As with ActionView's capture, the block gets the
+    # component, and a String it returns without writing is the (escaped)
+    # content.
+    def __r2h_block_content(parent, block)
+      lambda do
+        buffer = @current_output
+        previous = parent.current_output
+        parent.current_output = buffer
+        size = buffer.bytesize
+        value = block.call(self)
+        plain(value) if value.is_a?(String) && buffer.bytesize == size
+      ensure
+        parent.current_output = previous
+      end
     end
   end
 end

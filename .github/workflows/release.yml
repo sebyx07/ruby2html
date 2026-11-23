@@ -31,9 +31,10 @@ jobs:
       tag: ${{ steps.v.outputs.tag }}
       due: ${{ steps.v.outputs.due }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
       - id: v
         run: |
           version=$(ruby -e 'require "./lib/gem/ruby2html/version"; print Ruby2html::VERSION')
@@ -53,9 +54,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
-      - uses: ruby/setup-ruby@v1
+      - uses: ruby/setup-ruby@be3c7df29b3349ec6bcfc6b4792f1cf9f5237d18 # v1.343.0
         with:
           ruby-version: .ruby-version
           bundler-cache: true
@@ -86,8 +89,10 @@ jobs:
     env:
       BUNDLE_GEMFILE: ${{ github.workspace }}/gemfiles/standalone.gemfile
     steps:
-      - uses: actions/checkout@v7
-      - uses: ruby/setup-ruby@v1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@be3c7df29b3349ec6bcfc6b4792f1cf9f5237d18 # v1.343.0
         with:
           ruby-version: jruby
           bundler-cache: true
@@ -99,7 +104,7 @@ jobs:
         run: bundle exec ruby bin/gem-smoke
       - name: Build the -java gem for publishing
         run: gem build ruby2html.gemspec
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: java-gem
           path: ruby2html-*-java.gem
@@ -116,21 +121,21 @@ jobs:
       contents: write # create the tag + GitHub release
       id-token: write # RubyGems trusted publishing (OIDC)
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - uses: ruby/setup-ruby@v1
+      - uses: ruby/setup-ruby@be3c7df29b3349ec6bcfc6b4792f1cf9f5237d18 # v1.343.0
         with:
           ruby-version: .ruby-version
 
       - name: Download the JRuby-built -java gem
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: java-gem
 
       - name: Exchange the OIDC token for RubyGems credentials
-        uses: rubygems/configure-rubygems-credentials@v2.1.0
+        uses: rubygems/configure-rubygems-credentials@dc5a8d8553e6ee01fc26761a49e99e733d17954a # v2.1.0
 
       # Gem first: a tag and release with no gem behind them would advertise a
       # version `gem install` cannot serve. Two artifacts: the C-extension gem
@@ -139,7 +144,12 @@ jobs:
         run: |
           gem build ruby2html.gemspec
           gem push ruby2html-*-java.gem
-          gem push "$(ls ruby2html-*.gem | grep -v -- -java)"
+          for built in ruby2html-*.gem; do
+            case "$built" in
+              *-java.gem) ;;
+              *) gem push "$built" ;;
+            esac
+          done
 
       - name: Tag + GitHub release from CHANGELOG
         env:
