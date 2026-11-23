@@ -5,7 +5,7 @@ description: Upgrade ruby2html's development/demo dependencies (Rails, view_comp
 
 # Upgrade dependencies
 
-Patch and minor updates arrive as grouped Dependabot PRs and auto-merge when CI passes; this skill is for what is left: **major-version** bumps (Dependabot PRs that did not auto-merge, or a manual upgrade). Do not pin or list versions in docs; the lockfiles are the record.
+Patch and minor updates arrive as grouped Dependabot PRs (weekly, 14-day cooldown) that the maintainer agent reviews and merges on a green `CI OK`; there is no auto-merge workflow. This skill is for what is left: **major-version** bumps (a grouped bump that failed, or a manual upgrade). Do not pin or list versions in docs; the lockfiles are the record.
 
 The `Gemfile` serves the demo app and specs; the gem's only runtime dependency is in `ruby2html.gemspec` (keep it minimal; `htmlbeautifier` is optional at runtime via the middleware's lazy require). Do not add runtime dependencies to the gemspec while upgrading.
 

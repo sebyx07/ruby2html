@@ -27,29 +27,61 @@ env:
 # bundle-audit exits 1 on an advisory, so a finding fails the matrix entry and
 # with it the aggregate "CI OK" job.
 #
-# Branch protection only needs to require the final "CI OK" check.
+# Branch protection (ruleset main-protection) requires only the final "CI OK"
+# check: keep that job name, and add every new job to its `needs`.
+#
+# Local equivalent: `bin/check`, which is exactly what the `check` job runs.
+# Everything else here needs a runner, compiler or interpreter a dev box lacks
+# (.github/CLAUDE.md lists the jobs).
 # Gems are cached by ruby/setup-ruby (bundler-cache), keyed on the lockfile or
 # gemfile, Ruby version and OS.
 jobs:
-  lint:
-    name: Lint / RuboCop
+  workflows:
+    name: Lint / workflows (actionlint + zizmor) + repo guards
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
-      - uses: ruby/setup-ruby@v1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: actionlint
+        run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.12 -color
+      - name: zizmor (workflow security)
+        run: pipx run zizmor==1.33.1 --format=github .github/workflows
+      # CI/bin/check parity, the agent-read surface, the CLAUDE.md size cap, the AGENTS.md
+      # symlink. bin/check runs it too; here it needs no Ruby and no bundle.
+      - name: Repository guards
+        run: bin/repo-guards
+
+  check:
+    # The local gate, unchanged: repo guards, bundle-audit (Gemfile.lock), rake compile,
+    # RuboCop, the full RSpec suite, Brakeman, rake smoke. bin/repo-guards fails when this
+    # step stops being the bare `bin/check`.
+    name: Gate / bin/check (RuboCop + full suite + Brakeman + smoke)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # ubuntu runners ship gcc/make: no apt build-essential step needed.
+      - uses: ruby/setup-ruby@be3c7df29b3349ec6bcfc6b4792f1cf9f5237d18 # v1.343.0
         with:
           ruby-version: .ruby-version
           bundler-cache: true
-      - run: bin/rubocop --parallel
+      # Not in the Gemfile on purpose (bin/setup installs it the same way locally).
+      - run: gem install --no-document bundler-audit
+      - run: bin/check
 
   audit:
     name: Security / bundle-audit
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
-      - uses: ruby/setup-ruby@v1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@be3c7df29b3349ec6bcfc6b4792f1cf9f5237d18 # v1.343.0
         with:
           ruby-version: .ruby-version
           bundler: none
@@ -57,28 +89,11 @@ jobs:
       - name: Check Gemfile.lock against the Ruby advisory database
         run: bundle-audit check --update
 
-  test:
-    name: Rails app / full suite + Brakeman
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@v7
-      # ubuntu runners ship gcc/make: no apt build-essential step needed.
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: .ruby-version
-          bundler-cache: true
-      - run: bundle exec rake compile
-      - name: RSpec (features, gem, benchmarks)
-        run: bundle exec rspec
-      - name: Brakeman
-        run: bin/brakeman --no-pager
-
   ruby-versions:
     name: Matrix / Ruby versions
     # Every maintained CRuby (>= 3.1, the gemspec floor) from cache.ruby-lang.org; head is excluded
     # below (monthly in canary.yml), so new Ruby releases are tested automatically.
-    uses: ruby/actions/.github/workflows/ruby_versions.yml@master
+    uses: ruby/actions/.github/workflows/ruby_versions.yml@f4d74de05ecaf77cb922e27210650f2838191429 # master, 2026-11-18
     with:
       engine: cruby
       min_version: 3.1
@@ -98,8 +113,10 @@ jobs:
       # No Rails and no lockfile: resolves on every Ruby, old and new.
       BUNDLE_GEMFILE: ${{ github.workspace }}/gemfiles/standalone.gemfile
     steps:
-      - uses: actions/checkout@v7
-      - uses: ruby/setup-ruby@v1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@be3c7df29b3349ec6bcfc6b4792f1cf9f5237d18 # v1.343.0
         with:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
@@ -118,8 +135,10 @@ jobs:
           - { name: Linux arm64 (gcc), os: ubuntu-24.04-arm }
           - { name: macOS arm64 (clang), os: macos-latest }
     steps:
-      - uses: actions/checkout@v7
-      - uses: ruby/setup-ruby@v1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@be3c7df29b3349ec6bcfc6b4792f1cf9f5237d18 # v1.343.0
         with:
           ruby-version: .ruby-version
           bundler-cache: true
@@ -137,13 +156,17 @@ jobs:
       matrix:
         cc: [gcc, clang]
     steps:
-      - uses: actions/checkout@v7
-      - uses: ruby/setup-ruby@v1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@be3c7df29b3349ec6bcfc6b4792f1cf9f5237d18 # v1.343.0
         with:
           ruby-version: .ruby-version
           bundler-cache: true
       - name: Build with warnings as errors
-        run: bin/build-ext --cc=${{ matrix.cc }} --werror
+        run: bin/build-ext --cc="$CC" --werror
+        env:
+          CC: ${{ matrix.cc }}
       - name: RSpec (spec/gem) against that build
         run: bundle exec rake spec:gem
         env:
@@ -154,8 +177,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v7
-      - uses: ruby/setup-ruby@v1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@be3c7df29b3349ec6bcfc6b4792f1cf9f5237d18 # v1.343.0
         with:
           ruby-version: .ruby-version
           bundler-cache: true
@@ -177,8 +202,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
-      - uses: ruby/setup-ruby@v1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@be3c7df29b3349ec6bcfc6b4792f1cf9f5237d18 # v1.343.0
         with:
           ruby-version: .ruby-version
           bundler-cache: true
@@ -200,8 +227,10 @@ jobs:
       # rspec + activesupport + htmlbeautifier only: no Rails, no sqlite3.
       BUNDLE_GEMFILE: ${{ github.workspace }}/gemfiles/standalone.gemfile
     steps:
-      - uses: actions/checkout@v7
-      - uses: ruby/setup-ruby@v1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@be3c7df29b3349ec6bcfc6b4792f1cf9f5237d18 # v1.343.0
         with:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
@@ -221,7 +250,9 @@ jobs:
     outputs:
       versions: ${{ steps.versions.outputs.versions }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - id: versions
         # Every stable Rails MAJOR.MINOR >= 7.2 (the demo app's floor), from rubygems.org.
         run: echo "versions=$(ruby bin/rails-versions 7.2)" >> "$GITHUB_OUTPUT"
@@ -239,14 +270,47 @@ jobs:
       RAILS_VERSION: ${{ matrix.rails }}
       BUNDLE_GEMFILE: ${{ github.workspace }}/gemfiles/rails.gemfile
     steps:
-      - uses: actions/checkout@v7
-      - uses: ruby/setup-ruby@v1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@be3c7df29b3349ec6bcfc6b4792f1cf9f5237d18 # v1.343.0
         with:
           ruby-version: .ruby-version
           bundler-cache: true
       - run: bundle exec rake compile
       - name: Resolved versions
         run: bundle list | grep -E ' (rails|view_component|phlex-rails|rspec-rails|sqlite3) '
+      - name: RSpec (integration specs)
+        run: bundle exec rspec spec/features spec/gem/rails
+      # The renderer JRuby and TruffleRuby use, behind the same Rails helpers and handler.
+      - name: RSpec (integration specs) without the C extension
+        run: bundle exec rspec spec/features spec/gem/rails
+        env:
+          RUBY2HTML_DISABLE_EXT: '1'
+
+  rails-jruby:
+    # The Rails integration on JRuby (Java escaper + pure-Ruby renderer). One Rails line: sqlite3 is
+    # a C extension, and activerecord-jdbcsqlite3-adapter, numbered after the Rails line it supports
+    # (72.x = Rails 7.2), has no release for a newer line yet. Move RAILS_VERSION up when one ships.
+    # gemfiles/rails_common.rb holds view_component below 4.16 on JRuby (it calls Ractor at boot).
+    name: Rails 7.2 / JRuby
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      RAILS_VERSION: '7.2'
+      BUNDLE_GEMFILE: ${{ github.workspace }}/gemfiles/rails.gemfile
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@be3c7df29b3349ec6bcfc6b4792f1cf9f5237d18 # v1.343.0
+        with:
+          ruby-version: jruby
+          bundler-cache: true
+      # Builds the Java escaper jar (ext/java); the audit of the resolved set rides on it.
+      - run: bundle exec rake compile
+      - name: Resolved versions
+        run: bundle list | grep -E ' (rails|view_component|phlex-rails|rspec-rails|activerecord-jdbcsqlite3-adapter) '
       - name: RSpec (integration specs)
         run: bundle exec rspec spec/features spec/gem/rails
 
@@ -262,9 +326,11 @@ jobs:
         exclude:
           - ruby: head # monthly in canary.yml
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       # No Bundler on purpose: the gem must build and install with plain RubyGems.
-      - uses: ruby/setup-ruby@v1
+      - uses: ruby/setup-ruby@be3c7df29b3349ec6bcfc6b4792f1cf9f5237d18 # v1.343.0
         with:
           ruby-version: ${{ matrix.ruby }}
           bundler: none
@@ -276,7 +342,7 @@ jobs:
     if: always()
     # Every job here must pass; nothing is allowed to fail. Ruby head and Rails edge run monthly in
     # canary.yml, where the developerz.ai `improve` checkup picks up what they find.
-    needs: [lint, audit, test, gem-specs, native, strict-ext, sanitizers, fallback, engines, rails, package]
+    needs: [workflows, check, audit, gem-specs, native, strict-ext, sanitizers, fallback, engines, rails, rails-jruby, package]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

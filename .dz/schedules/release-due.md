@@ -41,7 +41,7 @@ benchmarks and docs ship nothing on their own.
 2. `## [Unreleased]` empty (a Dependabot-only window)? Add a `### Changed` line per change that ships.
 3. Bump `lib/gem/ruby2html/version.rb`; move `## [Unreleased]` under `## [<next>] - <today>`
    (keep an empty `## [Unreleased]` above it) and add the `[<next>]` link at the bottom.
-4. `bundle exec rake compile && CI=1 bundle exec rspec && bundle exec rubocop && bundle exec rake smoke`.
+4. `bin/check` (repo guards, audit, compile, RuboCop, full RSpec, Brakeman, `rake smoke`). Exit 75 is a missing environment, not a result: `bin/setup`, then rerun.
 5. One PR titled `release: <next>`, nothing else in it. It merges on green like any PR.
 6. Merging it is the release: `release.yml` sees the version change on `main`, publishes the gem,
    then creates the tag and the GitHub release. Never tag and never `gem push` by hand.

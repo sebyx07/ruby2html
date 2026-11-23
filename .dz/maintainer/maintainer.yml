@@ -30,7 +30,7 @@ triage:
   required_fields: [steps, expected, actual, version]
   qualify_into: [bug, feature, dupe, question]
   close_unanswered_repro_after_days: 14
-  # Proposals this project will not take (from AGENTS.md "Sharp edges / invariants").
+  # Proposals this project will not take (from CLAUDE.md "Invariants" and "Never").
   non_goals:
     - "Caching rendered output or attributes keyed by Object#hash (collisions render another input's output)"
     - "Divergence between the C extension and the pure-Ruby implementation: both must produce byte-identical output"
@@ -104,6 +104,10 @@ escalate:
   # A breaking change asks the owner first: a major version is a maintainer's decision.
   ask_before_acting: [breaking_change]
 
+# `mode: devops` runs the brief as one task with a shell and delivers a pull request (it needs
+# `handoff.mode: fleet`, set above). A scout is read-only and files asks, and it cannot propose a
+# change to CI, release or policy files. The three briefs that run commands and open a pull request
+# are devops; `health` only reports, so it stays a scout.
 schedules:
   # Weekly and judged, so a merge never cuts a release (owner, 2026-11-01: "no auto, not dependabot,
   # us developerz.ai AI decides if needed"). One weekday per repo, so the fleet is not hit at once.
@@ -111,11 +115,13 @@ schedules:
     days: [fri]
     hours_utc: [3]
     brief_file: .dz/schedules/release-due.md
+    mode: devops
   # The one exception, so a confirmed security fix does not wait up to a week for the slot above.
   - name: security-release
     days: [mon, tue, wed, thu, sat, sun]
     hours_utc: [2]
     brief_file: .dz/schedules/security-release.md
+    mode: devops
   - name: health
     days: [mon, tue, wed, thu, fri, sat, sun]
     hours_utc: [7]
@@ -126,3 +132,4 @@ schedules:
     weeks_of_month: [1]
     hours_utc: [8]
     brief_file: .dz/schedules/improve.md
+    mode: devops

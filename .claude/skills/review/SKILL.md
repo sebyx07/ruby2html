@@ -5,7 +5,7 @@ description: Review checklist for ruby2html changes, especially ext/ (C) and the
 
 # Review a ruby2html change
 
-Scope: `git diff` (uncommitted) or `git diff main...HEAD`. Read `AGENTS.md` "Sharp edges / invariants" first. Report findings as file:line + why + fix; say explicitly which checklist sections passed.
+Scope: `git diff` (uncommitted) or `git diff main...HEAD`. Read `CLAUDE.md` "Invariants" and the nested `CLAUDE.md` of each directory the diff touches (`ext/`, `lib/`, `spec/`, `.github/`) first. Report findings as file:line + why + fix; say explicitly which checklist sections passed.
 
 ## C extension (`ext/ruby2html/`)
 

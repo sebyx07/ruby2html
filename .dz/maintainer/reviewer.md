@@ -3,7 +3,7 @@
 > Read by the developerz.ai reviewer at EVERY review of this repository, at the reviewed
 > commit, as this repo's own layer of the reviewer's prompt. It refines the platform rules
 > (a finding is cited or withheld; the bot always discloses) and never overrides them.
-> `AGENTS.md` (`CLAUDE.md` is a symlink to it) is the source of truth; this file is its
+> `CLAUDE.md` (`AGENTS.md` is a symlink to it) and its nested files are the source of truth; this file is its
 > review-time distillation. Keep it under 12,000 characters — past that it is cut.
 
 ## Stack

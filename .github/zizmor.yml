@@ -1,0 +1,7 @@
+# zizmor (workflow security) runs in CI's "Lint / workflows" job. Every exception needs its reason.
+rules:
+  adhoc-packages:
+    ignore:
+      # bundler-audit is installed with plain RubyGems on purpose: the auditor must not be
+      # resolved by the Gemfile.lock it audits (jobs `audit` and `check`; bin/setup does the same).
+      - ci.yml

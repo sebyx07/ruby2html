@@ -7,5 +7,5 @@ this repository as an AI-managed project.
 - `pipeline/agent-pipeline.json`: the agent pipeline definition.
 - `schedules/`: the scheduled checkup briefs (`release-due`, `security-release`, `health`, `improve`) the policy fires.
 
-Agent instructions for working on the code live in `AGENTS.md` (`CLAUDE.md` is a symlink to it).
+Agent instructions for working on the code live in `CLAUDE.md` (`AGENTS.md` is a symlink to it) and the nested `ext/`, `lib/`, `spec/` and `.github/CLAUDE.md`.
 Docs: https://developerz.ai/docs/maintainer-yml

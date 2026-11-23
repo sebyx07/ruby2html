@@ -1,7 +1,6 @@
 ---
 description: Write a self-contained implementation plan under docs/plans/ for another agent to execute. Use for plan, planx, design the work, break this down.
 argument-hint: <what you want planned>
-allowed-tools: Read, Glob, Grep, Bash, Write
 ---
 
 # /planx — plan a piece of work in sebyx07/ruby2html

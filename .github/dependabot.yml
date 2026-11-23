@@ -1,18 +1,19 @@
 version: 2
 # Weekly, grouped updates. The developerz.ai maintainer agent reviews them and
-# merges on a green "CI OK" (.dz/maintainer/maintainer.yml); it is the only merger.
+# merges on a green "CI OK" (.dz/maintainer/maintainer.yml); it is the only merger
+# (no auto-merge workflow).
 #
 # gemfiles/ needs no entry: the matrix gemfiles have no lockfiles and use
 # ~> MAJOR.MINOR.0 / >= constraints, so every CI run resolves the newest
 # compatible gems, and CI derives the Ruby and Rails matrices dynamically.
 #
-# cooldown: a release must be 14 days old before it is proposed, so broken or
-# compromised releases are usually yanked first. Security updates skip it.
-# The dev-tools group (linters, scanners, test tooling) is exempt from the
-# bundler cooldown via cooldown.exclude: Dependabot has no per-group cooldown
-# key, so exclude is the only lever. A stale linter or scanner is itself a CI
-# risk, so those bumps are proposed within days instead of two weeks. The
-# exclude list mirrors the dev-tools group patterns below - keep both in sync.
+# cooldown: in every ecosystem a release must be 14 days old before it is
+# proposed, so broken or compromised releases are usually yanked first. No
+# group is exempt. Security updates skip the cooldown.
+#
+# Actions are pinned to a commit SHA (zizmor fails CI otherwise); Dependabot
+# moves the SHA and the version comment together. A .ruby-version bump may need
+# a newer ruby/setup-ruby than the cooldown has proposed: bump the pin in that PR.
 updates:
   - package-ecosystem: bundler
     directory: /
@@ -21,15 +22,6 @@ updates:
       day: monday
     cooldown:
       default-days: 14
-      exclude:
-        - 'rubocop*'
-        - 'brakeman'
-        - 'lefthook'
-        - 'rake*'
-        - 'benchmark-ips'
-        - 'capybara'
-        - 'faker'
-        - 'pry*'
     open-pull-requests-limit: 10
     groups:
       rails:
@@ -68,3 +60,6 @@ updates:
       day: monday
     cooldown:
       default-days: 14
+    groups:
+      docker:
+        patterns: ['*']

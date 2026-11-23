@@ -2,8 +2,8 @@
 # frozen_string_literal: true
 
 # Sets up (or updates) a development checkout. Idempotent: run it any time,
-# e.g. after pulling. Steps: toolchain (mise), gems, C extension, demo app
-# database, git hooks.
+# e.g. after pulling. Steps: toolchain (mise), gems, bundler-audit (bin/check
+# audits Gemfile.lock with it), C extension, demo app database, git hooks.
 #
 #   bin/setup            # everything
 #   bin/setup --skip-db  # gem work only (no Rails database)
@@ -34,6 +34,15 @@ FileUtils.chdir APP_ROOT do
     system('bundle check > /dev/null') || system!('bundle install')
   end
 
+  # Not in the Gemfile on purpose: the auditor must not be resolved by the set it audits.
+  step 'Installing bundler-audit (used by bin/check)' do
+    if system('bundle-audit version', out: File::NULL, err: File::NULL)
+      puts 'already installed'
+    else
+      system!('gem install --no-document bundler-audit')
+    end
+  end
+
   step 'Compiling the C extension' do
     if RUBY_ENGINE == 'jruby'
       puts 'JRuby: skipped (pure-Ruby implementation)'
@@ -60,6 +69,8 @@ FileUtils.chdir APP_ROOT do
   puts <<~TXT
 
     Ready. Next steps:
+      bin/check             the pre-PR gate (same commands as CI's check job)
+      bin/check fast        inner loop: compile + RuboCop + spec/gem
       bin/console           IRB with ruby2html loaded (no Rails)
       bundle exec rake      compile + gem specs (quick)
       bin/rails server      demo app on http://localhost:3000

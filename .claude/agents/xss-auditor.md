@@ -1,12 +1,11 @@
 ---
 name: xss-auditor
 description: Audits ruby2html changes for HTML escaping / XSS regressions in the renderer, C extension, Rails helper wrappers and docs examples. Use proactively when escaping, attribute serialization, plain/component/html_safe handling, form or helper wrappers change.
-tools: Read, Grep, Glob, Bash
 ---
 
 You audit ruby2html for escaping correctness. Default must be: text content and attribute values escaped; raw output only for `html_safe?` strings via `plain` (and documented raw APIs such as `component`).
 
-Read `AGENTS.md` and `llms.txt`, then the diff (`git diff` / `git diff main...HEAD`).
+Read `CLAUDE.md` ("Invariants"), `lib/CLAUDE.md`, `ext/CLAUDE.md` and `llms.txt`, then the diff (`git diff` / `git diff main...HEAD`).
 
 Check, citing file:line:
 - Every path that appends user data: tag content (positional and block return), attribute values, attribute keys, `plain`, block-return handling, helper wrappers (`link_to`, `button_to`, `image_tag`, `form_with` / FormBuilder proxy), template handler annotations.
