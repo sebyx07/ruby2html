@@ -31,14 +31,18 @@ fail() {
 # uncommented <file> — the file without its comment-only lines.
 uncommented() { grep -vE '^[[:space:]]*#' "$1"; }
 
+# Reads all of its input (unlike grep -q), so the writer never dies of SIGPIPE
+# and trips pipefail: true when a line matches the extended regex $1.
+matches() { [ "$(grep -cE "$1")" -gt 0 ]; }
+
 # 1. Parity. `bin/check` must end the command: `bin/check fast` is not the gate.
-uncommented "$ci" | grep -qE '(^|[[:space:]])bin/check[[:space:]]*$' ||
+uncommented "$ci" | matches '(^|[[:space:]])bin/check[[:space:]]*$' ||
   fail "$ci no longer runs the full bin/check" "CI must run the local gate: restore the 'bin/check' step of the 'check' job."
-uncommented "$ci" | grep -qE '(^|[[:space:]])bin/repo-guards[[:space:]]*$' ||
+uncommented "$ci" | matches '(^|[[:space:]])bin/repo-guards[[:space:]]*$' ||
   fail "$ci no longer runs bin/repo-guards" "Restore the 'bin/repo-guards' step of the 'workflows' job."
-uncommented bin/check | grep -qE '(^|[[:space:]])bin/repo-guards[[:space:]]*$' ||
+uncommented bin/check | matches '(^|[[:space:]])bin/repo-guards[[:space:]]*$' ||
   fail "bin/check no longer runs bin/repo-guards" "Restore the 'run_step guards bin/repo-guards' lines."
-uncommented "$ci" | grep -qE '^[[:space:]]+name:[[:space:]]+CI OK[[:space:]]*$' ||
+uncommented "$ci" | matches '^[[:space:]]+name:[[:space:]]+CI OK[[:space:]]*$' ||
   fail "$ci has no job named 'CI OK'" "The main-protection ruleset requires exactly that check: keep 'name: CI OK' on the ci-ok job."
 
 # 2. Agent surface: tracked and untracked files, minus what .gitignore excludes.
