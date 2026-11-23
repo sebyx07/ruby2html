@@ -113,7 +113,7 @@ module RenderFuzz
             public_send(TAGS.sample(random:), **attributes, &child)
           end
         rescue StandardError => e
-          plain "!#{e.class}: #{e.message}"
+          plain "!#{e.class}: #{RenderFuzz.headline(e)}"
         end
       end
       random.rand(3).zero? ? RenderFuzz.value(random) : nil
@@ -124,7 +124,14 @@ module RenderFuzz
     html = renderer_class.new(&document(Random.new(seed))).render.to_str
     [html.b, html.encoding]
   rescue StandardError => e
-    [e.class, e.message]
+    [e.class, headline(e)]
+  end
+
+  # Ruby 3.1's error_highlight appends a source snippet to #message (later
+  # Rubies keep it in #detailed_message); the snippet names the calling
+  # line, which differs between the two renderers by design.
+  def headline(error)
+    error.message.lines.first.to_s.chomp
   end
 end
 
