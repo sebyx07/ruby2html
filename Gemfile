@@ -2,8 +2,9 @@
 
 source 'https://rubygems.org'
 
-# The demo app's floor (phlex-rails 2, Rails 8.1). Without it Dependabot resolves with the
-# gemspec's Ruby floor (3.1) and every bundler update fails. Dev/CI Ruby: .ruby-version.
+# The demo app's floor (phlex-rails 2, Rails 8.1); the gem's own floor is the gemspec's.
+# Dependabot resolves with this line (.github/dependabot.yml excludes the gemspec). Dev/CI Ruby:
+# .ruby-version.
 ruby '>= 3.2'
 
 gem 'rails', '~> 8.1'
