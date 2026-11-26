@@ -49,4 +49,4 @@ end
 
 # phlex 2.x -> refract uses Prism::MissingNode, which prism 2.x removed. Drop
 # once refract supports prism 2 (also pinned in gemfiles/rails_common.rb).
-gem 'prism', '~> 1.6'
+gem 'prism', '~> 2.1'
