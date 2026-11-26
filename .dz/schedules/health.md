@@ -1,6 +1,6 @@
 # Brief: is the project healthy?
 
-Daily checkup, fired by `schedules: health` in `.dz/maintainer/maintainer.yml`. ruby2html is
+Weekly checkup (Mondays 07:00 UTC), fired by `schedules: health` in `.dz/maintainer/maintainer.yml`. ruby2html is
 maintained so that nobody has to watch it. This covers the failures no issue or PR announces.
 
 | Signal | Command | Healthy |

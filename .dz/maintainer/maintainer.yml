@@ -106,24 +106,29 @@ escalate:
 
 # `mode: devops` runs the brief as one task with a shell and delivers a pull request (it needs
 # `handoff.mode: fleet`, set above). A scout is read-only and files asks, and it cannot propose a
-# change to CI, release or policy files. The briefs that run commands and open a pull request are
-# devops; `health`, `repo-census` and `repo-score` only read and report, so they stay scouts.
+# change to CI, release or policy files. `release-due` and `improve` run commands and may open a
+# pull request, so they are devops; `security-release`, `health`, `repo-census` and `repo-score` only
+# read and file asks, so they stay scouts.
+#
+# Cadence (owner, 2026-11-26: "it should be weekly not to the damn commits ... not so damn much
+# daily prs"): health and release-due weekly on Monday, improve monthly, nothing daily opens a PR.
 schedules:
   # Weekly and judged, so a merge never cuts a release (owner, 2026-11-01: "no auto, not dependabot,
-  # us developerz.ai AI decides if needed"). One weekday per repo, so the fleet is not hit at once.
+  # us developerz.ai AI decides if needed"). At most one release a week.
   - name: release-due
-    days: [fri]
+    days: [mon]
     hours_utc: [3]
     brief_file: .dz/schedules/release-due.md
     mode: devops
-  # The one exception, so a confirmed security fix does not wait up to a week for the slot above.
+  # The one exception, a published high/critical advisory fix that reaches users, so it does not
+  # wait up to a week for the slot above. A scout: it files a release ask only on those criteria,
+  # and otherwise files and commits nothing.
   - name: security-release
-    days: [mon, tue, wed, thu, sat, sun]
+    days: [tue, wed, thu, fri, sat, sun]
     hours_utc: [2]
     brief_file: .dz/schedules/security-release.md
-    mode: devops
   - name: health
-    days: [mon, tue, wed, thu, fri, sat, sun]
+    days: [mon]
     hours_utc: [7]
     brief_file: .dz/schedules/health.md
   # Monthly: the first Monday of the month (UTC days 1-7), after canary.yml's run on the 1st.
@@ -163,3 +168,17 @@ schedules:
   #   hours_utc: [18]
   #   brief_file: .dz/schedules/fix-sweep.md
   #   mode: devops
+
+# branches: a branch with no new commit for 14 days is tagged archive/<branch>/<date> at its last
+# commit, then deleted (owner, 2026-11-26: branch hygiene).
+branches:
+  close_inactive_after_days: 14
+
+# scout: the platform's daily survey files only what is already BROKEN, never an improvement idea.
+scout:
+  survey: broken_only
+
+# devops: off (owner, 2026-11-26): dependency advisories arrive through Dependabot, batched weekly
+# (.github/dependabot.yml), instead of one pull request per advisory.
+devops:
+  watch: off

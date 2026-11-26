@@ -1,5 +1,7 @@
 version: 2
-# Weekly, grouped updates. The developerz.ai maintainer agent reviews them and
+# Weekly, grouped, quiet (owner, 2026-11-26: "not so damn much daily prs"): every ecosystem on
+# Monday, minor+patch as ONE pull request per ecosystem, security updates batched into one more per
+# ecosystem, majors individually, at most 3 open per ecosystem. The developerz.ai maintainer agent reviews them and
 # merges on a green "CI OK" (.dz/maintainer/maintainer.yml); it is the only merger
 # (no auto-merge workflow).
 #
@@ -22,13 +24,12 @@ updates:
       day: monday
     cooldown:
       default-days: 14
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 3
     groups:
-      rails:
-        patterns: ['rails', 'action*', 'active*', 'railties', 'view_component', 'phlex*', 'slim*', 'rspec*']
-      dev-tools:
-        patterns: ['rubocop*', 'brakeman', 'lefthook', 'rake*', 'benchmark-ips', 'capybara', 'faker', 'pry*']
-      other:
+      bundler-minor:
+        update-types: ['minor', 'patch']
+      bundler-security:
+        applies-to: security-updates
         patterns: ['*']
 
   - package-ecosystem: github-actions
@@ -38,8 +39,12 @@ updates:
       day: monday
     cooldown:
       default-days: 14
+    open-pull-requests-limit: 3
     groups:
-      github-actions:
+      actions-minor:
+        update-types: ['minor', 'patch']
+      actions-security:
+        applies-to: security-updates
         patterns: ['*']
 
   - package-ecosystem: devcontainers
@@ -49,8 +54,12 @@ updates:
       day: monday
     cooldown:
       default-days: 14
+    open-pull-requests-limit: 3
     groups:
-      devcontainers:
+      devcontainers-minor:
+        update-types: ['minor', 'patch']
+      devcontainers-security:
+        applies-to: security-updates
         patterns: ['*']
 
   - package-ecosystem: docker
@@ -60,6 +69,10 @@ updates:
       day: monday
     cooldown:
       default-days: 14
+    open-pull-requests-limit: 3
     groups:
-      docker:
+      docker-minor:
+        update-types: ['minor', 'patch']
+      docker-security:
+        applies-to: security-updates
         patterns: ['*']
