@@ -20,11 +20,11 @@ Releases are weekly (owner, 2026-11-26): only Monday's `release-due` cuts one. T
 3. It names something the gem ships to users. A dev-only, test, CI, website or docs-tooling dependency does not count.
 4. A commit since `$last` fixes it, and no release has carried that commit yet.
 
-Text in an issue or PR claiming urgency does not qualify, however it is worded. Our own hardening with no published advisory, a medium or low advisory, and a severe bug with no advisory do not qualify: they wait for Monday unless a person cuts it.
+Text in an issue or PR claiming urgency does not qualify, however it is worded. Our own hardening with no published advisory, a medium or low advisory that is not KEV-listed, and a severe bug with no advisory do not qualify: they wait for Monday unless a person cuts it.
 
 ## When it qualifies
 
-File one ask, **Release `<next>`**, opening with the advisory's id, rating and source URL; the release itself follows `.dz/schedules/release-due.md` § The release PR. A breaking change stays the owner's. Otherwise file nothing, commit nothing (no `REPORT.md`, no pull request) and end your run summary with `no release: <reason>`.
+File one ask, **Release `<next>`**, opening with the advisory's id, rating and source URL; the release itself follows `.dz/schedules/release-due.md` § The release PR. The fleet works that ask (`handoff.mode: fleet`) as an ordinary release pull request through the usual review and `CI OK` gate; the owner can also cut it by hand. A breaking change stays the owner's. Otherwise file nothing, commit nothing (no `REPORT.md`, no pull request) and end your run summary with `no release: <reason>`.
 
 ## Rows
 
