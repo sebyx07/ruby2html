@@ -10,7 +10,7 @@ Outside contributors do not change `.github/`, `bin/`, the `Rakefile` release ta
 | `workflows/canary.yml` | monthly cron (the 1st), manual | Ruby head and Rails edge. **Not** part of `CI OK`; the monthly `improve` checkup (`.dz/schedules/improve.md`) reads it and fixes what it finds |
 | `workflows/benchmark.yml` | pull request, push to `main`, manual | Non-gating. Renders a table into the job summary and uploads JSON per architecture; a PR gets one sticky comment per architecture with the delta against `main`. Repository variable `BENCH_RUNNER` selects a self-hosted runner for stable numbers |
 | `workflows/release.yml` | push to `main` touching `lib/gem/ruby2html/version.rb`, manual | Verify, publish both gems, tag, GitHub release |
-| `dependabot.yml` | weekly, Monday | bundler, github-actions, devcontainers and docker: minor+patch as one PR per ecosystem, security updates batched into one more, majors individually, at most 3 open, 14-day cooldown (security updates skip it). The maintainer agent is the only merger; there is no auto-merge workflow |
+| `dependabot.yml` | weekly, Monday | bundler, github-actions, devcontainers and docker: minor+patch as one PR per ecosystem, security updates batched into one more, majors individually, at most 3 open version-update PRs per ecosystem (security updates have Dependabot's own cap), 14-day cooldown (security updates skip it). The maintainer agent is the only merger; there is no auto-merge workflow |
 | `zizmor.yml` | - | Reviewed exceptions for the workflow security linter, each with its reason |
 
 ## `ci.yml` jobs
