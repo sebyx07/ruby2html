@@ -20,6 +20,11 @@ version: 2
 updates:
   - package-ecosystem: bundler
     directory: /
+    # The root Gemfile is the demo app's (Ruby >= 3.2), not the gem's. Dependabot pins every
+    # bundler resolve to the lowest Ruby the root gemspec allows (3.1, still tested in CI), which
+    # overrides the Gemfile's `ruby` line and fails every update. The gemspec declares no
+    # dependencies, so excluding it loses nothing.
+    exclude-paths: ['ruby2html.gemspec']
     schedule:
       interval: weekly
       day: monday
