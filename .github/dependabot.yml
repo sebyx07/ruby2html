@@ -31,6 +31,11 @@ updates:
     cooldown:
       default-days: 14
     open-pull-requests-limit: 3
+    ignore:
+      # The Gemfile pins prism ~> 1.6: phlex 2 (via refract) uses Prism::MissingNode, which prism 2
+      # removed. Re-enable when phlex/refract support prism 2 (drop the Gemfile pin in the same PR).
+      - dependency-name: 'prism'
+        update-types: ['version-update:semver-major']
     groups:
       bundler-minor:
         update-types: ['minor', 'patch']
