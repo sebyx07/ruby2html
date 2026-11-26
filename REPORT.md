@@ -16,6 +16,6 @@ No release or product change is warranted based on the available reference. No e
 
 ## Verify
 
-Run `last=$(git describe --tags --abbrev=0 --match 'v[0-9]*' origin/main); git log --format='%h %cI %s' "$last"..origin/main -- 'lib/gem/**' 'ext/ruby2html/*.c' 'ext/ruby2html/*.h' 'ext/ruby2html/extconf.rb' 'ext/java/*.java' ruby2html.gemspec`. For the reference inspected here, it prints no commits. Reassess any commits if the reference advances.
+Run `last=$(git describe --tags --abbrev=0 --match 'v[0-9]*' origin/main) && git log --format='%h %cI %s' "$last"..origin/main -- 'lib/gem/**' 'ext/ruby2html/*.c' 'ext/ruby2html/*.h' 'ext/ruby2html/extconf.rb' 'ext/java/*.java' ruby2html.gemspec`. For the reference inspected here, it prints no commits. Reassess any commits if the reference advances.
 
 no release: no shipped-code commits since v2.1.1 on the available origin/main reference.
