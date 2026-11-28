@@ -21,7 +21,7 @@ CI job names are those of `.github/workflows/ci.yml`; every job is required thro
 | Agent-read files carry no HTML comment or invisible character; `CLAUDE.md` stays under 12,000 characters; `AGENTS.md` is a symlink | `bin/repo-guards` |
 | One Ruby pin (`.ruby-version`); `bin/setup` and `bin/brakeman` behave | `spec/bin/` |
 | Workflows are valid; actions are pinned to a commit SHA; permissions are narrow | CI job `workflows` (actionlint, zizmor, `.github/zizmor.yml`) |
-| A speed claim has numbers | `bundle exec rake bench`; `.github/workflows/benchmark.yml` comments on every pull request (not gating) |
+| A speed claim has numbers | `bundle exec rake bench`; `.github/workflows/benchmark.yml` comments on every pull request that changes measured code (not gating) |
 | A release is a merged version bump with a CHANGELOG section, never a hand push | `.github/workflows/release.yml`, `bin/changelog-notes` |
 | It still works on Ruby head and Rails edge | `.github/workflows/canary.yml` (monthly, not gating), the `improve` checkup |
 | One concern per pull request; public API changes ask the owner | the reviewer (`.dz/maintainer/reviewer.md`), `escalate` in `.dz/maintainer/maintainer.yml` |

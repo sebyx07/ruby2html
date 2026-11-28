@@ -9,15 +9,32 @@ name: Benchmarks
 # Runner: GitHub-hosted runners are noisy (expect a few % run-to-run). For
 # stable numbers set the repository variable BENCH_RUNNER to a self-hosted
 # runner label; it then replaces the per-arch runners below.
+#
+# Runs only when something a benchmark measures changed (the gem, the C and
+# Java extensions, the bench scripts, the demo app's benchmark routes and
+# views, the bundle, the Ruby pin): a docs or CI change has no numbers to move.
 on:
   pull_request:
+    paths: &bench-paths
+      - 'lib/**'
+      - 'ext/**'
+      - 'bench/**'
+      - 'bin/bench-report'
+      - 'app/**'
+      - 'config/**'
+      - 'Gemfile'
+      - 'Gemfile.lock'
+      - '.ruby-version'
+      - '.github/workflows/benchmark.yml'
   push:
     branches: [main]
+    paths: *bench-paths
   workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  # A main run is the baseline pull requests compare against: never cancel it.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read

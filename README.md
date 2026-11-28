@@ -24,7 +24,7 @@ end
 - **Plain Ruby views.** No template language: `if`, `each`, locals and methods are the control flow.
 - **Escaped by default.** Text and attribute values are always escaped; raw HTML only from `html_safe` strings. See [Escaping and security](#escaping-and-security).
 - **Light.** No runtime dependencies. `require 'ruby2html'` loads only the renderer; Prism, the Rails glue and the optional beautifier load on first use (or at boot in eager-loading production apps).
-- **Measured.** Benchmarks against Erubi, Slim, Phlex and ViewComponent run in CI on every pull request. See [Performance](#performance) for what they show.
+- **Measured.** Benchmarks against Erubi, Slim, Phlex and ViewComponent run in CI on every pull request that touches the code they measure. See [Performance](#performance) for what they show.
 - **CRuby, JRuby, TruffleRuby.** All three run the same spec suite in CI. See [Compatibility](#compatibility).
 - **AI-ready.** One-file reference for coding agents: [`llms.txt`](llms.txt).
 

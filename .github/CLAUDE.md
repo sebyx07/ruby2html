@@ -8,7 +8,7 @@ Outside contributors do not change `.github/`, `bin/`, the `Rakefile` release ta
 |---|---|---|
 | `workflows/ci.yml` | pull request, push to `main`, manual | The gate. Ends in the aggregate job **`CI OK`** |
 | `workflows/canary.yml` | monthly cron (the 1st), manual | Ruby head and Rails edge. **Not** part of `CI OK`; the monthly `improve` checkup (`.dz/schedules/improve.md`) reads it and fixes what it finds |
-| `workflows/benchmark.yml` | pull request, push to `main`, manual | Non-gating. Renders a table into the job summary and uploads JSON per architecture; a PR gets one sticky comment per architecture with the delta against `main`. Repository variable `BENCH_RUNNER` selects a self-hosted runner for stable numbers |
+| `workflows/benchmark.yml` | pull request and push to `main` that touch what a benchmark measures (`lib/`, `ext/`, `bench/`, `bin/bench-report`, `app/`, `config/`, the bundle, `.ruby-version`), manual | Non-gating. Renders a table into the job summary and uploads JSON per architecture; a PR gets one sticky comment per architecture with the delta against `main`. Repository variable `BENCH_RUNNER` selects a self-hosted runner for stable numbers |
 | `workflows/release.yml` | push to `main` touching `lib/gem/ruby2html/version.rb`, manual | Verify, publish both gems, tag, GitHub release |
 | `dependabot.yml` | weekly, Monday | bundler, github-actions, devcontainers and docker: minor+patch as one PR per ecosystem, security updates batched into one more, majors individually, at most 3 open version-update PRs per ecosystem (security updates have Dependabot's own cap), 14-day cooldown (security updates skip it). The maintainer agent is the only merger; there is no auto-merge workflow |
 | `zizmor.yml` | - | Reviewed exceptions for the workflow security linter, each with its reason |
@@ -17,10 +17,11 @@ Outside contributors do not change `.github/`, `bin/`, the `Rakefile` release ta
 
 | Job | Checks |
 |---|---|
+| `changes` | Reads the changed files: `code=false` when every one is `*.md` or under `docs/`. Every job below `check` then skips; anything unreadable counts as code |
 | `workflows` | actionlint and zizmor on `.github/workflows`; `bin/repo-guards` |
 | `check` | **`bin/check`, the local gate**, on `.ruby-version` with the committed `Gemfile.lock`: repo guards, `bundle-audit`, `rake compile`, RuboCop, the full RSpec suite, Brakeman, `rake smoke`. The only place RuboCop and Brakeman run in CI |
 | `audit` | `bundle-audit check --update` on the committed root `Gemfile.lock`, with plain RubyGems and no bundle |
-| `ruby-versions`, `rails-versions` | Generate the matrices: every maintained CRuby from the gemspec floor (`ruby/actions`), every stable Rails minor from the demo floor (`bin/rails-versions`) |
+| `ruby-versions`, `rubies`, `rails-versions` | Generate the matrices: every maintained CRuby from the gemspec floor (`ruby/actions`; `rubies` drops head), every stable Rails minor from the demo floor (`bin/rails-versions`). A pull request keeps the oldest and the newest of each; a push to `main` and a manual run test them all |
 | `gem-specs` | `rake spec:standalone` on each maintained CRuby, `gemfiles/standalone.gemfile` (unlocked, no Rails) |
 | `native` | `rake spec:gem` and `rake smoke` on Linux arm64 (gcc) and macOS arm64 (clang): the NEON path |
 | `strict-ext` | `bin/build-ext --werror` with gcc and with clang, then `spec/gem` on that build |
@@ -30,7 +31,7 @@ Outside contributors do not change `.github/`, `bin/`, the `Rakefile` release ta
 | `rails` | `spec/features spec/gem/rails` per Rails minor, `gemfiles/rails.gemfile` (unlocked, `RAILS_VERSION`), once with the C extension and once with `RUBY2HTML_DISABLE_EXT=1` |
 | `rails-jruby` | The same specs on JRuby, one Rails line: `activerecord-jdbcsqlite3-adapter` stands in for sqlite3 and exists only for some lines (`RAILS_VERSION` in the job; move it up when a newer adapter ships). `gemfiles/rails_common.rb` holds view_component below 4.16 there (it calls `Ractor` at boot) |
 | `package` | `ruby bin/gem-smoke` with plain RubyGems (no Bundler) on each maintained CRuby |
-| `ci-ok` (`CI OK`) | Fails unless every job above succeeded; skipped or cancelled counts as failed |
+| `ci-ok` (`CI OK`) | Fails unless every job above succeeded; cancelled counts as failed, and so does skipped unless `changes` said docs-only |
 
 ## Rules
 

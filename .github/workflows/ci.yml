@@ -8,7 +8,8 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  # A newer push to a pull request cancels the run it supersedes; a main run never cancels.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -35,7 +36,47 @@ env:
 # (.github/CLAUDE.md lists the jobs).
 # Gems are cached by ruby/setup-ruby (bundler-cache), keyed on the lockfile or
 # gemfile, Ruby version and OS.
+#
+# Cost shape: a change that touches only prose (`*.md`, `docs/`) runs the
+# `workflows` and `check` jobs and skips the rest (the `changes` job decides;
+# "CI OK" still reports). A pull request tests the oldest and the newest Ruby
+# and the oldest and the newest Rails line; the full generated matrices run on
+# every push to main and on a manual run.
 jobs:
+  # Decides whether the change can affect the gated jobs. Anything it cannot
+  # read (API error, a truncated file list, a manual or called run) counts as code.
+  changes:
+    name: Changes / code or docs only
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      code: ${{ steps.detect.outputs.code }}
+    steps:
+      - id: detect
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          PR: ${{ github.event.pull_request.number }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          code=true
+          files=''
+          case "$EVENT" in
+            pull_request)
+              files=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --jq '.[].filename') || files='' ;;
+            push)
+              files=$(gh api "repos/$GITHUB_REPOSITORY/compare/$BEFORE...$GITHUB_SHA" \
+                --jq 'if (.files | length) >= 300 then empty else .files[].filename end') || files='' ;;
+          esac
+          if [ -n "$files" ] && ! printf '%s\n' "$files" | grep -qvE '(\.md$|^docs/)'; then
+            code=false
+          fi
+          printf '%s\n' "$files"
+          echo "code=$code" | tee -a "$GITHUB_OUTPUT"
+
   workflows:
     name: Lint / workflows (actionlint + zizmor) + repo guards
     runs-on: ubuntu-latest
@@ -75,6 +116,8 @@ jobs:
 
   audit:
     name: Security / bundle-audit
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -91,6 +134,8 @@ jobs:
 
   ruby-versions:
     name: Matrix / Ruby versions
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     # Every maintained CRuby (>= 3.1, the gemspec floor) from cache.ruby-lang.org; head is excluded
     # below (monthly in canary.yml), so new Ruby releases are tested automatically.
     uses: ruby/actions/.github/workflows/ruby_versions.yml@f4d74de05ecaf77cb922e27210650f2838191429 # master, 2026-11-18
@@ -98,17 +143,37 @@ jobs:
       engine: cruby
       min_version: 3.1
 
+  rubies:
+    # The CRuby list the matrix jobs use: every maintained release without head (monthly in
+    # canary.yml); a pull request keeps the oldest and the newest.
+    name: Matrix / Ruby versions for this run
+    needs: ruby-versions
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      versions: ${{ steps.pick.outputs.versions }}
+    steps:
+      - id: pick
+        env:
+          ALL: ${{ needs.ruby-versions.outputs.versions }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          versions=$(jq -c 'map(select(. != "head")) | sort_by(split(".") | map(tonumber))' <<<"$ALL")
+          if [ "$EVENT" = pull_request ]; then
+            versions=$(jq -c '[first, last] | unique' <<<"$versions")
+          fi
+          [ "$(jq length <<<"$versions")" -gt 0 ] || { echo "::error::No Ruby versions to test (got '$ALL')."; exit 1; }
+          echo "versions=$versions" | tee -a "$GITHUB_OUTPUT"
+
   gem-specs:
     name: Gem specs / Ruby ${{ matrix.ruby }}
-    needs: ruby-versions
+    needs: rubies
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
-        ruby: ${{ fromJSON(needs.ruby-versions.outputs.versions) }}
-        exclude:
-          - ruby: head # monthly in canary.yml
+        ruby: ${{ fromJSON(needs.rubies.outputs.versions) }}
     env:
       # No Rails and no lockfile: resolves on every Ruby, old and new.
       BUNDLE_GEMFILE: ${{ github.workspace }}/gemfiles/standalone.gemfile
@@ -126,6 +191,8 @@ jobs:
   native:
     # x86_64 = SSE2 path, aarch64/arm64 = NEON path.
     name: C ext / ${{ matrix.name }}
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     strategy:
@@ -149,6 +216,8 @@ jobs:
 
   strict-ext:
     name: C ext / ${{ matrix.cc }} -Werror
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -174,6 +243,8 @@ jobs:
 
   sanitizers:
     name: C ext / ASAN + UBSAN
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -199,6 +270,8 @@ jobs:
 
   fallback:
     name: Pure Ruby fallback / RUBY2HTML_DISABLE_EXT=1
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -217,6 +290,8 @@ jobs:
 
   engines:
     name: Engine / ${{ matrix.ruby }}
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -245,6 +320,8 @@ jobs:
 
   rails-versions:
     name: Matrix / Rails versions
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -254,8 +331,16 @@ jobs:
         with:
           persist-credentials: false
       - id: versions
-        # Every stable Rails MAJOR.MINOR >= 7.2 (the demo app's floor), from rubygems.org.
-        run: echo "versions=$(ruby bin/rails-versions 7.2)" >> "$GITHUB_OUTPUT"
+        # Every stable Rails MAJOR.MINOR >= 7.2 (the demo app's floor), from rubygems.org,
+        # oldest first; a pull request keeps the oldest and the newest line.
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          versions=$(ruby bin/rails-versions 7.2)
+          if [ "$EVENT" = pull_request ]; then
+            versions=$(jq -c '[first, last] | unique' <<<"$versions")
+          fi
+          echo "versions=$versions" | tee -a "$GITHUB_OUTPUT"
 
   rails:
     name: Rails ${{ matrix.rails }}
@@ -294,6 +379,8 @@ jobs:
     # (72.x = Rails 7.2), has no release for a newer line yet. Move RAILS_VERSION up when one ships.
     # gemfiles/rails_common.rb holds view_component below 4.16 on JRuby (it calls Ractor at boot).
     name: Rails 7.2 / JRuby
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
@@ -316,15 +403,13 @@ jobs:
 
   package:
     name: Package / build + install on Ruby ${{ matrix.ruby }}
-    needs: ruby-versions
+    needs: rubies
     runs-on: ubuntu-latest
     timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
-        ruby: ${{ fromJSON(needs.ruby-versions.outputs.versions) }}
-        exclude:
-          - ruby: head # monthly in canary.yml
+        ruby: ${{ fromJSON(needs.rubies.outputs.versions) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -340,18 +425,21 @@ jobs:
   ci-ok:
     name: CI OK
     if: always()
-    # Every job here must pass; nothing is allowed to fail. Ruby head and Rails edge run monthly in
+    # Every job here must pass; nothing is allowed to fail (a docs-only change skips the
+    # jobs gated on `changes`, and only then is `skipped` accepted). Ruby head and Rails edge run monthly in
     # canary.yml, where the developerz.ai `improve` checkup picks up what they find.
-    needs: [workflows, check, audit, gem-specs, native, strict-ext, sanitizers, fallback, engines, rails, rails-jruby, package]
+    needs: [changes, workflows, check, audit, rubies, gem-specs, native, strict-ext, sanitizers, fallback, engines, rails, rails-jruby, package]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: All required jobs passed
         env:
           RESULTS: ${{ join(needs.*.result, ' ') }}
+          CODE: ${{ needs.changes.outputs.code }}
         run: |
-          echo "Results: $RESULTS"
+          echo "Results: $RESULTS (code change: $CODE)"
           for r in $RESULTS; do
+            if [ "$r" = skipped ] && [ "$CODE" = false ]; then continue; fi
             if [ "$r" != success ]; then
               echo "::error::A required job finished with '$r'"
               exit 1
