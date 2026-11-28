@@ -3,463 +3,464 @@
     "ruby": "ruby 4.0.10 (2026-11-19 revision a704b7cd95) +YJIT +PRISM [x86_64-linux]",
     "arch": "x86_64",
     "os": "linux",
+    "yjit": true,
     "cpu": "AMD Ryzen 7 5700X3D 8-Core Processor",
     "cpus": 16,
-    "load_1m": 5.32,
-    "sha": "d2862c593057ed0722b5020248cb681f3064d2b7",
-    "time": "2026-11-28T08:10:18Z",
+    "load_1m": 5.39,
+    "sha": "46e6637d424b02c5c7d0e5c8c867aeb5303724b7",
+    "time": "2026-11-28T08:26:10Z",
     "bench_time": 5.0
   },
   "results": [
     {
       "group": "escape_bench (C ext)",
       "label": "append short clean (10B)",
-      "ips": 292041.4041839462,
-      "ips_sd": 2574.0,
+      "ips": 288582.3956142846,
+      "ips_sd": 9072.0,
       "allocations": 0.02,
       "native": true,
-      "peak_rss_kb": 121604
+      "peak_rss_kb": 113740
     },
     {
       "group": "escape_bench (C ext)",
       "label": "escape_html short clean (10B)",
-      "ips": 742138.4492259482,
-      "ips_sd": 11290.0,
+      "ips": 756207.7424515078,
+      "ips_sd": 19707.0,
       "allocations": 0.0,
       "native": true,
-      "peak_rss_kb": 121604
+      "peak_rss_kb": 113740
     },
     {
       "group": "escape_bench (C ext)",
       "label": "append short dirty (10B)",
-      "ips": 204620.90035797004,
-      "ips_sd": 10240.0,
+      "ips": 205834.41805663478,
+      "ips_sd": 4996.0,
       "allocations": 0.0,
       "native": true,
-      "peak_rss_kb": 121604
+      "peak_rss_kb": 113740
     },
     {
       "group": "escape_bench (C ext)",
       "label": "escape_html short dirty (10B)",
-      "ips": 134135.46493352702,
-      "ips_sd": 8377.0,
+      "ips": 147652.2554477823,
+      "ips_sd": 2489.0,
       "allocations": 100.0,
       "native": true,
-      "peak_rss_kb": 121604
+      "peak_rss_kb": 113740
     },
     {
       "group": "escape_bench (C ext)",
       "label": "append medium clean (200B)",
-      "ips": 199369.60107642823,
-      "ips_sd": 4104.0,
+      "ips": 202316.5962875017,
+      "ips_sd": 3340.0,
       "allocations": 0.0,
       "native": true,
-      "peak_rss_kb": 121604
+      "peak_rss_kb": 113740
     },
     {
       "group": "escape_bench (C ext)",
       "label": "escape_html medium clean (200B)",
-      "ips": 453361.130201438,
-      "ips_sd": 9933.0,
+      "ips": 455728.70708356303,
+      "ips_sd": 15429.0,
       "allocations": 0.0,
       "native": true,
-      "peak_rss_kb": 121604
+      "peak_rss_kb": 113740
     },
     {
       "group": "escape_bench (C ext)",
       "label": "append medium dirty (200B)",
-      "ips": 107090.62610795634,
-      "ips_sd": 5236.0,
+      "ips": 112325.40576999847,
+      "ips_sd": 1408.0,
       "allocations": 0.0,
       "native": true,
-      "peak_rss_kb": 121604
+      "peak_rss_kb": 113740
     },
     {
       "group": "escape_bench (C ext)",
       "label": "escape_html medium dirty (200B)",
-      "ips": 84390.95091346375,
-      "ips_sd": 3960.0,
+      "ips": 90115.45149472517,
+      "ips_sd": 1482.0,
       "allocations": 100.0,
       "native": true,
-      "peak_rss_kb": 121604
+      "peak_rss_kb": 113740
     },
     {
       "group": "escape_bench (C ext)",
       "label": "append long clean (10KB)",
-      "ips": 11091.69806214684,
-      "ips_sd": 312.0,
+      "ips": 10910.983335643636,
+      "ips_sd": 260.0,
       "allocations": 0.0,
       "native": true,
-      "peak_rss_kb": 121604
+      "peak_rss_kb": 113740
     },
     {
       "group": "escape_bench (C ext)",
       "label": "escape_html long clean (10KB)",
-      "ips": 20018.133475334656,
-      "ips_sd": 341.0,
+      "ips": 19925.97589018651,
+      "ips_sd": 614.0,
       "allocations": 0.0,
       "native": true,
-      "peak_rss_kb": 121604
+      "peak_rss_kb": 113740
     },
     {
       "group": "escape_bench (C ext)",
       "label": "append long dirty (10KB)",
-      "ips": 1936.256667421849,
-      "ips_sd": 33.0,
+      "ips": 1946.6781297090024,
+      "ips_sd": 27.0,
       "allocations": 0.0,
       "native": true,
-      "peak_rss_kb": 121604
+      "peak_rss_kb": 113740
     },
     {
       "group": "escape_bench (C ext)",
       "label": "escape_html long dirty (10KB)",
-      "ips": 1905.7484280535532,
+      "ips": 1908.8798404035615,
       "ips_sd": 30.0,
       "allocations": 100.0,
       "native": true,
-      "peak_rss_kb": 121604
+      "peak_rss_kb": 113740
     },
     {
       "group": "escape_bench (pure Ruby)",
       "label": "append short clean (10B)",
-      "ips": 179849.72314015694,
-      "ips_sd": 3666.0,
+      "ips": 178278.31199099342,
+      "ips_sd": 8402.0,
       "allocations": 0.02,
       "native": false,
-      "peak_rss_kb": 142452
+      "peak_rss_kb": 143552
     },
     {
       "group": "escape_bench (pure Ruby)",
       "label": "escape_html short clean (10B)",
-      "ips": 209211.8862622667,
-      "ips_sd": 3766.0,
+      "ips": 212480.31552519652,
+      "ips_sd": 7422.0,
       "allocations": 0.0,
       "native": false,
-      "peak_rss_kb": 142452
+      "peak_rss_kb": 143552
     },
     {
       "group": "escape_bench (pure Ruby)",
       "label": "append short dirty (10B)",
-      "ips": 86749.01711940889,
-      "ips_sd": 1485.0,
+      "ips": 87495.60622463068,
+      "ips_sd": 2418.0,
       "allocations": 100.0,
       "native": false,
-      "peak_rss_kb": 142452
+      "peak_rss_kb": 143552
     },
     {
       "group": "escape_bench (pure Ruby)",
       "label": "escape_html short dirty (10B)",
-      "ips": 103399.20071458597,
-      "ips_sd": 1083.0,
+      "ips": 104134.49460979643,
+      "ips_sd": 2008.0,
       "allocations": 100.0,
       "native": false,
-      "peak_rss_kb": 142452
+      "peak_rss_kb": 143552
     },
     {
       "group": "escape_bench (pure Ruby)",
       "label": "append medium clean (200B)",
-      "ips": 58083.27438584918,
-      "ips_sd": 585.0,
+      "ips": 62265.1850243824,
+      "ips_sd": 1784.0,
       "allocations": 0.0,
       "native": false,
-      "peak_rss_kb": 142452
+      "peak_rss_kb": 143552
     },
     {
       "group": "escape_bench (pure Ruby)",
       "label": "escape_html medium clean (200B)",
-      "ips": 67743.96220333072,
-      "ips_sd": 960.0,
+      "ips": 67601.76080992832,
+      "ips_sd": 1807.0,
       "allocations": 0.0,
       "native": false,
-      "peak_rss_kb": 142452
+      "peak_rss_kb": 143552
     },
     {
       "group": "escape_bench (pure Ruby)",
       "label": "append medium dirty (200B)",
-      "ips": 30397.855462819043,
-      "ips_sd": 605.0,
+      "ips": 30635.335912520335,
+      "ips_sd": 451.0,
       "allocations": 200.0,
       "native": false,
-      "peak_rss_kb": 142452
+      "peak_rss_kb": 143552
     },
     {
       "group": "escape_bench (pure Ruby)",
       "label": "escape_html medium dirty (200B)",
-      "ips": 34368.243225558836,
-      "ips_sd": 353.0,
+      "ips": 34243.537065361226,
+      "ips_sd": 388.0,
       "allocations": 200.0,
       "native": false,
-      "peak_rss_kb": 142452
+      "peak_rss_kb": 143552
     },
     {
       "group": "escape_bench (pure Ruby)",
       "label": "append long clean (10KB)",
-      "ips": 1847.8475503025293,
-      "ips_sd": 19.0,
+      "ips": 1852.5699828787172,
+      "ips_sd": 27.0,
       "allocations": 0.0,
       "native": false,
-      "peak_rss_kb": 142452
+      "peak_rss_kb": 143552
     },
     {
       "group": "escape_bench (pure Ruby)",
       "label": "escape_html long clean (10KB)",
-      "ips": 1943.860448916503,
-      "ips_sd": 9.0,
+      "ips": 1942.5733448285023,
+      "ips_sd": 23.0,
       "allocations": 0.0,
       "native": false,
-      "peak_rss_kb": 142452
+      "peak_rss_kb": 143552
     },
     {
       "group": "escape_bench (pure Ruby)",
       "label": "append long dirty (10KB)",
-      "ips": 1189.5674124696063,
-      "ips_sd": 36.0,
+      "ips": 1175.6275231824259,
+      "ips_sd": 48.0,
       "allocations": 200.0,
       "native": false,
-      "peak_rss_kb": 142452
+      "peak_rss_kb": 143552
     },
     {
       "group": "escape_bench (pure Ruby)",
       "label": "escape_html long dirty (10KB)",
-      "ips": 1278.5952090821352,
-      "ips_sd": 24.0,
+      "ips": 1270.0881061590958,
+      "ips_sd": 51.0,
       "allocations": 200.0,
       "native": false,
-      "peak_rss_kb": 142452
+      "peak_rss_kb": 143552
     },
     {
       "group": "render_bench (C ext)",
       "label": "ruby2html",
-      "ips": 7086.570641469969,
-      "ips_sd": 143.0,
+      "ips": 7162.758644357586,
+      "ips_sd": 124.0,
       "allocations": 419.02,
       "native": true,
-      "peak_rss_kb": 134588
+      "peak_rss_kb": 134484
     },
     {
       "group": "render_bench (C ext)",
       "label": "phlex",
-      "ips": 715.1471344078066,
+      "ips": 724.1273900091832,
       "ips_sd": 8.0,
       "allocations": 6374.0,
       "native": true,
-      "peak_rss_kb": 134588
+      "peak_rss_kb": 134484
     },
     {
       "group": "render_bench (C ext)",
       "label": "erubi",
-      "ips": 11409.569538733425,
-      "ips_sd": 95.0,
+      "ips": 11535.386644291932,
+      "ips_sd": 80.0,
       "allocations": 713.0,
       "native": true,
-      "peak_rss_kb": 134588
+      "peak_rss_kb": 134484
     },
     {
       "group": "render_bench (pure Ruby)",
       "label": "ruby2html",
-      "ips": 3020.698735909281,
-      "ips_sd": 41.0,
+      "ips": 2926.018297175895,
+      "ips_sd": 84.0,
       "allocations": 1029.02,
       "native": false,
-      "peak_rss_kb": 134988
+      "peak_rss_kb": 134960
     },
     {
       "group": "render_bench (pure Ruby)",
       "label": "phlex",
-      "ips": 716.8991390278518,
-      "ips_sd": 12.0,
+      "ips": 717.2065695648935,
+      "ips_sd": 13.0,
       "allocations": 6374.0,
       "native": false,
-      "peak_rss_kb": 134988
+      "peak_rss_kb": 134960
     },
     {
       "group": "render_bench (pure Ruby)",
       "label": "erubi",
-      "ips": 11402.464432362647,
-      "ips_sd": 187.0,
+      "ips": 11267.867267329944,
+      "ips_sd": 206.0,
       "allocations": 713.0,
       "native": false,
-      "peak_rss_kb": 134988
+      "peak_rss_kb": 134960
     },
     {
       "group": "tag_bench (C ext)",
       "label": "li(text)",
-      "ips": 212712.97877523274,
-      "ips_sd": 2334.0,
+      "ips": 199869.76356851563,
+      "ips_sd": 4524.0,
       "allocations": 7.02,
       "native": true,
-      "peak_rss_kb": 37196
+      "peak_rss_kb": 37276
     },
     {
       "group": "tag_bench (C ext)",
       "label": "li(dirty text)",
-      "ips": 179169.16913684996,
-      "ips_sd": 2496.0,
+      "ips": 166196.9332334359,
+      "ips_sd": 4280.0,
       "allocations": 7.0,
       "native": true,
-      "peak_rss_kb": 37196
+      "peak_rss_kb": 37276
     },
     {
       "group": "tag_bench (C ext)",
       "label": "br",
-      "ips": 328446.75178071234,
-      "ips_sd": 6782.0,
+      "ips": 331558.89891630766,
+      "ips_sd": 6191.0,
       "allocations": 7.0,
       "native": true,
-      "peak_rss_kb": 37196
+      "peak_rss_kb": 37276
     },
     {
       "group": "tag_bench (C ext)",
       "label": "span(text, class:)",
-      "ips": 36226.16652465738,
-      "ips_sd": 3727.0,
+      "ips": 38086.545277219295,
+      "ips_sd": 627.0,
       "allocations": 207.0,
       "native": true,
-      "peak_rss_kb": 37196
+      "peak_rss_kb": 37276
     },
     {
       "group": "tag_bench (C ext)",
       "label": "a(text, href:, class:)",
-      "ips": 27145.310576952597,
-      "ips_sd": 396.0,
+      "ips": 25786.854002171247,
+      "ips_sd": 2301.0,
       "allocations": 207.0,
       "native": true,
-      "peak_rss_kb": 37196
+      "peak_rss_kb": 37276
     },
     {
       "group": "tag_bench (C ext)",
       "label": "div { block }",
-      "ips": 151856.99030903768,
-      "ips_sd": 3469.0,
+      "ips": 145650.94942794341,
+      "ips_sd": 11197.0,
       "allocations": 7.0,
       "native": true,
-      "peak_rss_kb": 37196
+      "peak_rss_kb": 37276
     },
     {
       "group": "tag_bench (C ext)",
       "label": "div(class:) { block }",
-      "ips": 33485.54178776479,
-      "ips_sd": 590.0,
+      "ips": 33914.059081819396,
+      "ips_sd": 2014.0,
       "allocations": 207.0,
       "native": true,
-      "peak_rss_kb": 37196
+      "peak_rss_kb": 37276
     },
     {
       "group": "tag_bench (pure Ruby)",
       "label": "li(text)",
-      "ips": 73877.21889956512,
-      "ips_sd": 2470.0,
+      "ips": 71534.37314096253,
+      "ips_sd": 5973.0,
       "allocations": 107.02,
       "native": false,
-      "peak_rss_kb": 26296
+      "peak_rss_kb": 26412
     },
     {
       "group": "tag_bench (pure Ruby)",
       "label": "li(dirty text)",
-      "ips": 56953.28519625448,
-      "ips_sd": 1064.0,
+      "ips": 56598.76890305962,
+      "ips_sd": 1219.0,
       "allocations": 207.0,
       "native": false,
-      "peak_rss_kb": 26296
+      "peak_rss_kb": 26412
     },
     {
       "group": "tag_bench (pure Ruby)",
       "label": "br",
-      "ips": 115648.0118351006,
-      "ips_sd": 2449.0,
+      "ips": 109370.50150778852,
+      "ips_sd": 9384.0,
       "allocations": 107.0,
       "native": false,
-      "peak_rss_kb": 26296
+      "peak_rss_kb": 26412
     },
     {
       "group": "tag_bench (pure Ruby)",
       "label": "span(text, class:)",
-      "ips": 18508.395138493255,
-      "ips_sd": 403.0,
+      "ips": 15515.615364812344,
+      "ips_sd": 3316.0,
       "allocations": 207.0,
       "native": false,
-      "peak_rss_kb": 26296
+      "peak_rss_kb": 26412
     },
     {
       "group": "tag_bench (pure Ruby)",
       "label": "a(text, href:, class:)",
-      "ips": 11696.898790081665,
-      "ips_sd": 289.0,
+      "ips": 11642.700757463545,
+      "ips_sd": 777.0,
       "allocations": 207.0,
       "native": false,
-      "peak_rss_kb": 26296
+      "peak_rss_kb": 26412
     },
     {
       "group": "tag_bench (pure Ruby)",
       "label": "div { block }",
-      "ips": 84281.42364987507,
-      "ips_sd": 993.0,
+      "ips": 85178.44408489203,
+      "ips_sd": 1873.0,
       "allocations": 107.0,
       "native": false,
-      "peak_rss_kb": 26296
+      "peak_rss_kb": 26412
     },
     {
       "group": "tag_bench (pure Ruby)",
       "label": "div(class:) { block }",
-      "ips": 17229.616296609,
-      "ips_sd": 432.0,
+      "ips": 17401.27562619105,
+      "ips_sd": 314.0,
       "allocations": 207.0,
       "native": false,
-      "peak_rss_kb": 26296
+      "peak_rss_kb": 26412
     },
     {
       "group": "Rails request (C ext)",
       "label": "ERB",
-      "ips": 611.2680845292276,
-      "ips_sd": 59.0,
-      "allocations": 2869.12,
+      "ips": 601.2466337290643,
+      "ips_sd": 39.0,
+      "allocations": 2982.12,
       "native": true,
-      "peak_rss_kb": 225844
+      "peak_rss_kb": 225216
     },
     {
       "group": "Rails request (C ext)",
       "label": "Slim",
-      "ips": 683.0978652934552,
-      "ips_sd": 23.0,
-      "allocations": 4009.1,
+      "ips": 677.1137222715109,
+      "ips_sd": 8.0,
+      "allocations": 4184.1,
       "native": true,
-      "peak_rss_kb": 225844
+      "peak_rss_kb": 225216
     },
     {
       "group": "Rails request (C ext)",
       "label": "Phlex",
-      "ips": 577.3338270122388,
-      "ips_sd": 13.0,
-      "allocations": 5618.1,
+      "ips": 561.2777509106535,
+      "ips_sd": 10.0,
+      "allocations": 5941.1,
       "native": true,
-      "peak_rss_kb": 225844
+      "peak_rss_kb": 225216
     },
     {
       "group": "Rails request (C ext)",
       "label": "ruby2html .html.rb templates",
-      "ips": 623.8126321562627,
-      "ips_sd": 25.0,
-      "allocations": 4450.1,
+      "ips": 633.7971369442037,
+      "ips_sd": 18.0,
+      "allocations": 4685.1,
       "native": true,
-      "peak_rss_kb": 225844
+      "peak_rss_kb": 225216
     },
     {
       "group": "Rails request (C ext)",
       "label": "ViewComponent + ruby2html",
-      "ips": 567.5851859100266,
-      "ips_sd": 23.0,
-      "allocations": 4178.12,
+      "ips": 594.4066885205236,
+      "ips_sd": 10.0,
+      "allocations": 4393.12,
       "native": true,
-      "peak_rss_kb": 225844
+      "peak_rss_kb": 225216
     },
     {
       "group": "Rails request (C ext)",
       "label": "Ruby2html::Component",
-      "ips": 612.8232421995128,
-      "ips_sd": 25.0,
-      "allocations": 4321.1,
+      "ips": 642.7518349822756,
+      "ips_sd": 13.0,
+      "allocations": 4536.1,
       "native": true,
-      "peak_rss_kb": 225844
+      "peak_rss_kb": 225216
     }
   ]
 }

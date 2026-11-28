@@ -110,14 +110,19 @@ RAILS_BENCH = <<~'RUBY'
   end
 RUBY
 
+# Production Rails runs with YJIT: the benchmark processes get --yjit whenever this Ruby has it,
+# unless BENCH_NO_YJIT=1.
+def yjit?
+  defined?(RubyVM::YJIT) && ENV['BENCH_NO_YJIT'] != '1' ? true : false
+end
+
 def run_bench(script_args, group:, env: {})
   Dir.mktmpdir('r2h-bench') do |dir|
     hook = File.join(dir, 'hook.rb')
     json = File.join(dir, 'out.json')
     File.write(hook, HOOK)
     full_env = { 'R2H_BENCH_JSON' => json, 'R2H_BENCH_GROUP' => group, 'BENCH_TIME' => ENV.fetch('BENCH_TIME', '1') }.merge(env)
-    # Production Rails runs with YJIT; benchmark with it whenever this Ruby has it.
-    yjit = defined?(RubyVM::YJIT) && ENV['BENCH_NO_YJIT'] != '1' ? ['--yjit'] : []
+    yjit = yjit? ? ['--yjit'] : []
     cmd = [RbConfig.ruby, *yjit, '-I', File.join(ROOT, 'lib/gem'), '-r', hook, *script_args]
     $stderr.puts "== #{group}"
     out, status = Open3.capture2e(full_env, *cmd, chdir: ROOT)
@@ -168,7 +173,7 @@ def run_all(out_path, skip_rails:)
   report = {
     'meta' => {
       'ruby' => RUBY_DESCRIPTION, 'arch' => RbConfig::CONFIG['host_cpu'], 'os' => RbConfig::CONFIG['host_os'],
-      'cpu' => cpu_model, 'cpus' => cpu_threads, 'load_1m' => load_average,
+      'yjit' => yjit?, 'cpu' => cpu_model, 'cpus' => cpu_threads, 'load_1m' => load_average,
       'sha' => ENV['GITHUB_SHA'] || `git -C #{ROOT} rev-parse HEAD 2>/dev/null`.strip,
       'time' => Time.now.utc.iso8601, 'bench_time' => Float(ENV.fetch('BENCH_TIME', 1))
     },

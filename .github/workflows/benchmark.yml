@@ -20,12 +20,16 @@ on:
       - 'ext/**'
       - 'bench/**'
       - 'bin/bench-report'
+      - 'bin/rails'
+      - 'Rakefile'
       - 'app/**'
       - 'config/**'
+      - 'db/**'
       - 'Gemfile'
       - 'Gemfile.lock'
       - '.ruby-version'
       - '.github/workflows/benchmark.yml'
+      - '!**/CLAUDE.md'
   push:
     branches: [main]
     paths: *bench-paths

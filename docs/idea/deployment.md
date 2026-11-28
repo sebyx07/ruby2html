@@ -9,7 +9,7 @@ hand-made tag.
   and only then creates the `v` tag and the GitHub release from the version's `CHANGELOG.md`
   section. Procedure and recovery: [`docs/release.md`](../release.md).
 - **Who decides.** The weekly `release-due` checkup (`.dz/schedules/release-due.md`) judges whether
-  users get something from a release and opens the release pull request. A fix for a published high or critical advisory in what the gem
+  users get something from a release and opens the release pull request. A fix for a published high, critical or KEV-listed advisory in what the gem
   ships is the one release the owner may cut off-cycle. A major release is the owner's call.
 - **Nothing else deploys.** The Rails app under `app/` is a demo and a test bed: `bin/dev` runs it
   locally, and no workflow deploys it.

@@ -149,9 +149,10 @@ end
 
 def snapshot_line(meta)
   cpu = meta['cpu'] ? "#{meta['cpu']}, " : ''
+  yjit = meta.key?('yjit') ? ", benchmark processes run #{meta['yjit'] ? 'with' : 'without'} YJIT" : ''
   load = meta['load_1m'] ? " The machine's 1-minute load average was #{meta['load_1m']} on #{meta['cpus']} CPU threads when the run ended; ± is each benchmark's own standard deviation." : ''
   "Measured #{Time.parse(meta['time']).utc.strftime('%Y-%m-%d')} on #{cpu}#{meta['arch']} #{meta['os']}, `#{meta['ruby']}`, " \
-    "commit `#{meta['sha'].to_s[0, 10]}`, #{meta['bench_time']}s per benchmark, YJIT on where this Ruby has it. " \
+    "commit `#{meta['sha'].to_s[0, 10]}`, #{meta['bench_time']}s per benchmark#{yjit}. " \
     "One run on one machine: compare the bars within a chart, not against another machine.#{load}"
 end
 
