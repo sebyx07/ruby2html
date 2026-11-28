@@ -17,7 +17,8 @@ not restate them.
   another element's attributes on a collision. Correct output outranks a faster wrong one.
 - **Speed is measured, never claimed.** The C extension exists for speed, so a hot-path change
   carries before and after numbers, and the docs say only what the benchmark workflow measures:
-  no hardcoded numbers or version lists (`.github/workflows/benchmark.yml`).
+  no hand-typed numbers or version lists (`.github/workflows/benchmark.yml`). The README charts
+  are generated from one committed, dated run (`bin/bench-charts`, `docs/benchmarks/x86_64-linux.json`).
 - **Light to adopt.** No runtime dependency, and `require 'ruby2html'` loads only the renderer:
   a view helper should not decide what else an app loads.
 - **Rails behaves like Rails.** Helpers such as `form_with` delegate to Rails' own instead of

@@ -128,6 +128,29 @@ def run_bench(script_args, group:, env: {})
   end
 end
 
+# Linux only (/proc/cpuinfo): nil elsewhere, and the reports then leave the CPU out.
+def cpu_model
+  return unless File.readable?('/proc/cpuinfo')
+
+  File.read('/proc/cpuinfo')[/^model name\s*:\s*(.+)$/, 1]
+end
+
+# Every hardware thread of the machine, not only the ones this process may run on (a run pinned
+# with taskset would otherwise report its own slice next to the machine-wide load average).
+def cpu_threads
+  return unless File.readable?('/proc/cpuinfo')
+
+  File.read('/proc/cpuinfo').scan(/^processor\s*:/).size
+end
+
+# The 1-minute load average when the run ends (Linux only): how busy the machine was with
+# other work, which is what widens the ± of every benchmark.
+def load_average
+  return unless File.readable?('/proc/loadavg')
+
+  File.read('/proc/loadavg').split.first.to_f
+end
+
 def run_all(out_path, skip_rails:)
   results = []
   Dir[File.join(ROOT, 'bench/*.rb')].sort.each do |script|
@@ -145,6 +168,7 @@ def run_all(out_path, skip_rails:)
   report = {
     'meta' => {
       'ruby' => RUBY_DESCRIPTION, 'arch' => RbConfig::CONFIG['host_cpu'], 'os' => RbConfig::CONFIG['host_os'],
+      'cpu' => cpu_model, 'cpus' => cpu_threads, 'load_1m' => load_average,
       'sha' => ENV['GITHUB_SHA'] || `git -C #{ROOT} rev-parse HEAD 2>/dev/null`.strip,
       'time' => Time.now.utc.iso8601, 'bench_time' => Float(ENV.fetch('BENCH_TIME', 1))
     },

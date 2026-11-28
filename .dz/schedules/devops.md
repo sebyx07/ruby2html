@@ -80,8 +80,7 @@ One per axis; a handoff reports one failing row.
 - Skip specs, fixtures, generated and vendored code.
 - A check that does not apply to this repository is not a failure.
 - One handoff per row: every defect on an axis goes in it, worst first.
-- A row the daily `health` checkup already filed (`.dz/schedules/health.md`) is scored, not filed
-  again.
+- A row that already has an open issue is scored, not filed again.
 
 ## Every finding
 

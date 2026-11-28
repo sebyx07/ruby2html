@@ -6,7 +6,7 @@ Install: `gem 'ruby2html'`. Ruby >= 3.1; Rails >= 7.2 for the Rails integration 
 
 Implementations, all producing the same output: on CRuby the tag methods, attribute serialization and escaping are a C extension (compiled on install; if it can't be built the gem installs anyway and uses the pure-Ruby implementation). JRuby runs the pure-Ruby implementation plus a prebuilt Java escaper, shipped as the `-java` platform gem. TruffleRuby runs the pure-Ruby implementation. CI runs the renderer specs on every CRuby from 3.1, on JRuby and on TruffleRuby; the Rails integration is tested on CRuby with every stable Rails minor from 7.2, and on JRuby with one Rails line.
 
-Performance, as the CI benchmark workflow measures it (every push and pull request that changes measured code; current tables in the latest run of https://github.com/sebyx07/ruby2html/actions/workflows/benchmark.yml): in a full Rails request ruby2html is on par with ERB and Slim, within runner noise, and ahead of Phlex. In a standalone page render it is roughly 10x faster than Phlex and behind Erubi (compiled ERB) by about 1.3x to 1.5x. Do not describe it as faster than ERB. Local run: `bundle exec rake bench`.
+Performance, as the CI benchmark workflow measures it (every push and pull request that changes measured code; current tables in the latest run of https://github.com/sebyx07/ruby2html/actions/workflows/benchmark.yml): in a full Rails request ruby2html is on par with ERB and Slim, within runner noise, and ahead of Phlex. In a standalone page render it is roughly 10x faster than Phlex and behind Erubi (compiled ERB) by about 1.3x to 1.6x. Do not describe it as faster than ERB. Local run: `bundle exec rake bench`.
 
 **DSL rules**
 

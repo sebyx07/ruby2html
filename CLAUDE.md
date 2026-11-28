@@ -25,7 +25,7 @@ RubyGems gem (`ruby2html.gemspec`; version in `lib/gem/ruby2html/version.rb`) th
 | Demo Rails app | `app/`, `config/`, `db/` | Not packaged; loads the gem with `require_relative '../lib/gem/ruby2html'` |
 | Specs, benchmarks | `spec/`, `bench/*.rb`, `spec/benchmarks/` | RSpec; benchmark scripts; request-level comparison against ERB, Slim, Phlex |
 
-Supported: every maintained CRuby from the gemspec floor up, JRuby, TruffleRuby, Rails from the demo app's floor up. Tested versions are generated in `.github/workflows/ci.yml`; the dev Ruby is `.ruby-version`. Never restate version lists or benchmark numbers in docs: point at the CI matrix, the lockfiles and the benchmark workflow. RuboCop's `TargetRubyVersion` is the floor: no newer syntax in `lib/`.
+Supported: every maintained CRuby from the gemspec floor up, JRuby, TruffleRuby, Rails from the demo app's floor up. Tested versions are generated in `.github/workflows/ci.yml`; the dev Ruby is `.ruby-version`. Never restate version lists or benchmark numbers in docs: point at the CI matrix, the lockfiles and the benchmark workflow (README charts: `bin/bench-charts`). RuboCop's `TargetRubyVersion` is the floor: no newer syntax in `lib/`.
 
 ## Invariants
 

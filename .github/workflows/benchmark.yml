@@ -32,8 +32,9 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  # A main run is the baseline pull requests compare against: never cancel it.
+  # One group per pull request; every other run gets its own group, because a shared group
+  # drops a queued run when a third one arrives, even with cancel-in-progress off.
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:

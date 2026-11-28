@@ -11,6 +11,7 @@ Outside contributors do not change `.github/`, `bin/`, the `Rakefile` release ta
 | `workflows/benchmark.yml` | pull request and push to `main` that touch what a benchmark measures (`lib/`, `ext/`, `bench/`, `bin/bench-report`, `app/`, `config/`, the bundle, `.ruby-version`), manual | Non-gating. Renders a table into the job summary and uploads JSON per architecture; a PR gets one sticky comment per architecture with the delta against `main`. Repository variable `BENCH_RUNNER` selects a self-hosted runner for stable numbers |
 | `workflows/release.yml` | push to `main` touching `lib/gem/ruby2html/version.rb`, manual | Verify, publish both gems, tag, GitHub release |
 | `dependabot.yml` | weekly, Monday | bundler, github-actions, devcontainers and docker: minor+patch as one PR per ecosystem, security updates batched into one more, majors individually, at most 3 open version-update PRs per ecosystem (security updates have Dependabot's own cap), 14-day cooldown (security updates skip it). The maintainer agent is the only merger; there is no auto-merge workflow |
+| `../bin/bench-charts` | by hand, after `bin/bench-report run docs/benchmarks/x86_64-linux.json` | Not a workflow: redraws `docs/benchmarks/*.svg` and the README Performance block from that committed run. `--check` (run by `spec/ci/bench_charts_spec.rb`, so by `bin/check`) fails when they drift |
 | `zizmor.yml` | - | Reviewed exceptions for the workflow security linter, each with its reason |
 
 ## `ci.yml` jobs
@@ -70,5 +71,5 @@ Rules:
 - Never `gem push`, `rake release`, `gh release create`, or push a `v*` tag. The tag is an output of the release, created after RubyGems has the gems.
 - A merge that does not change `version.rb` publishes nothing. Do not write "released" until `gem list -r ruby2html` shows the version.
 - A published version is never pushed again, and never bumped past to repair it. Recovery for a run that failed before or after publishing: `docs/release.md`, section "After". `gem yank`: the owner only.
-- The weekly `release-due` checkup (`.dz/schedules/release-due.md`) decides when a release PR is opened; `security-release` covers a confirmed security fix on the other days. A major release is the owner's call.
+- The weekly `release-due` checkup (`.dz/schedules/release-due.md`) decides when a release PR is opened; a fix for a published high or critical advisory in what ships is the one release the owner may cut off-cycle. A major release is the owner's call.
 - One-time owner setup: the RubyGems trusted publisher (repository `sebyx07/ruby2html`, workflow `release.yml`, environment `release`) and the ruleset requiring `CI OK`.

@@ -39,9 +39,8 @@ estimate, and is left out of the total.
 9. **Issues are decided.** No issue open over 30 days with no triage decision.
 10. **Deploy verdict wired.** One lane ships here: `.github/workflows/release.yml` publishes the
     C-extension gem and the `-java` gem to RubyGems when `lib/gem/ruby2html/version.rb` changes on
-    `main`, then creates the tag and the GitHub release. It must report its outcome: a failed run,
-    and the daily `health` checkup's `release-unpublished` and `rubygems-version-lag` rows in
-    `.dz/schedules/health.md`. Fails when the lane ships and nothing reports. The demo Rails app
+    `main`, then creates the tag and the GitHub release. It must report its outcome: a failed workflow
+    run is that report. Fails when the lane ships and nothing reports. The demo Rails app
     under `app/` is not deployed anywhere: no verdict is owed for it.
 
 No file holds checks 7, 8 and 9: grade each from its Signals section; a missing one is `not read`.
@@ -73,7 +72,7 @@ One per check; a handoff reports one failing row.
 - A check that does not apply here passes, and keeps its 10 points. Ruby has no separate type
   check: the compile under `-Wall -Wextra` and RuboCop stand in for it in row `one-command-gate`.
 - One handoff per failing row: every site of the failure goes in it, worst first.
-- A row the daily `health` checkup already filed (an open issue with its title: a red `main`, an
+- A row that already has an open issue (its title: a red `main`, an
   unpublished release, a stuck Dependabot pull request) is scored, not filed again.
 
 ## Every finding
