@@ -110,14 +110,19 @@ RAILS_BENCH = <<~'RUBY'
   end
 RUBY
 
+# Production Rails runs with YJIT: the benchmark processes get --yjit whenever this Ruby has it,
+# unless BENCH_NO_YJIT=1.
+def yjit?
+  defined?(RubyVM::YJIT) && ENV['BENCH_NO_YJIT'] != '1' ? true : false
+end
+
 def run_bench(script_args, group:, env: {})
   Dir.mktmpdir('r2h-bench') do |dir|
     hook = File.join(dir, 'hook.rb')
     json = File.join(dir, 'out.json')
     File.write(hook, HOOK)
     full_env = { 'R2H_BENCH_JSON' => json, 'R2H_BENCH_GROUP' => group, 'BENCH_TIME' => ENV.fetch('BENCH_TIME', '1') }.merge(env)
-    # Production Rails runs with YJIT; benchmark with it whenever this Ruby has it.
-    yjit = defined?(RubyVM::YJIT) && ENV['BENCH_NO_YJIT'] != '1' ? ['--yjit'] : []
+    yjit = yjit? ? ['--yjit'] : []
     cmd = [RbConfig.ruby, *yjit, '-I', File.join(ROOT, 'lib/gem'), '-r', hook, *script_args]
     $stderr.puts "== #{group}"
     out, status = Open3.capture2e(full_env, *cmd, chdir: ROOT)
@@ -126,6 +131,29 @@ def run_bench(script_args, group:, env: {})
     data = JSON.parse(File.read(json))
     data['results'].each { |r| r.merge!('native' => data['native'], 'peak_rss_kb' => data['peak_rss_kb']) }
   end
+end
+
+# Linux only (/proc/cpuinfo): nil elsewhere, and the reports then leave the CPU out.
+def cpu_model
+  return unless File.readable?('/proc/cpuinfo')
+
+  File.read('/proc/cpuinfo')[/^model name\s*:\s*(.+)$/, 1]
+end
+
+# Every hardware thread of the machine, not only the ones this process may run on (a run pinned
+# with taskset would otherwise report its own slice next to the machine-wide load average).
+def cpu_threads
+  return unless File.readable?('/proc/cpuinfo')
+
+  File.read('/proc/cpuinfo').scan(/^processor\s*:/).size
+end
+
+# The 1-minute load average when the run ends (Linux only): how busy the machine was with
+# other work, which is what widens the ± of every benchmark.
+def load_average
+  return unless File.readable?('/proc/loadavg')
+
+  File.read('/proc/loadavg').split.first.to_f
 end
 
 def run_all(out_path, skip_rails:)
@@ -145,6 +173,7 @@ def run_all(out_path, skip_rails:)
   report = {
     'meta' => {
       'ruby' => RUBY_DESCRIPTION, 'arch' => RbConfig::CONFIG['host_cpu'], 'os' => RbConfig::CONFIG['host_os'],
+      'yjit' => yjit?, 'cpu' => cpu_model, 'cpus' => cpu_threads, 'load_1m' => load_average,
       'sha' => ENV['GITHUB_SHA'] || `git -C #{ROOT} rev-parse HEAD 2>/dev/null`.strip,
       'time' => Time.now.utc.iso8601, 'bench_time' => Float(ENV.fetch('BENCH_TIME', 1))
     },

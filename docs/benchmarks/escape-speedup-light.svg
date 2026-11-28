@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="236" viewBox="0 0 760 236" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" role="img" aria-label="escape_html: C extension over pure Ruby">
+<text x="0" y="16" font-size="14" font-weight="600" fill="#191919">escape_html: C extension over pure Ruby</text>
+<text x="0" y="36" font-size="12" fill="#666666">times faster, by input (clean = nothing to escape) · bench/escape_bench.rb</text>
+<text x="250" y="68" font-size="12" text-anchor="end" fill="#191919">short clean (10B)</text>
+<path d="M260,56 h120.9 a4.0,4.0 0 0 1 4.0,4.0 v8.0 a4.0,4.0 0 0 1 -4.0,4.0 h-120.9 z" fill="#257de0"/>
+<text x="392.9" y="68" font-size="12" fill="#191919">3.6x</text>
+<text x="250" y="98" font-size="12" text-anchor="end" fill="#191919">short dirty (10B)</text>
+<path d="M260,86 h45.8 a4.0,4.0 0 0 1 4.0,4.0 v8.0 a4.0,4.0 0 0 1 -4.0,4.0 h-45.8 z" fill="#257de0"/>
+<text x="317.8" y="98" font-size="12" fill="#191919">1.4x</text>
+<text x="250" y="128" font-size="12" text-anchor="end" fill="#191919">medium clean (200B)</text>
+<path d="M260,116 h232.6 a4.0,4.0 0 0 1 4.0,4.0 v8.0 a4.0,4.0 0 0 1 -4.0,4.0 h-232.6 z" fill="#257de0"/>
+<text x="504.6" y="128" font-size="12" fill="#191919">6.7x</text>
+<text x="250" y="158" font-size="12" text-anchor="end" fill="#191919">medium dirty (200B)</text>
+<path d="M260,146 h88.4 a4.0,4.0 0 0 1 4.0,4.0 v8.0 a4.0,4.0 0 0 1 -4.0,4.0 h-88.4 z" fill="#257de0"/>
+<text x="360.4" y="158" font-size="12" fill="#191919">2.6x</text>
+<text x="250" y="188" font-size="12" text-anchor="end" fill="#191919">long clean (10KB)</text>
+<path d="M260,176 h356.0 a4.0,4.0 0 0 1 4.0,4.0 v8.0 a4.0,4.0 0 0 1 -4.0,4.0 h-356.0 z" fill="#257de0"/>
+<text x="628.0" y="188" font-size="12" fill="#191919">10.3x</text>
+<text x="250" y="218" font-size="12" text-anchor="end" fill="#191919">long dirty (10KB)</text>
+<path d="M260,206 h48.7 a4.0,4.0 0 0 1 4.0,4.0 v8.0 a4.0,4.0 0 0 1 -4.0,4.0 h-48.7 z" fill="#257de0"/>
+<text x="320.7" y="218" font-size="12" fill="#191919">1.5x</text>
+</svg>

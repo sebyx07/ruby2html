@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="198" viewBox="0 0 760 198" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" role="img" aria-label="Standalone page render (100-item page)">
+<text x="0" y="16" font-size="14" font-weight="600" fill="#efefef">Standalone page render (100-item page)</text>
+<text x="0" y="36" font-size="12" fill="#9c9c9c">renders per second, higher is better · bench/render_bench.rb</text>
+<rect x="260" y="51" width="10" height="10" rx="2" fill="#338ced"/><text x="276" y="60" font-size="12" fill="#9c9c9c">ruby2html</text>
+<rect x="360" y="51" width="10" height="10" rx="2" fill="#7a7a7a"/><text x="376" y="60" font-size="12" fill="#9c9c9c">other engines</text>
+<text x="250" y="90" font-size="12" text-anchor="end" fill="#efefef">Erubi (compiled ERB)</text>
+<path d="M260,78 h356.0 a4.0,4.0 0 0 1 4.0,4.0 v8.0 a4.0,4.0 0 0 1 -4.0,4.0 h-356.0 z" fill="#7a7a7a"/>
+<text x="628.0" y="90" font-size="12" fill="#efefef">11,535</text>
+<text x="250" y="120" font-size="12" text-anchor="end" fill="#efefef" font-weight="600">ruby2html (C extension)</text>
+<path d="M260,108 h219.5 a4.0,4.0 0 0 1 4.0,4.0 v8.0 a4.0,4.0 0 0 1 -4.0,4.0 h-219.5 z" fill="#338ced"/>
+<text x="491.5" y="120" font-size="12" fill="#efefef">7,163</text>
+<text x="250" y="150" font-size="12" text-anchor="end" fill="#efefef" font-weight="600">ruby2html (pure Ruby)</text>
+<path d="M260,138 h87.3 a4.0,4.0 0 0 1 4.0,4.0 v8.0 a4.0,4.0 0 0 1 -4.0,4.0 h-87.3 z" fill="#338ced"/>
+<text x="359.3" y="150" font-size="12" fill="#efefef">2,926</text>
+<text x="250" y="180" font-size="12" text-anchor="end" fill="#efefef">Phlex</text>
+<path d="M260,168 h18.6 a4.0,4.0 0 0 1 4.0,4.0 v8.0 a4.0,4.0 0 0 1 -4.0,4.0 h-18.6 z" fill="#7a7a7a"/>
+<text x="290.6" y="180" font-size="12" fill="#efefef">724</text>
+</svg>

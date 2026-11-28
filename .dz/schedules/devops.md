@@ -23,7 +23,8 @@ size or a rate you cannot see is marked `measure first: yes`. Do not fix what is
    - `bin/check` and CI run the same gate (the `check` job of `ci.yml` runs `bin/check`; the
      aggregate `CI OK` job needs every other job; `bin/repo-guards` fails when either drifts), and
      `release.yml` verifies the commit before it publishes.
-   - What `bin/check` cannot run is still proved before merge: the Ruby and Rails matrices, the
+   - What `bin/check` cannot run is still proved before merge (a pull request runs the oldest and
+     the newest Ruby and Rails, every code push to `main` the full matrices): the Ruby and Rails matrices, the
      pure-Ruby run (`RUBY2HTML_DISABLE_EXT=1`), JRuby and TruffleRuby, `-Werror` and the
      sanitizers. A job missing from `CI OK`'s `needs` gates nothing.
    - `Gemfile.lock` is committed and agrees with `Gemfile`; Ruby is pinned once, in
@@ -80,8 +81,7 @@ One per axis; a handoff reports one failing row.
 - Skip specs, fixtures, generated and vendored code.
 - A check that does not apply to this repository is not a failure.
 - One handoff per row: every defect on an axis goes in it, worst first.
-- A row the daily `health` checkup already filed (`.dz/schedules/health.md`) is scored, not filed
-  again.
+- A row that already has an open issue is scored, not filed again.
 
 ## Every finding
 

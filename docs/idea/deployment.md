@@ -9,13 +9,9 @@ hand-made tag.
   and only then creates the `v` tag and the GitHub release from the version's `CHANGELOG.md`
   section. Procedure and recovery: [`docs/release.md`](../release.md).
 - **Who decides.** The weekly `release-due` checkup (`.dz/schedules/release-due.md`) judges whether
-  users get something from a release and opens the release pull request; `security-release`
-  (`.dz/schedules/security-release.md`) covers a confirmed security fix on the other days. A major
-  release is the owner's call.
+  users get something from a release and opens the release pull request. A fix for a published high, critical or KEV-listed advisory in what the gem
+  ships is the one release the owner may cut off-cycle. A major release is the owner's call.
 - **Nothing else deploys.** The Rails app under `app/` is a demo and a test bed: `bin/dev` runs it
   locally, and no workflow deploys it.
 
-Outcome checks: the daily `health` checkup (`.dz/schedules/health.md`) verifies that `main` is
-green, the last release run succeeded, RubyGems serves `Ruby2html::VERSION`, benchmarks still run,
-Dependabot is not stuck and the monthly canary (`.github/workflows/canary.yml`: Ruby head, Rails
-edge) ran.
+Outcome checks: a workflow run is its own verdict, and the platform files a fix when `main` is red. Nothing polls the published package or the site on a schedule: the `health` checkup was removed on 2026-11-28 (across the fleet it fired 270 times in 30 days and produced no merged fix).
